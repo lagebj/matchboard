@@ -123,6 +123,16 @@ general-purpose event-sourcing system. Scope and lifetime:
   `initialLiveEvents()` had the identical blind spot in reverse. `saveB08JourneyReport()` now takes
   an explicit `origin`, seeded only on the very first write and never silently overridden afterwards
   — see "The shared projection" below for how every reader resolves it.
+- **Fourth remediation (2026-11-08): `historyOrigin` is now a REJECTED, not just a recorded, write
+  boundary.** Introducing `historyOrigin` fixed cross-page CONSISTENCY but left the origin itself
+  mutable in an unsafe direction: `saveB08JourneyEvents()`/`markB08JourneyFinished()` still always
+  wrote `historyOrigin: "LIVE_JOURNEY"` unconditionally — recording a real LIVE event after editing
+  the reference report directly would flip the origin while RETAINING the old reference-derived
+  report, leaving the event ledger and the report grounded in two different match histories. Both
+  functions now return `{accepted: false, reason}` instead of writing anything when a
+  `"REFERENCE"`-origin report is already persisted; the only valid recovery is the existing,
+  explicit "Reset journey" control. See `safe-transition-controller.ts`'s own doc comment for how
+  this is translated into the real `LiveMatchActions` contract's own `conflict`/`error` fields.
 - **Deterministic replay**: `wallClockTime`/`clientEventId` are revived/normalized on load to match
   `LiveEventSummary`'s real type (`Date | null` / `string | null`) — `JSON.stringify` silently drops
   `undefined` keys and turns `Date` into an ISO string; both were real round-trip bugs found and
@@ -153,12 +163,13 @@ from `computeEffectiveLiveEvents()`'s own output, never a second, independently-
   builder) produces the chronology.
 - **`deriveB08AfterDataFromReport()`/`deriveB08IdentityFromReport()`** build the real
   `MatchDetailAfterData`/`MatchPresentation` shapes every page already consumes — from a persisted
-  report, not a second rendering path. Narrative/evidence fields authored for the FIXED 2-1
-  reference match (reflection, football observations, opponent observation, combination evidence)
-  are deliberately empty/null here, and the Assistant Coach panel switches to its own real
-  `{status: "unavailable"}` state — per the review's own explicit guidance, "mark reference-only
-  observations as unavailable in the interactive journey," never fabricated against a different
-  history.
+  report, not a second rendering path. Narrative/evidence fields (reflection, football
+  observations, opponent observation, combination evidence) come from `history`
+  (`resolveB08EffectiveHistory()`), so they are empty/null for a `"LIVE_JOURNEY"` origin (per the
+  review's own explicit guidance, "mark reference-only observations as unavailable in the
+  interactive journey," never fabricated against a different history) but the REAL canonical
+  values for a `"REFERENCE"` origin — fourth remediation's defect #1 fix, below. The Assistant
+  Coach panel switches to its own real `{status: "unavailable"}` state only for `"LIVE_JOURNEY"`.
 - **`markReversedEvents()`** is the one exception to "filter, don't mark": LIVE's own Recent Events
   panel must keep SHOWING a reversed event (with its real `isReversed` badge, Undo control
   correctly hidden) rather than removing it — production computes this server-side; B08's fixture
@@ -178,6 +189,18 @@ from `computeEffectiveLiveEvents()`'s own output, never a second, independently-
   not-yet-confirmed Recent Events row (`correctsEventId` is a `clientEventId`, not yet the real id)
   is normalized to the real target id before being stored, closing the one real timing risk that
   previously made a genuine browser-level Undo test unsafe.
+- **Fourth remediation: `resolveB08EffectiveHistory()`'s own narrative fields, and the
+  `historyOrigin` write-boundary rejection.** `B08EffectiveHistory` now also carries
+  `reflection`/`footballObservations`/`opponentObservation`/`combinationEvidence`/
+  `shapeChangeRows`/`firstTimeCanonicalPositions`, resolved the same way `teamNote` already is —
+  the real canonical values for `"REFERENCE"`, empty/null for `"LIVE_JOURNEY"`.
+  `deriveB08AfterDataFromReport()` additionally gates `combinationEvidence` on
+  `report.status === "LOCKED"`, matching `b08AfterData()`'s own existing real rule. Separately,
+  `recordEvent()`/`endSession()` now check `saveB08JourneyEvents()`/`markB08JourneyFinished()`'s own
+  new `{accepted, reason}` result and translate a rejection into the real `LiveMatchActions`
+  contract's `conflict` (for `recordEvent`) or `error` (for `endSession`, whose own contract has no
+  `conflict` field) fields — never a false `success: true` for a write the fixture's own storage
+  boundary refused.
 
 ## Test coverage summary
 
@@ -187,14 +210,15 @@ from `computeEffectiveLiveEvents()`'s own output, never a second, independently-
 | `shared/__tests__/fixture-history.test.ts` | Score-to-goal-event consistency, DRAFT/COMPLETED data parity, the timing-review gap's shape, literal matchSeconds values against the real production contract. |
 | `shared/__tests__/combination-evidence.test.ts` | The hand-written combination-evidence literal matches the real derivation function's output. |
 | `shared/__tests__/ownership-map.test.ts` | The ownership map's content matches the audited matrix (also its deadcode:check consumer). |
-| `shared/__tests__/safe-transition-controller.test.ts` | The LIVE clock fix, the journey store's real persistence/restore/reset behavior, and (third remediation) `recordEvent()`'s real idempotence matrix plus the `EVENT_REVERSED`/`clientEventId` normalization. |
-| `shared/__tests__/b08-projection.test.ts` | The full required test matrix (reference/1-1/2-1/unattributed/reversed/duplicate), literal expected values, the reversal-namespace distinction, that reference-only narrative never leaks into an interactive projection, and (third remediation) `resolveB08EffectiveHistory()`'s own history-provenance matrix. |
+| `shared/__tests__/safe-transition-controller.test.ts` | The LIVE clock fix, the journey store's real persistence/restore/reset behavior, (third remediation) `recordEvent()`'s real idempotence matrix plus the `EVENT_REVERSED`/`clientEventId` normalization, and (fourth remediation) the LIVE adapter's own handling of a history-origin write rejection (`conflict`/`error`, never a false success, `events` never mutated). |
+| `shared/__tests__/b08-journey.test.tsx` | (Fourth remediation, new file) The storage write-boundary itself: a REFERENCE-origin report blocks `saveB08JourneyEvents()`/`markB08JourneyFinished()`, Reset journey clears it, a full valid LIVE_JOURNEY lifecycle succeeds, and the reverse constraint (an ordinary report edit never flips an established LIVE_JOURNEY origin to REFERENCE). |
+| `shared/__tests__/b08-projection.test.ts` | The full required test matrix (reference/1-1/2-1/unattributed/reversed/duplicate), literal expected values, the reversal-namespace distinction, (third remediation) `resolveB08EffectiveHistory()`'s own history-provenance matrix, and (fourth remediation) its narrative-provenance fields plus `deriveB08AfterDataFromReport()`'s own combination-evidence lifecycle gate and reconciled-field-untouched proof. |
 
 Full run: `npx vitest run --config vitest.config.components.ts src/app/dev/ui-lab/gate-b/b08-information-ownership/`
-→ **7 files, 82 component tests, all passing**, plus `npx vitest run
-src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/__tests__/` → **5 files, 66 fixture/
+→ **8 files, 91 component tests, all passing**, plus `npx vitest run
+src/app/dev/ui-lab/gate-b/b08-information-ownership/shared/__tests__/` → **5 files, 73 fixture/
 projection tests, all passing** (component-test config required for the `.tsx` files — a bare
 `vitest run` silently skips them in this repo). Real browser coverage: `e2e/ui-lab-b08.spec.ts`,
-53 tests including Journeys A/B/C/D/E (full LIVE→REPORT-DRAFT→AFTER→REPORT-COMPLETED consistency
-for a 1-1 journey, a 2-1 journey, a goal-plus-real-browser-Undo journey, a direct reference-report
-edit, and reference-mode isolation) — see `TRANSITION_AND_NAVIGATION_CONTRACT.md`.
+now including Journey F (a reference-report edit, an attempted LIVE recording correctly rejected,
+Reset journey, then a genuinely new LIVE journey) and reflection-consistency assertions added to
+Journey D — see `TRANSITION_AND_NAVIGATION_CONTRACT.md`.

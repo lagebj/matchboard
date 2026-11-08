@@ -1,21 +1,27 @@
 # Gate B W5 — Visual vs. Current Production (B08)
 
-**Updated for the W5 THIRD remediation (independent review, 2026-11-08, "final data-integrity
-remediation").** Like the second pass, this pass's fixes (history-origin provenance, idempotent
-event recording, the Undo normalization, narrative-provenance in the shared report shell) change
-what an INTERACTIVE journey — or a direct reference-report EDIT — shows; they do not change the
-five pages' own default, no-journey, no-edit appearance. Confirmed, not just predicted: a fresh,
-POST-third-remediation capture run (workflow run 42525103572, the PR's own synthetic merge commit
-`7ee923ca` over branch-tip `399b86d7`) produced 72 real screenshots, all independently re-hashed
-from the raw bytes with zero mismatches and zero missing files, superseding the second
+**Updated for the W5 FOURTH remediation (independent review, 2026-11-08, "final source-of-truth
+remediation").** Like prior passes, this pass's fixes (narrative provenance for a reference-origin
+report, history-origin write-boundary rejection) change what a reference-origin EDIT shows, or what
+happens when an incompatible LIVE recording is attempted; they do not change the five pages' own
+default, no-journey, no-edit appearance. Every CI capture runs in a fresh browser context with no
+`sessionStorage` journey at all, so no visual regression to the registered capture matrix is
+expected from this pass, and the third remediation's own capture evidence below remains the valid
+record for that matrix pending this pass's own CI re-run (see `BLOCKERS.md`/`REVIEW_RECORD.md` for
+this pass's own CI status at time of writing). `e2e/ui-lab-b08.spec.ts` gained Journey F and
+Journey D's extended reflection assertions this pass, see `TRANSITION_AND_NAVIGATION_CONTRACT.md`.
+
+A fresh, POST-third-remediation capture run (workflow run 42525103572, the PR's own synthetic merge
+commit `7ee923ca` over branch-tip `399b86d7`) produced 72 real screenshots, all independently
+re-hashed from the raw bytes with zero mismatches and zero missing files, superseding the second
 remediation's own attestation (workflow run 42509495683). As expected, no visual regression was
 found — every CI capture runs in a fresh browser context with no `sessionStorage` journey at all,
-so each page resolved to the exact same reference-fixture tier as before this pass. The same CI run
-also executed the full, now-53-test Playwright suite (`e2e/ui-lab-b08.spec.ts` — Journeys C and D
-were added this pass, see `TRANSITION_AND_NAVIGATION_CONTRACT.md`), all 53 passing.
+so each page resolved to the exact same reference-fixture tier as before that pass. The same CI run
+also executed the full, then-53-test Playwright suite (`e2e/ui-lab-b08.spec.ts` — Journeys C and D
+were added that pass), all 53 passing.
 
 A fresh, POST-second-remediation capture run (workflow run 42509495683, the PR's own
-synthetic merge commit `1c80e04a` over branch-tip `d62575b2`) backs the prior attestation
+synthetic merge commit `1c80e04a` over branch-tip `d62575b2`) backs an earlier attestation
 generation — 72 real screenshots, all independently re-hashed from the raw bytes with zero
 mismatches and zero missing files, superseding the first remediation's own attestation (workflow
 run 42473958417). As expected, no visual regression was found in that pass either — every CI

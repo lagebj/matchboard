@@ -1,13 +1,14 @@
 # Gate B W5 — Interaction and State Audit (B08)
 
-**Updated for the W5 THIRD remediation (independent PR #822 review, 2026-11-08, "final
-data-integrity remediation").** Component/unit-level coverage below, PLUS real Chromium browser
-coverage in `e2e/ui-lab-b08.spec.ts` (53 tests — the independent review's own section 11 explicitly
-treats unit tests as insufficient proof for navigation/continuity/layout claims; see that file and
-`TRANSITION_AND_NAVIGATION_CONTRACT.md`).
+**Updated for the W5 FOURTH remediation (independent PR #822 review, 2026-11-08, "final
+source-of-truth remediation").** Component/unit-level coverage below, PLUS real Chromium browser
+coverage in `e2e/ui-lab-b08.spec.ts` (now including Journey F and Journey D's extended reflection
+assertions — the independent review's own section 11 explicitly treats unit tests as insufficient
+proof for navigation/continuity/layout claims; see that file and
+`TRANSITION_AND_NAVIGATION_CONTRACT.md` for the real, CI-confirmed test count).
 
 Component tests: `npx vitest run --config vitest.config.components.ts
-src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 82 tests, all passing**
+src/app/dev/ui-lab/gate-b/b08-information-ownership` → **8 files, 91 tests, all passing**
 (component-test config required — a bare `vitest run` silently skips `.tsx` tests in this repo).
 
 ## B. Information ownership
@@ -180,3 +181,39 @@ src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 82 tests, al
   proving it is not incorrectly withheld for a reference-origin edit.
 - No regression: the first and second remediation passes' full existing suites (sections A-G above)
   were re-run unchanged after this pass's changes and still pass.
+
+## I. Fourth remediation-specific coverage (W5, "final source-of-truth remediation", 2026-11-08)
+
+- **Narrative provenance (defect #1)**: `shared/__tests__/b08-projection.test.ts`'s
+  `resolveB08EffectiveHistory` describe block gained two new tests (REFERENCE origin: real
+  reflection/observations/opponent-observation/combination-evidence present; LIVE_JOURNEY origin:
+  all still null/empty). A new `deriveB08AfterDataFromReport` describe block (5 tests, literal
+  expected values) proves: a REFERENCE-origin DRAFT report shows real reflection/observations but
+  withholds combination evidence (the real "draft never sees it" rule); a REFERENCE-origin LOCKED
+  report shows the real combination evidence too; completing a reference-origin report never
+  changes its own reflection/observations (AFTER and the completed report agree); a LIVE_JOURNEY
+  report, even LOCKED, never inherits any reference-only narrative; and the narrative fix never
+  touches the reconciled report's own score/goals/completion metadata. End-to-end in a real browser,
+  Journey D's extended assertions check AFTER's own "Team reflection" widget says "Recorded" (not
+  "Not recorded") and that REPORT-COMPLETED's own Reflection tab shows the identical real debrief
+  text — a unit test of the projection alone would not have proven the original user-visible
+  contradiction (both AFTER and REPORT-COMPLETED read different code paths for the same fact).
+- **History-origin write protection (defect #2)**: a new file,
+  `shared/__tests__/b08-journey.test.tsx` (6 tests), proves the storage write boundary itself: a
+  REFERENCE-origin report blocks both `saveB08JourneyEvents()` and `markB08JourneyFinished()` with
+  the report/origin/events left exactly unchanged; Reset journey clears the conflict and allows a
+  fresh write; a full valid LIVE_JOURNEY lifecycle (record → finish → reconcile) succeeds end to
+  end; and the reverse constraint holds (an ordinary report edit on an already-LIVE_JOURNEY-origin
+  report never flips it to REFERENCE). `safe-transition-controller.test.tsx` gained a new
+  "history-origin write-boundary protection" describe block (3 tests) proving the LIVE action
+  adapter's own translation: `recordEvent()` returns `{success: false, conflict}` with `events`
+  left completely untouched (not merely "not increased" — byte-identical to before the attempt);
+  `endSession()` returns `{success: false, error}`; and a write succeeds again, establishing a real
+  `LIVE_JOURNEY` origin, once Reset journey has run. End-to-end in a real browser, Journey F edits
+  the reference report, attempts a LIVE recording (rejected — the follower panel's own score,
+  derived from the same `events` state a rejected write never touches, stays at "1 : 1"; a real,
+  unmodified "Needs review" indicator appears), confirms the reference report is completely
+  untouched, uses Reset journey, then completes a genuinely new LIVE journey successfully through
+  to REPORT-DRAFT.
+- No regression: the first, second and third remediation passes' full existing suites (sections
+  A-H above) were re-run unchanged after this pass's changes and still pass.

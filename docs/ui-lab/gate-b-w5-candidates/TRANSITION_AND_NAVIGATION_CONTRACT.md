@@ -1,14 +1,19 @@
 # Gate B W5 — Transition and Navigation Contract (B08)
 
-**Updated for the W5 THIRD remediation (independent review, 2026-11-08, "final data-integrity
+**Updated for the W5 FOURTH remediation (independent review, 2026-11-08, "final source-of-truth
 remediation").** The full lifecycle transition table from the task brief, each row stated against
 the real implementation and the test that verifies it. Several rows previously marked "disclosed
 gap" are now fixed — see the changelogs at the bottom. The second pass's biggest change: AFTER
 and REPORT-COMPLETED now participate in the SAME persisted-report priority cascade REPORT-DRAFT
-already used after the first remediation — see "The shared data-consistency cascade" below. This
+already used after the first remediation — see "The shared data-consistency cascade" below. The
 third pass's biggest change: that cascade's own tier 1 (a persisted report) now resolves its real
 chronology by an explicit `historyOrigin`, not by inferring it from an event array's own emptiness
 — see "History provenance" below, and Journey C (a real browser Undo) is no longer a disclosed gap.
+This fourth pass's biggest change: `historyOrigin` is now a REJECTED, not merely a recorded, write
+boundary (a reference-origin report can no longer be silently retained under a flipped
+LIVE_JOURNEY origin), and the narrative provenance it already governed for the chronology now also
+covers reflection/observations/evidence — see "History provenance" and "Reversal and duplicate-
+event semantics" below.
 
 | From | Action | Destination | Implemented | Verified by |
 |---|---|---|---|---|
@@ -78,6 +83,26 @@ with literal expected values, in `b08-projection.test.ts`'s own `resolveB08Effec
 describe block and `report-draft/__tests__/page.test.tsx`'s new describe block, and end-to-end in a
 real browser by Journey D above.
 
+**Fourth remediation — narrative provenance, not just chronology.** `resolveB08EffectiveHistory()`
+fixed the chronology but `deriveB08AfterDataFromReport()` still returned `reflection`/
+`footballObservations`/`opponentObservation`/`combinationEvidence`/`shapeChangeRows`/
+`firstTimeCanonicalPositions` empty/null UNCONDITIONALLY for every persisted report — so a
+reference-origin report's own real, already-submitted debrief (visible and correct on REPORT-
+DRAFT's own Reflection tab) could still be reported as "not recorded" on AFTER and on REPORT-
+DRAFT/REPORT-COMPLETED's own Summary tab (both of which read `staticAfterData`/`liveAfterData`,
+not the Reflection tab's own separate shell props). `B08EffectiveHistory` now carries these
+fields too, resolved by `historyOrigin` exactly like `teamNote` already was: the real canonical
+values for `"REFERENCE"`, empty/null for `"LIVE_JOURNEY"`. `combinationEvidence` is additionally
+gated in `deriveB08AfterDataFromReport()` on `report.status === "LOCKED"`, matching
+`b08AfterData()`'s own existing real "a draft never sees it" rule — never exposed in DRAFT merely
+because the canonical fixture has it. Proven with literal values in `b08-projection.test.ts`'s new
+`deriveB08AfterDataFromReport` describe block (including that completing a reference-origin report
+never changes its own reflection/observations, and that the narrative fix never touches the
+reconciled report's own score/goals/completion metadata), and end-to-end in a real browser by
+Journey D's extended assertions (AFTER's "Team reflection" widget says "Recorded"; REPORT-
+COMPLETED's own Reflection tab shows the identical real debrief text) — a unit test of the
+projection alone would not have proven the original user-visible contradiction.
+
 ### Reversal and duplicate-event semantics
 
 `computeEffectiveLiveEvents()` mirrors the REAL production algorithm (`get-match-detail-after-data.ts`)
@@ -109,6 +134,60 @@ comment: "a resend is dedup-safe server-side by clientEventId") — an identical
 is rejected outright, never silently appended or silently overwritten. Proven with the full required
 matrix (new goal, identical retry, reload+retry, conflicting retry, two distinct goals, reversal
 retry, scorer-correction retry, distinct assist) in `safe-transition-controller.test.tsx`.
+
+### History-origin write protection (fourth remediation)
+
+Introducing `historyOrigin` (above) fixed cross-page CONSISTENCY, but left the origin itself
+mutable in an unsafe direction: `saveB08JourneyEvents()`/`markB08JourneyFinished()` still always
+wrote `historyOrigin: "LIVE_JOURNEY"` unconditionally, regardless of what was already stored.
+Reproduction: edit the reference report directly (REPORT-DRAFT, no LIVE visit) → a `"REFERENCE"`
+report is now persisted → visit LIVE and record a real event → the origin silently flips to
+`"LIVE_JOURNEY"` while the OLD reference-derived report is retained verbatim — the event ledger and
+the report are now grounded in two different match histories, exactly the inconsistency this whole
+provenance system exists to prevent.
+
+Fixed at the storage boundary itself, not just in the UI: both functions now return
+`{accepted: false, reason}` instead of writing anything when a `"REFERENCE"`-origin report is
+already persisted. The valid state table:
+
+| History origin | Event source | Report | Valid? |
+|---|---|---|---|
+| None | Canonical reference | None | Yes |
+| REFERENCE | Canonical reference | Reference-derived | Yes |
+| LIVE_JOURNEY | Recorded LIVE ledger | None yet | Yes |
+| LIVE_JOURNEY | Recorded LIVE ledger | Live-derived | Yes |
+| LIVE_JOURNEY | Recorded LIVE ledger | **Reference-derived** | **Invalid — now rejected** |
+
+`safe-transition-controller.ts`'s `recordEvent()`/`endSession()` translate a rejection into the
+real, UNMODIFIED `LiveMatchActions` contract's own existing result shapes — never a new one, and
+never a false `success: true`:
+
+- **`recordEvent()`** returns `{success: false, conflict: {code, message}}`. `attemptSend` (real,
+  unmodified `LiveMatchClient` code) routes any `conflict` to `NEEDS_REVIEW`, visible via the real
+  "Needs review N" indicator and panel — a genuine, non-silently-retried condition, exactly the
+  real mechanism production uses for an actionable coordinator conflict. The rejected event never
+  reaches this hook's own `events`/`eventsRef` state, so B08's own follower panel (which derives
+  its score from that state) never moves — proof the write was genuinely refused, independent of
+  `LiveMatchClient`'s own separate, pre-existing, unrelated optimistic-score behavior (it does not
+  roll back `goalsFor`/`goalsAgainst` on a soft conflict; not something this remediation changes).
+- **`endSession()`** returns `{success: false, error}` — that action's own real contract has no
+  `conflict` field. `LiveMatchClient`'s unmodified `handleEndSession()` already surfaces
+  `result.error` via its own visible error state on a non-success result; this needed no change.
+
+The only valid recovery remains the existing, already-shipped "Reset journey" control (clears
+`sessionStorage` only — confirmed to touch no unrelated browser storage) — no new UI was invented.
+The reverse constraint also holds: an ordinary report edit on an ALREADY-`"LIVE_JOURNEY"`-origin
+report never flips it to `"REFERENCE"` (`saveB08JourneyReport()`'s pre-existing "already-stored
+origin always wins" rule, now explicitly tested).
+
+Proven at the storage level in the new `shared/__tests__/b08-journey.test.tsx` (REFERENCE blocks
+both writes with the report/origin left exactly unchanged; Reset clears it; a full valid
+LIVE_JOURNEY lifecycle succeeds; the reverse constraint holds), at the adapter level in
+`safe-transition-controller.test.tsx` (the hook's own `events` state is never mutated by a rejected
+write; the real `conflict`/`error` fields are used correctly), and end-to-end in a real browser by
+Journey F: edit the reference report, attempt a LIVE recording (rejected — follower score never
+moves, a real "Needs review" indicator appears), confirm the reference report is untouched, Reset
+journey, then complete a genuinely new LIVE journey successfully.
 
 ## Why REPORT-COMPLETED routes back to `/after` (with `?report=completed`), not a second "historical" page
 

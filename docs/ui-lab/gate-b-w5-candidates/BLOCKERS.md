@@ -1,9 +1,43 @@
 # Gate B W5 — Blockers / Open Questions (B08)
 
-Status: implementation complete (all 9 original spec steps), PLUS THREE remediation passes against
-independent reviews of the merged PR (2026-11-08) — see the three "Remediation" sections below. All
+Status: implementation complete (all 9 original spec steps), PLUS FOUR remediation passes against
+independent reviews of the merged PR (2026-11-08) — see the four "Remediation" sections below. All
 items are resolved or disclosed as permanent, deliberate scope boundaries; none block the PR — see
 `REVIEW_RECORD.md` for the real current status.
+
+## Fourth remediation ("final source-of-truth remediation", independent review, 2026-11-08)
+
+The third remediation introduced `historyOrigin` and `resolveB08EffectiveHistory()`, correctly
+restoring the reference match's canonical event chronology for a reference-origin persisted
+report. Two real defects remained in that same provenance system:
+
+1. **FIXED — a reference-origin persisted report lost its real reflection/observations in Match
+   Details.** `deriveB08AfterDataFromReport()` still returned `reflection`/`footballObservations`/
+   `opponentObservation`/`combinationEvidence`/`shapeChangeRows`/`firstTimeCanonicalPositions`
+   empty/null UNCONDITIONALLY for every persisted report — so AFTER could report "reflection not
+   recorded" for the same reference match whose REPORT-DRAFT Reflection tab correctly showed the
+   real, already-submitted debrief. Fixed by extending `resolveB08EffectiveHistory()`'s own output
+   (`B08EffectiveHistory`) with these fields, resolved by `historyOrigin` exactly like `teamNote`
+   already was: the real canonical values for `"REFERENCE"`, empty/null for `"LIVE_JOURNEY"`.
+   `combinationEvidence` is additionally gated in `deriveB08AfterDataFromReport()` on
+   `report.status === "LOCKED"` — matching `b08AfterData()`'s own existing, real "a draft never
+   sees it" rule — never exposed in DRAFT merely because the canonical fixture has it.
+2. **FIXED — a reference-origin persisted report could silently become a LIVE_JOURNEY report.**
+   `saveB08JourneyEvents()`/`markB08JourneyFinished()` always wrote `historyOrigin: "LIVE_JOURNEY"`
+   unconditionally, even when a `"REFERENCE"`-origin report was ALREADY persisted — recording a
+   real LIVE event after editing the reference report would flip the origin while RETAINING the old
+   reference-derived report, leaving the event ledger and the report grounded in two different
+   match histories. Fixed: both write functions now REJECT (`{accepted: false, reason}`) this
+   transition at the storage boundary itself, not just in the UI. `safe-transition-controller.ts`'s
+   `recordEvent()`/`endSession()` translate a rejection into the real `LiveMatchActions` contract's
+   own existing `conflict`/`error` fields (never a false `success: true`) — `recordEvent()` uses
+   `conflict` (routes to the real "Needs review" panel, a genuine non-silently-retried condition),
+   `endSession()` uses `error` (that action's own contract has no `conflict` field; `LiveMatchClient`'s
+   unmodified `handleEndSession()` already surfaces `result.error` via its visible error state). The
+   existing "Reset journey" control remains the one deliberate way to recover — no new UI invented.
+
+Full detail: `DATA_TRUTH_AND_FIXTURES.md`, `TRANSITION_AND_NAVIGATION_CONTRACT.md`,
+`SOURCE_RECONCILIATION.md`, `INTERACTION_AND_STATE_AUDIT.md`, `CHANGED_FILES.md`.
 
 ## Third remediation ("final data-integrity remediation", independent review, 2026-11-08)
 

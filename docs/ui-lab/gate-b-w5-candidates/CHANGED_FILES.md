@@ -215,6 +215,43 @@ is preserved above them for history.
   real browser, including AFTER's Events/Stats tabs and REPORT-COMPLETED's Timeline tab, not only
   the score header).
 
+## Fourth remediation — modified candidate source (final source-of-truth remediation, 2026-11-08)
+
+- `shared/b08-journey.ts` — new exported `B08JourneyWriteResult` type;
+  `saveB08JourneyEvents()`/`markB08JourneyFinished()` now return `{accepted: boolean, reason?}`
+  instead of `void`, rejecting (without writing anything) when a `"REFERENCE"`-origin report is
+  already persisted (defect #2).
+- `shared/b08-projection.ts` — `B08EffectiveHistory` gained six new fields
+  (`reflection`/`footballObservations`/`opponentObservation`/`combinationEvidence`/
+  `shapeChangeRows`/`firstTimeCanonicalPositions`), resolved by `historyOrigin` in
+  `resolveB08EffectiveHistory()` the same way `teamNote` already was; `deriveB08AfterDataFromReport()`
+  now reads these from `history` instead of hardcoding them empty/null, with `combinationEvidence`
+  additionally gated on `report.status === "LOCKED"` (defect #1).
+- `shared/safe-transition-controller.ts` — `recordEvent()`/`endSession()` now check their own
+  `saveB08JourneyEvents()`/`markB08JourneyFinished()` call's `{accepted, reason}` result and
+  translate a rejection into the real `LiveMatchActions` contract's own `conflict` (for
+  `recordEvent`) or `error` (for `endSession`) fields, never a false `success: true` (defect #2).
+
+## Fourth remediation — new/modified tests
+
+- New: `shared/__tests__/b08-journey.test.tsx` (6 tests) — the storage write-boundary itself:
+  REFERENCE-origin rejection of both write functions, Reset journey recovery, a full valid
+  LIVE_JOURNEY lifecycle, and the reverse constraint.
+- Modified: `shared/__tests__/safe-transition-controller.test.tsx` — added a "history-origin
+  write-boundary protection" describe block (3 tests): the adapter's own translation of a rejection
+  into `conflict`/`error`, confirming `events` is never mutated by a rejected write, and that a
+  write succeeds again after Reset journey.
+- Modified: `shared/__tests__/b08-projection.test.ts` — added 2 tests to the existing
+  `resolveB08EffectiveHistory` describe block (narrative fields by origin) and a new
+  `deriveB08AfterDataFromReport` describe block (5 tests: DRAFT/LOCKED combination-evidence gating,
+  reflection consistency across completion, LIVE_JOURNEY non-inheritance, reconciled-field
+  untouched proof).
+- Modified: `e2e/ui-lab-b08.spec.ts` — extended Journey D with reflection-consistency assertions
+  (AFTER's "Team reflection" widget says "Recorded"; REPORT-COMPLETED's Reflection tab shows the
+  identical real debrief text) and added Journey F (a reference-report edit, an attempted LIVE
+  recording correctly rejected via the real "Needs review" mechanism, Reset journey, then a
+  genuinely new LIVE journey completed end to end).
+
 ## Not touched
 
 B01-B07 candidate source and documentation (`gate-b-w1/w2/w3/w4-candidates/`, `b01`-`b07` route

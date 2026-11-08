@@ -1,7 +1,7 @@
 # Gate B W5 — Source Reconciliation (B08)
 
-**Updated for the W5 THIRD remediation (independent PR #822 review, 2026-11-08, "final
-data-integrity remediation").** What each B08 page
+**Updated for the W5 FOURTH remediation (independent PR #822 review, 2026-11-08, "final
+source-of-truth remediation").** What each B08 page
 reuses from real production source, verbatim, vs. what is fixture-substituted — by page, so a
 reviewer can tell production fidelity from UI-Lab-only composition at a glance.
 
@@ -58,6 +58,18 @@ editing the reference report directly (no LIVE session at all) correctly restore
 cutoff seed instead of an empty, misread "resumed session." Verified with a real browser Undo in
 `e2e/ui-lab-b08.spec.ts`'s Journey C, no longer a disclosed gap (see `BLOCKERS.md`).
 
+**FIXED (W5 FOURTH remediation — "final source-of-truth remediation"):** `saveB08JourneyEvents()`/
+`markB08JourneyFinished()` previously always wrote `historyOrigin: "LIVE_JOURNEY"` unconditionally
+— recording a real LIVE event after editing the reference report directly would flip the origin
+while RETAINING the old reference-derived report, leaving the event ledger and the report grounded
+in two different match histories. Both now REJECT this transition (`{accepted: false, reason}`)
+when a `"REFERENCE"`-origin report is already persisted; `recordEvent()`/`endSession()` translate
+the rejection into the real `LiveMatchActions` contract's own `conflict`/`error` fields (never a
+false success) — the rejected event never reaches this hook's own `events` state, so the follower
+panel never moves, and a real "Needs review" indicator appears via the real, unmodified
+`LiveMatchClient` conflict-resolution UI. The only valid recovery is the existing "Reset journey"
+control. Verified with a real browser in `e2e/ui-lab-b08.spec.ts`'s Journey F.
+
 ## B08-AFTER
 
 Real, unmodified: `MatchIdentityCard`, `MatchTimelineList`, `MatchFlowPanel`,
@@ -100,6 +112,18 @@ is likewise now `historyOrigin === "LIVE_JOURNEY"` (gated on real usable data ex
 mere journey presence — a reference-origin edit keeps its own real reflection/observations/
 combination evidence/Assistant Coach insight, since they genuinely describe this same match.
 
+**FIXED (W5 FOURTH remediation):** `resolveB08EffectiveHistory()` kept the chronology/goal-count/
+team-note correct for a REFERENCE origin, but `deriveB08AfterDataFromReport()` still returned
+`reflection`/`footballObservations`/`opponentObservation`/`combinationEvidence`/`shapeChangeRows`/
+`firstTimeCanonicalPositions` empty/null UNCONDITIONALLY for every persisted report — so AFTER
+could report "reflection not recorded" for the same reference match whose REPORT-DRAFT Reflection
+tab correctly showed the real, already-submitted debrief. `B08EffectiveHistory` now carries these
+fields too, resolved the same way `teamNote` already is; `combinationEvidence` is additionally
+gated on `report.status === "LOCKED"`, matching `b08AfterData()`'s own existing real rule. AFTER's
+own "Team reflection" widget and the Assistant Coach panel both now agree with REPORT-DRAFT's
+Reflection tab for a reference-origin report, including after completion — verified end-to-end in
+a real browser by Journey D's extended assertions.
+
 ## B08-REPORT-DRAFT / B08-REPORT-COMPLETED
 
 Real, unmodified: `SafePostMatchReportShell` and `useSafeReportLifecycle` — the exact same B05
@@ -141,6 +165,14 @@ hardcoded B05's own `b05MinutesByParticipant`/`b05ObservationCountByParticipant`
 note, for EVERY caller including B08 — fixed with five new optional props, all defaulting to B05's
 exact existing values (B05 unaffected), with B08 passing its own real `B08_REPORT_ID`/
 `B08_DEBRIEF_ID`/participant-minutes/team-note instead.
+
+**FIXED (W5 FOURTH remediation):** the same `deriveB08AfterDataFromReport()` narrative fix
+documented under B08-AFTER above also fixes REPORT-DRAFT's/REPORT-COMPLETED's own "Summary" tab
+(`PostMatchSummaryTab`, fed by `liveAfterData` — which SPREADS `staticAfterData` for `reflection`/
+`footballObservations`/`opponentObservation`/`shapeChangeRows`/`firstTimeCanonicalPositions`,
+overriding only `combinationEvidence` from the shell's own already-correct separate prop): a
+reference-origin report's Summary tab previously disagreed with its own Reflection tab about
+whether a reflection existed at all.
 
 ## What was never built
 

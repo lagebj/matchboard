@@ -138,50 +138,74 @@ Full detail: `BLOCKERS.md`'s "Third remediation" section, `TRANSITION_AND_NAVIGA
 `DATA_TRUTH_AND_FIXTURES.md`, `SOURCE_RECONCILIATION.md`, `INTERACTION_AND_STATE_AUDIT.md`,
 `CHANGED_FILES.md`.
 
-## Verification performed (updated for the third remediation)
+## Fourth remediation (independent review of PR #822, 2026-11-08, "final source-of-truth remediation")
+
+The third remediation introduced `historyOrigin` and `resolveB08EffectiveHistory()`, correctly
+restoring the reference match's canonical event chronology for a reference-origin persisted
+report. Two real defects remained in that same provenance system:
+
+1. **A reference-origin persisted report lost its real reflection/observations in Match Details.**
+   `deriveB08AfterDataFromReport()` still returned `reflection`/`footballObservations`/
+   `opponentObservation`/`combinationEvidence`/`shapeChangeRows`/`firstTimeCanonicalPositions`
+   empty/null UNCONDITIONALLY for every persisted report — so AFTER could report "reflection not
+   recorded" for the same reference match whose REPORT-DRAFT Reflection tab correctly showed the
+   real, already-submitted debrief. Fixed by extending `resolveB08EffectiveHistory()`'s own output
+   with these fields, resolved by `historyOrigin` exactly like `teamNote` already was;
+   `combinationEvidence` is additionally gated on `report.status === "LOCKED"`, matching
+   `b08AfterData()`'s own existing real "a draft never sees it" rule.
+2. **A reference-origin persisted report could silently become a LIVE_JOURNEY report.**
+   `saveB08JourneyEvents()`/`markB08JourneyFinished()` always wrote `historyOrigin: "LIVE_JOURNEY"`
+   unconditionally, even when a `"REFERENCE"`-origin report was ALREADY persisted — recording a
+   real LIVE event after editing the reference report would flip the origin while RETAINING the old
+   reference-derived report. Fixed: both write functions now REJECT this transition at the storage
+   boundary itself; `recordEvent()`/`endSession()` translate a rejection into the real
+   `LiveMatchActions` contract's own existing `conflict`/`error` fields (never a false
+   `success: true`) — `recordEvent()` uses `conflict` (routes to the real "Needs review" panel),
+   `endSession()` uses `error` (its own contract has no `conflict` field). The existing "Reset
+   journey" control remains the one deliberate recovery path — no new UI invented.
+
+Full detail: `BLOCKERS.md`'s "Fourth remediation" section, `TRANSITION_AND_NAVIGATION_CONTRACT.md`,
+`DATA_TRUTH_AND_FIXTURES.md`, `SOURCE_RECONCILIATION.md`, `INTERACTION_AND_STATE_AUDIT.md`,
+`CHANGED_FILES.md`.
+
+## Verification performed (updated for the fourth remediation)
 
 - Component tests: `npx vitest run --config vitest.config.components.ts
-  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **7 files, 82 tests, all passing**
+  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **8 files, 91 tests, all passing**
   (component-test config required — a bare `vitest run` silently skips `.tsx` tests in this repo).
 - Fixture/projection unit tests (default vitest config, `.ts`-only files): `npx vitest run
-  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **5 files, 66 tests, all passing**,
-  including `b08-projection.test.ts`'s new `resolveB08EffectiveHistory` describe block (4 tests,
-  defect #1) and `safe-transition-controller.test.tsx`'s new idempotence matrix (8 tests, defect #3)
-  plus the `EVENT_REVERSED`/`clientEventId` normalization proof (defect #5).
-- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts`, now **53 tests** (added Journeys C and
-  D on top of the second remediation's 51) — Journey C records a goal and Undoes it through the real
-  mounted `LiveMatchClient`, verifying reporter/follower agreement and downstream non-resurfacing;
-  Journey D edits the reference report directly (no LIVE journey) and verifies the real chronology
-  survives across REPORT-DRAFT/AFTER (including its Events/Stats tabs)/REPORT-COMPLETED/reload.
-  **53/53 passed** in this PR's own CI run (workflow run 42525103572, 2.0m). Getting there took
-  three real, disclosed fix-and-rerun cycles this pass (workflow runs 42520115677, 42521584617,
-  42523466866) — each caught one genuine bug in the new Journey C test itself (not the underlying
-  product code): the LIVE follower panel's own score text uses `MatchScoreHeader`'s real colon
-  format ("1 : 1"), not `MatchIdentityCard`'s hyphen format ("1 - 1") used elsewhere; the
-  just-recorded goal's own Recent Events row needed to be disambiguated from the seed's own
-  identically-unattributed 10' goal by its known, fixed elapsed-time label ("10:00"), not by DOM
-  order (which the local-overlay-vs-reconciled timing makes unreliable) — both fixed and
-  re-verified green; see the commit history and `BLOCKERS.md`. Not runnable in this session's own
-  devcontainer (the already-documented local `next dev` + Playwright HMR WebSocket blocker).
+  src/app/dev/ui-lab/gate-b/b08-information-ownership` → **5 files, 73 tests, all passing**,
+  including `b08-projection.test.ts`'s new `deriveB08AfterDataFromReport` describe block (5 tests,
+  defect #1) plus 2 new `resolveB08EffectiveHistory` narrative-provenance tests. A new file,
+  `b08-journey.test.tsx` (6 tests), and `safe-transition-controller.test.tsx`'s new "history-origin
+  write-boundary protection" block (3 tests) prove defect #2.
 - `npx tsc --noEmit -p .` — zero errors.
 - `eslint`/`docs:check`/`terminology:check`/`architecture:check`/`deadcode:check` — zero errors on
   every changed file.
-- Full repo-wide regression: `npx vitest run --config vitest.config.components.ts` (152 files, 981
-  tests) and `npx vitest run` (588 files, 6526 tests) — both all passing, confirming the shared
-  shell's five new optional props (all B05-defaulted) are non-breaking across every consumer, not
-  only B08's own.
-- Real browser capture evidence: this PR's own "Capture fixture-backed UI Lab views" CI run
-  (workflow run 42525103572, the POST-THIRD-remediation run) produced 72 real screenshots across all
-  5 scenarios, downloaded via `gh run download` and every SHA-256 independently recomputed from the
-  raw bytes against the artifact's own manifest.json — zero mismatches, zero missing files.
-  `capture-attestation.json` holds this real, verified evidence (superseding the second remediation's
-  attestation from workflow run 42509495683). The manifest's own `sourceCommitSha` (`7ee923ca`) was
-  independently confirmed, via `git fetch origin pull/822/merge`, to be GitHub's own synthetic merge
-  of this PR's actual branch-tip commit (`399b86d7`, recorded as `reviewedBranchHeadSha`) into
-  `main`. This pass's own fixes change history-origin provenance, idempotent event recording, and
-  narrative provenance — none of which affect any of these five pages' own default, no-journey,
-  no-edit appearance; no visual difference from the second remediation's own already-inspected
-  reference-mode screenshots was expected or found.
+- Full repo-wide regression: `npx vitest run --config vitest.config.components.ts` (153 files, 990
+  tests) and `npx vitest run` (588 files, 6533 tests) — both all passing.
+- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts` — Journey D extended with
+  reflection-consistency assertions (AFTER's "Team reflection" widget, REPORT-COMPLETED's own
+  Reflection tab) and Journey F added (a reference-report edit, an attempted LIVE recording
+  correctly rejected via the real "Needs review" mechanism, Reset journey, then a genuinely new
+  LIVE journey). Not runnable in this session's own devcontainer (the already-documented local
+  `next dev` + Playwright HMR WebSocket blocker) — see Governance below for the real CI count/result
+  once this pass's own push is confirmed green.
+
+**Third remediation's own CI history (for continuity):** `e2e/ui-lab-b08.spec.ts` reached 53/53
+passing in workflow run 42525103572 (2.0m), after three disclosed fix-and-rerun cycles (workflow
+runs 42520115677, 42521584617, 42523466866) that each caught a genuine bug in the new Journey C
+test itself (not the product code): the LIVE follower panel's own score text uses
+`MatchScoreHeader`'s real colon format ("1 : 1"), not `MatchIdentityCard`'s hyphen format ("1 - 1")
+used elsewhere; the just-recorded goal's own Recent Events row needed to be disambiguated from the
+seed's own identically-unattributed 10' goal by its known, fixed elapsed-time label ("10:00"), not
+by DOM order (which the local-overlay-vs-reconciled timing makes unreliable). The third
+remediation's own capture evidence (workflow run 42525103572, 72 screenshots, zero hash mismatches,
+`sourceCommitSha` `7ee923ca` independently confirmed as GitHub's synthetic merge of branch-tip
+`399b86d7`) is superseded below by this fourth pass's own fresh capture run. This pass's own fixes
+change narrative provenance and write-boundary rejection behavior — neither affects any of these
+five pages' own default, no-journey, no-edit appearance; no visual difference from the third
+remediation's own already-inspected reference-mode screenshots was expected or found.
 
 No `/visual-approve` or `/visual-reject` has been posted on this PR by any coding agent. No
 promotion to `APPROVED_GOLDEN` has been attempted — `approvalStatus`/`official_golden_status`
