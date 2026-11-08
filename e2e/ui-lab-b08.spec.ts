@@ -210,13 +210,14 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
     // display (LiveMatchClient's own Recent Events reads `event.playerId` directly off the GOAL_FOR
     // row itself, not via the separate SCORER_SET correction `b08-projection.ts`'s derivations use
     // — the seed's 10' goal's own `playerId` is null; only its paired SCORER_SET fact carries
-    // "Vetle", as its own separate row). Disambiguate by recency instead: `mergedEvents` sorts
-    // most-recent-first by `wallClockTime`, the seed's own events all carry `wallClockTime: null`
-    // (sorts last), and this fresh recording gets a real `new Date()` stamp — `.first()` is
-    // therefore reliably THIS goal, not the seed's.
-    const goalLabel = page.getByText("Goal — us", { exact: true }).first();
-    await expect(goalLabel).toBeVisible({ timeout: 15_000 });
-    const goalRow = goalLabel.locator("..").locator("..");
+    // "Vetle", as its own separate row). Disambiguate by the seed's own deterministic elapsed-time
+    // label instead of DOM order (the local-overlay-vs-reconciled timing makes sort order
+    // unreliable): the seed's 10' goal always renders `formatElapsedMs(600_000)` = exactly "10:00"
+    // (`matchSeconds` is fixed, period-relative ms for a global minute 10 goal) as its own row's
+    // time prefix; this fresh goal's own elapsed time (`getElapsedMs(clock, Date.now())` at
+    // ~15:00+ into the second half) never coincides with that exact string.
+    const goalRow = page.getByText("Goal — us", { exact: true }).locator("..").locator("..").filter({ hasNotText: "10:00" });
+    await expect(goalRow).toBeVisible({ timeout: 15_000 });
     await goalRow.getByRole("button", { name: "Undo" }).click();
 
     // The score itself updates immediately (LiveMatchClient's own optimistic setGoalsFor/Against,
