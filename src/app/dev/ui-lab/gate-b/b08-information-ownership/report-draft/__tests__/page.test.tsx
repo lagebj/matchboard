@@ -42,6 +42,14 @@ function renderPage(tab = "players") {
 
 beforeEach(() => {
   vi.stubGlobal("confirm", () => true);
+  // W5 second remediation: several tests in this file actually complete a report (a REAL
+  // `onStateChange` -> `saveB08JourneyReport()` write), which otherwise persists in jsdom's
+  // shared `sessionStorage` across every other test in this file (no automatic reset between
+  // tests) and silently turns a later "reference mode" test into an "interactive journey" one.
+  // Clearing before every test (not only within the nested P1-6 describe block) keeps each test
+  // isolated, matching the real "a fresh browser context starts empty" guarantee this page's own
+  // behavior otherwise relies on.
+  window.sessionStorage.clear();
 });
 
 describe("B08 Report · Draft page", () => {
@@ -143,7 +151,7 @@ describe("B08 Report · Draft page", () => {
   });
 
   describe("P1-6: a finished B08-LIVE journey changes what this page actually shows", () => {
-    const JOURNEY_KEY = "b08-live-journey-v1";
+    const JOURNEY_KEY = "b08-live-journey-v2";
 
     beforeEach(() => {
       window.sessionStorage.clear();
@@ -162,8 +170,9 @@ describe("B08 Report · Draft page", () => {
       window.sessionStorage.setItem(
         JOURNEY_KEY,
         JSON.stringify({
-          version: 1,
+          version: 2,
           finished: true,
+          report: null,
           events: [
             { id: "e1", clientEventId: "c1", eventType: "GOAL_FOR", period: "FIRST_HALF", matchSeconds: 600_000, wallClockTime: null, playerId: null, secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
             { id: "e2", clientEventId: null, eventType: "SCORER_SET", period: "FIRST_HALF", matchSeconds: null, wallClockTime: null, playerId: "player-gb8-vetle", secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: "c1", positionChange: null },
@@ -186,8 +195,9 @@ describe("B08 Report · Draft page", () => {
       window.sessionStorage.setItem(
         JOURNEY_KEY,
         JSON.stringify({
-          version: 1,
+          version: 2,
           finished: false,
+          report: null,
           events: [
             { id: "e1", clientEventId: "c1", eventType: "GOAL_FOR", period: "FIRST_HALF", matchSeconds: 600_000, wallClockTime: null, playerId: null, secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
           ],

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -44,6 +44,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 import B08AfterPage from "../page";
+
+beforeEach(() => {
+  // W5 second remediation: this page now reads `loadB08JourneyReport()`/
+  // `loadFinishedB08JourneyEvents()` on mount — clear jsdom's shared `sessionStorage` before
+  // every test so no test's own render can see a journey left behind by an earlier one (no
+  // automatic reset between tests in the same file).
+  window.sessionStorage.clear();
+});
 
 function renderPage(tab?: string, report?: "completed") {
   const params = new URLSearchParams();

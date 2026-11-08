@@ -38,6 +38,10 @@ function renderPage(tab?: string) {
 
 beforeEach(() => {
   vi.stubGlobal("confirm", () => true);
+  // W5 second remediation: this page now reads `loadB08JourneyReport()` on mount — clear
+  // jsdom's shared `sessionStorage` before every test so no test's own render can see a journey
+  // left behind by an earlier one (no automatic reset between tests in the same file).
+  window.sessionStorage.clear();
 });
 
 describe("B08 Report · Completed page", () => {
