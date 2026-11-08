@@ -13,8 +13,9 @@ import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-
 import type { LiveEventSummary } from "@/lib/live-match/live-match-types";
 import { buildMatchPresentation, type MatchPresentation } from "@/lib/matches/match-presentation";
 import { B08_MATCH_FORMAT, B08_MATCH_ID, B08_OPPONENT_NAME, B08_KICKOFF_AT, periodRelativeToGlobalMinute, b08Squad } from "./fixture";
+import { b08Timeline, B08_LIVE_GOALS_RECORDED, B08_TEAM_NOTE } from "./fixture-history";
 import { MATCH_B_TEAM_NAME } from "../../shared/match-b-fixture";
-import type { B08PersistedReportState } from "./b08-journey";
+import type { B08PersistedReportState, B08HistoryOrigin } from "./b08-journey";
 
 /**
  * B08 W5 second remediation (independent review, 2026-11-08, "lifecycle data consistency") — the
@@ -143,6 +144,54 @@ export function deriveEffectiveTimeline(effectiveEvents: readonly LiveEventSumma
 }
 
 // ---------------------------------------------------------------------------
+// Effective history resolution — the ONE place every page decides which match history (reference
+// or a real LIVE journey) a persisted report is actually grounded in (third remediation,
+// "final data-integrity remediation", defect #1: a reference-mode report edit must never lose
+// the canonical 10'/22'/48' chronology by deriving from an empty event array).
+// ---------------------------------------------------------------------------
+
+export interface B08EffectiveHistory {
+  timeline: MatchDetailAfterData["timeline"];
+  liveGoalsRecorded: number;
+  /** The reversal-filtered event set itself — `[]` for a `"REFERENCE"` origin (or no journey at
+   * all), since a reference-origin report never seeds goals/assists from raw events (it already
+   * has its own real report rows — `b08Goals()`/`b08Assists()`). Only meaningful to callers
+   * seeding a FRESH draft from a finished LIVE journey that has no report yet. */
+  effectiveEvents: readonly LiveEventSummary[];
+  /** The real B08 team note for a `"REFERENCE"` origin (the coach's own actual note about THIS
+   * match); `""` for `"LIVE_JOURNEY"` — authored narrative about a different, interactive result
+   * must never be attached to it (same provenance rule as reflection/observations below). */
+  teamNote: string;
+}
+
+/**
+ * Resolves the real chronology/goal-count a persisted (or about-to-be-seeded) report should be
+ * built against, given the journey's own recorded `historyOrigin`:
+ *
+ * - `"LIVE_JOURNEY"` with a real finished event ledger: the reversal-aware effective history
+ *   actually recorded during that session (`computeEffectiveLiveEvents()`).
+ * - `"REFERENCE"`, or no journey at all (a direct visit): the unchanged canonical reference
+ *   history (`fixture-history.ts`'s own `b08Timeline`/`B08_LIVE_GOALS_RECORDED`) — NEVER an empty
+ *   derivation. This is the fix for the defect where editing the reference report directly
+ *   discarded its own event history.
+ */
+export function resolveB08EffectiveHistory(
+  historyOrigin: B08HistoryOrigin | null,
+  journeyEvents: readonly LiveEventSummary[] | null,
+): B08EffectiveHistory {
+  if (historyOrigin === "LIVE_JOURNEY" && journeyEvents) {
+    const effectiveEvents = computeEffectiveLiveEvents(journeyEvents);
+    return {
+      timeline: deriveEffectiveTimeline(effectiveEvents),
+      liveGoalsRecorded: effectiveEvents.filter((e) => e.eventType === "GOAL_FOR").length,
+      effectiveEvents,
+      teamNote: "",
+    };
+  }
+  return { timeline: b08Timeline, liveGoalsRecorded: B08_LIVE_GOALS_RECORDED, effectiveEvents: [], teamNote: B08_TEAM_NOTE };
+}
+
+// ---------------------------------------------------------------------------
 // AFTER-data projection — only ever called when a persisted report exists (interactive mode)
 // ---------------------------------------------------------------------------
 
@@ -160,16 +209,23 @@ const B08_MINUTES_BY_PARTICIPANT = new Map<string, number>(
  * `shapeChangeRows`, `firstTimeCanonicalPositions`) are deliberately empty/null here — per the
  * review's own explicit guidance ("mark reference-only observations as unavailable in the
  * interactive journey... do not fabricate observations to make the page appear complete"). Every
- * field left populated below is purely factual/computed from the effective event ledger or the
- * report's own reconciled rows — never narrative.
+ * field left populated below is purely factual/computed from the report's own reconciled rows or
+ * the resolved effective history — never narrative.
+ *
+ * `history` is `resolveB08EffectiveHistory()`'s own output — third remediation ("final
+ * data-integrity remediation"): previously took a raw `effectiveEvents` array that a
+ * REFERENCE-origin caller had no correct way to populate (it has no LIVE event ledger at all),
+ * so every reference-mode edit silently derived an EMPTY timeline. Routing through the resolved
+ * history here means a reference-origin report keeps its own real 10'/22'/48' chronology, and a
+ * LIVE_JOURNEY-origin report keeps exactly what was actually recorded — never a third guess.
  */
-export function deriveB08AfterDataFromReport(report: B08PersistedReportState, effectiveEvents: readonly LiveEventSummary[]): MatchDetailAfterData {
+export function deriveB08AfterDataFromReport(report: B08PersistedReportState, history: B08EffectiveHistory): MatchDetailAfterData {
   const attendanceFacts: MatchAttendanceFact[] = report.players.map((p) => ({ attendanceStatus: p.attendanceStatus, playerName: p.playerName }));
   const presentParticipants = report.players
     .filter((p) => p.attendanceStatus === "PRESENT")
     .map((p) => ({ participantKey: p.playerId, playerName: p.playerName }));
   const timingNeedsReviewCount = report.timingReview.filter((t) => t.needsReview).length;
-  const liveGoalsRecorded = effectiveEvents.filter((e) => e.eventType === "GOAL_FOR").length;
+  const liveGoalsRecorded = history.liveGoalsRecorded;
   // `B08PersistedReportState.goals/assists` mirrors `SafeReportLocalState`'s own shape
   // (`playerId`/`playerName`) — re-expressed here in the real `MatchGoalFact`/`MatchAssistFact`
   // shape (`participantKey`/`type`) the real aggregate functions below consume, matching
@@ -182,14 +238,14 @@ export function deriveB08AfterDataFromReport(report: B08PersistedReportState, ef
     reportStatus: report.status,
     homeGoals: report.ourScore,
     awayGoals: report.opponentScore,
-    teamNote: "",
+    teamNote: history.teamNote,
     completedBy: report.completedBy,
     completedAt: report.completedAt,
     attendance: attendanceFacts,
     attendanceSummary: summarizeMatchAttendance(attendanceFacts),
     goalScorers: aggregateGoalScorers(goalFacts),
     assistProviders: aggregateAssistProviders(assistFacts),
-    timeline: deriveEffectiveTimeline(effectiveEvents),
+    timeline: history.timeline,
     playerMinutes: B08_MINUTES_BY_PARTICIPANT,
     playerInvolvement: buildPlayerInvolvement({
       presentParticipants,

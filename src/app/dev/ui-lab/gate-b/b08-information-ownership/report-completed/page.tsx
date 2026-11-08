@@ -9,10 +9,21 @@ import { MATCH_B_TEAM_NAME, MATCH_B_TEAM_KIT_COLOR } from "../../shared/match-b-
 import { SafePostMatchReportShell } from "../../b05-post-match-report/shared/safe-post-match-report-shell";
 import type { SafeReportLocalState } from "../../b05-post-match-report/shared/use-safe-report-lifecycle";
 import { B08TransitionNav } from "../shared/transition-nav";
-import { B08_MATCH_ID, B08_OPPONENT_NAME, B08_COMPLETED_BY, B08_COMPLETED_AT, b08AfterIdentity } from "../shared/fixture";
-import { b08InitialReport, b08AfterData, b08TimingReview, b08DebriefAnswers, b08AllPlayers, b08FootballObservations, b08CombinationEvidence } from "../shared/fixture-history";
-import { loadFinishedB08JourneyEvents, loadB08JourneyReport } from "../shared/b08-journey";
-import { computeEffectiveLiveEvents, deriveB08AfterDataFromReport, deriveB08IdentityFromReport } from "../shared/b08-projection";
+import { EMPTY_DEBRIEF_ANSWERS } from "@/lib/post-match/debrief/v1";
+import { B08_MATCH_ID, B08_REPORT_ID, B08_DEBRIEF_ID, B08_OPPONENT_NAME, B08_COMPLETED_BY, B08_COMPLETED_AT, b08AfterIdentity } from "../shared/fixture";
+import {
+  b08InitialReport,
+  b08AfterData,
+  b08TimingReview,
+  b08DebriefAnswers,
+  b08AllPlayers,
+  b08FootballObservations,
+  b08CombinationEvidence,
+  b08MinutesByParticipant,
+  b08ObservationCountByParticipant,
+} from "../shared/fixture-history";
+import { loadFinishedB08JourneyEvents, loadB08JourneyReport, loadB08HistoryOrigin } from "../shared/b08-journey";
+import { resolveB08EffectiveHistory, deriveB08AfterDataFromReport, deriveB08IdentityFromReport } from "../shared/b08-projection";
 
 /**
  * B08 — REPORT-COMPLETED (locked report).
@@ -39,11 +50,24 @@ import { computeEffectiveLiveEvents, deriveB08AfterDataFromReport, deriveB08Iden
  * "DRAFT"` already does this correctly; this page does not special-case it. No journey at all
  * (every direct visit, including every CI/Playwright capture) falls back to the unchanged
  * canonical `b08InitialReport("completed")` reference snapshot, exactly as before this pass.
+ *
+ * W5 THIRD remediation (independent review, 2026-11-08, "final data-integrity remediation"):
+ * resolves the SAME `historyOrigin`-aware effective history (`resolveB08EffectiveHistory()`) as
+ * REPORT-DRAFT/AFTER — a `"REFERENCE"`-origin persisted report (a direct edit of the canonical
+ * report) keeps its own real chronology/narrative instead of an empty, fabricated-interactive one
+ * (defects #1/#2); `reportId`/`debriefId`/participant-minutes passed to the shared shell are B08's
+ * own, not B05's (defect #4).
  */
 export default function B08ReportCompletedPage() {
   const [persistedReport] = useState(() => loadB08JourneyReport());
+  const [historyOrigin] = useState(() => loadB08HistoryOrigin());
   const [journeyEvents] = useState(() => loadFinishedB08JourneyEvents());
-  const effectiveEvents = journeyEvents ? computeEffectiveLiveEvents(journeyEvents) : [];
+  // Gated on real usable data too, not just the stored origin — see report-draft/page.tsx's own
+  // identical comment: an unfinished LIVE session can leave `historyOrigin: "LIVE_JOURNEY"` in
+  // storage with no usable data at all, in which case this page actually renders the reference
+  // tier and must not withhold its real narrative.
+  const isInteractiveJourney = (persistedReport !== null || journeyEvents !== null) && historyOrigin === "LIVE_JOURNEY";
+  const history = resolveB08EffectiveHistory(historyOrigin, journeyEvents);
 
   let initialLocalState: SafeReportLocalState;
   let staticAfterData: MatchDetailAfterData;
@@ -64,7 +88,7 @@ export default function B08ReportCompletedPage() {
       completedAt: persistedReport.completedAt,
       nextLocalId: persistedReport.nextLocalId,
     };
-    staticAfterData = deriveB08AfterDataFromReport(persistedReport, effectiveEvents);
+    staticAfterData = deriveB08AfterDataFromReport(persistedReport, history);
     isLocked = persistedReport.status === "LOCKED";
     presentation = deriveB08IdentityFromReport(persistedReport, isLocked ? "done" : "report_incomplete");
   } else {
@@ -115,8 +139,17 @@ export default function B08ReportCompletedPage() {
 
       {persistedReport && (
         <div className="rounded-lg border border-dashed border-[var(--accent)]/50 bg-[var(--accent)]/5 px-3 py-2 text-[12px] text-[var(--text-muted)]">
-          <span className="font-[650] text-[var(--foreground)]">Reflecting your interactive journey:</span> this is the exact
-          report you reconciled on REPORT-DRAFT — not the fixed reference fixture.
+          {isInteractiveJourney ? (
+            <>
+              <span className="font-[650] text-[var(--foreground)]">Reflecting your interactive journey:</span> this is the exact
+              report you reconciled on REPORT-DRAFT — not the fixed reference fixture.
+            </>
+          ) : (
+            <>
+              <span className="font-[650] text-[var(--foreground)]">Reflecting your own edits:</span> this is the real reference
+              match and its real event history, with the changes you made on REPORT-DRAFT applied.
+            </>
+          )}
         </div>
       )}
 
@@ -131,10 +164,16 @@ export default function B08ReportCompletedPage() {
         initialLocalState={initialLocalState}
         completedByLabel={B08_COMPLETED_BY}
         completionTimestamp={B08_COMPLETED_AT.toISOString()}
-        debriefAnswers={b08DebriefAnswers}
+        reportId={B08_REPORT_ID}
+        debriefId={B08_DEBRIEF_ID}
+        minutesByParticipant={b08MinutesByParticipant}
+        observationCountByParticipant={isInteractiveJourney ? new Map() : b08ObservationCountByParticipant}
+        teamNote={history.teamNote}
+        debriefAnswers={isInteractiveJourney ? EMPTY_DEBRIEF_ANSWERS.answers : b08DebriefAnswers}
+        debriefStatus={isInteractiveJourney ? "DRAFT" : "SUBMITTED"}
         allPlayers={b08AllPlayers}
-        footballObservations={b08FootballObservations}
-        combinationEvidence={b08CombinationEvidence}
+        footballObservations={isInteractiveJourney ? [] : b08FootballObservations}
+        combinationEvidence={isInteractiveJourney ? [] : b08CombinationEvidence}
         backHref="/dev/ui-lab/gate-b/b08-information-ownership/after?report=completed"
       />
     </div>

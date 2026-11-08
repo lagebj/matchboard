@@ -13,6 +13,10 @@ import type { CoachingIntentCategory } from "@/lib/coaching/types";
  */
 export const B08_MATCH_ID = "match-gate-b-08";
 export const B08_REPORT_ID = "report-gate-b-08";
+/** B08's own real debrief identity — third remediation ("final data-integrity remediation",
+ * defect #4): `SafePostMatchReportShell` previously hardcoded B05's own `"debrief-gate-b-05"` id
+ * unconditionally for every caller, including B08. */
+export const B08_DEBRIEF_ID = "debrief-gate-b-08";
 export const B08_OPPONENT_NAME = "Vollen IL";
 export const B08_KICKOFF_AT = new Date("2026-11-05T10:00:00.000Z");
 

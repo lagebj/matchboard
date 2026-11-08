@@ -35,8 +35,8 @@ import {
   B08_COACHING_INTENT_NOTE,
 } from "../shared/fixture";
 import { b08AfterData, b08InitialReport, b08TimingReview } from "../shared/fixture-history";
-import { loadFinishedB08JourneyEvents, loadB08JourneyReport, type B08PersistedReportState } from "../shared/b08-journey";
-import { computeEffectiveLiveEvents, deriveGoalsAndAssists, deriveEffectiveScore, deriveB08AfterDataFromReport, deriveB08IdentityFromReport } from "../shared/b08-projection";
+import { loadFinishedB08JourneyEvents, loadB08JourneyReport, loadB08HistoryOrigin, type B08PersistedReportState } from "../shared/b08-journey";
+import { resolveB08EffectiveHistory, deriveGoalsAndAssists, deriveEffectiveScore, deriveB08AfterDataFromReport, deriveB08IdentityFromReport } from "../shared/b08-projection";
 
 /**
  * B08 — AFTER (played, report incomplete).
@@ -91,9 +91,19 @@ export default function B08AfterPage() {
   const searchParams = useSearchParams();
 
   const [persistedReport] = useState(() => loadB08JourneyReport());
+  const [historyOrigin] = useState(() => loadB08HistoryOrigin());
   const [journeyEvents] = useState(() => loadFinishedB08JourneyEvents());
   const hasJourney = persistedReport !== null || journeyEvents !== null;
-  const effectiveEvents = journeyEvents ? computeEffectiveLiveEvents(journeyEvents) : [];
+  // Third remediation ("final data-integrity remediation", defect #2): only a LIVE_JOURNEY-origin
+  // report's narrative must be withheld — a REFERENCE-origin persisted report (a direct edit of
+  // the canonical report) keeps its own real reflection/observations/combination evidence/
+  // Assistant Coach insight, since they genuinely describe this same match.
+  // Gated on `hasJourney` too, not just the stored origin — see report-draft/page.tsx's own
+  // identical comment: an unfinished LIVE session can leave `historyOrigin: "LIVE_JOURNEY"` in
+  // storage with no usable data at all, in which case this page actually renders the reference
+  // tier and must not withhold its real narrative.
+  const isInteractiveJourney = hasJourney && historyOrigin === "LIVE_JOURNEY";
+  const history = resolveB08EffectiveHistory(historyOrigin, journeyEvents);
 
   let isCompleted: boolean;
   let data: ReturnType<typeof b08AfterData>;
@@ -101,11 +111,11 @@ export default function B08AfterPage() {
 
   if (persistedReport) {
     isCompleted = persistedReport.status === "LOCKED";
-    data = deriveB08AfterDataFromReport(persistedReport, effectiveEvents);
+    data = deriveB08AfterDataFromReport(persistedReport, history);
     presentation = deriveB08IdentityFromReport(persistedReport, isCompleted ? "done" : "report_incomplete");
   } else if (journeyEvents) {
-    const { goals, assists } = deriveGoalsAndAssists(effectiveEvents);
-    const { ourGoals, opponentGoals } = deriveEffectiveScore(effectiveEvents);
+    const { goals, assists } = deriveGoalsAndAssists(history.effectiveEvents);
+    const { ourGoals, opponentGoals } = deriveEffectiveScore(history.effectiveEvents);
     const referenceInitialReport = b08InitialReport("draft");
     const seeded: B08PersistedReportState = {
       status: "REPORTED",
@@ -121,7 +131,7 @@ export default function B08AfterPage() {
       nextLocalId: 0,
     };
     isCompleted = false;
-    data = deriveB08AfterDataFromReport(seeded, effectiveEvents);
+    data = deriveB08AfterDataFromReport(seeded, history);
     presentation = deriveB08IdentityFromReport(seeded, "report_incomplete");
   } else {
     const reportVariant = searchParams.get("report") === "completed" ? "completed" : "draft";
@@ -166,10 +176,12 @@ export default function B08AfterPage() {
   //
   // W5 second remediation: this specific insight text ("Vollen's equalizer... the coach's own
   // post-match reflection names the same pattern") is authored for the fixed 2-1 REFERENCE match
-  // and would misrepresent an interactive journey that ended differently. In interactive mode
-  // (`hasJourney`), use the real, already-production-modeled `{status: "unavailable"}` state
-  // instead of fabricating a conclusion — never a second, invented "no insight" UI.
-  const advisorViewModel: CompletedMatchAdvisorViewModel | null = hasJourney
+  // and would misrepresent a LIVE_JOURNEY that ended differently. In that case
+  // (`isInteractiveJourney`), use the real, already-production-modeled `{status: "unavailable"}`
+  // state instead of fabricating a conclusion — never a second, invented "no insight" UI. A
+  // REFERENCE-origin edited report (third remediation) keeps this real insight — it genuinely
+  // describes this same match's own real events, unaffected by which report fields a coach edited.
+  const advisorViewModel: CompletedMatchAdvisorViewModel | null = isInteractiveJourney
     ? { status: "unavailable" }
     : {
         status: "fresh",
@@ -214,11 +226,21 @@ export default function B08AfterPage() {
 
         {hasJourney && (
           <div className="rounded-lg border border-dashed border-[var(--accent)]/50 bg-[var(--accent)]/5 px-3 py-2 text-[12px] text-[var(--text-muted)]">
-            <span className="font-[650] text-[var(--foreground)]">Reflecting your interactive journey:</span> result, events, goals
-            and report status below come from what you actually recorded/reconciled in this browser session. Reflection, football
-            observations, opponent observation, combination evidence and the Assistant Coach insight were authored specifically
-            for the fixed reference match and are not reproduced here — genuinely unavailable for this interactive journey, not
-            hidden by mistake.
+            {isInteractiveJourney ? (
+              <>
+                <span className="font-[650] text-[var(--foreground)]">Reflecting your interactive journey:</span> result, events,
+                goals and report status below come from what you actually recorded/reconciled in this browser session. Reflection,
+                football observations, opponent observation, combination evidence and the Assistant Coach insight were authored
+                specifically for the fixed reference match and are not reproduced here — genuinely unavailable for this interactive
+                journey, not hidden by mistake.
+              </>
+            ) : (
+              <>
+                <span className="font-[650] text-[var(--foreground)]">Reflecting your own edits:</span> this is the real reference
+                match and its real event history (including reflection, observations and combination evidence) — with the changes
+                you made on REPORT-DRAFT applied to the report fields below.
+              </>
+            )}
           </div>
         )}
 

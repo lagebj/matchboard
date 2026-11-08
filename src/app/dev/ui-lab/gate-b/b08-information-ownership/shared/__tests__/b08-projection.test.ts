@@ -7,6 +7,7 @@ import {
   deriveEffectiveTimeline,
   deriveB08AfterDataFromReport,
   deriveB08IdentityFromReport,
+  resolveB08EffectiveHistory,
 } from "../b08-projection";
 import { b08CanonicalLiveEvents } from "../fixture-history";
 import type { B08PersistedReportState } from "../b08-journey";
@@ -126,19 +127,19 @@ describe("computeEffectiveLiveEvents — mirrors the real production reversal al
     expect(deriveEffectiveScore(effective)).toEqual({ ourGoals: 1, opponentGoals: 0 });
   });
 
-  it("a duplicate GOAL_FOR delivery (same id submitted twice) counts once — real idempotence, not a second dedup pass invented here", () => {
+  it("this projection does NOT deduplicate a genuine duplicate array entry — array length is counted verbatim; deduplication is the write boundary's own job, not this derivation's", () => {
     const g1 = event({ id: "g1", eventType: "GOAL_FOR" });
-    const events = [g1, { ...g1 }]; // same id, literally the same event delivered twice
+    const events = [g1, { ...g1 }]; // same id, literally the same event object appearing twice
     const effective = computeEffectiveLiveEvents(events);
     // computeEffectiveLiveEvents() itself does not dedupe by id (production's own two real
     // Prisma queries can't produce a true row-level duplicate — a unique id constraint already
     // prevents it upstream); dedup-by-id is the ledger-write side's own job
-    // (`saveB08JourneyEvents()`/`recordEvent()`), not this derivation. Document the real
-    // contract here: deriveEffectiveScore() counts by ARRAY LENGTH, so a caller that already
-    // wrote a genuine duplicate row would see it counted twice — proving why `recordEvent()`
-    // must never append a second row for the same id, which it does not (see
-    // safe-transition-controller.test.tsx's own idempotence coverage for recordEvent() itself).
+    // (`recordEvent()` in `safe-transition-controller.ts`), never this derivation's. This test
+    // documents that real architectural boundary — it is NOT, by itself, evidence that
+    // `recordEvent()` is idempotent; that real claim is proven directly against the actual write
+    // boundary in `safe-transition-controller.test.tsx`'s own "idempotent event recording" suite.
     expect(effective).toHaveLength(2);
+    expect(deriveEffectiveScore(effective)).toEqual({ ourGoals: 2, opponentGoals: 0 });
   });
 
   it("completed 1-1 report (via the AFTER-data projection): LOCKED, 1-1, factual-only — no reference-only narrative leaks in", () => {
@@ -155,7 +156,7 @@ describe("computeEffectiveLiveEvents — mirrors the real production reversal al
       completedAt: "2026-11-08T09:00:00.000Z",
       nextLocalId: 0,
     };
-    const data = deriveB08AfterDataFromReport(report, []);
+    const data = deriveB08AfterDataFromReport(report, resolveB08EffectiveHistory("LIVE_JOURNEY", []));
     expect(data.reportStatus).toBe("LOCKED");
     expect(data.homeGoals).toBe(1);
     expect(data.awayGoals).toBe(1);
@@ -187,7 +188,7 @@ describe("computeEffectiveLiveEvents — mirrors the real production reversal al
       completedAt: "2026-11-08T09:00:00.000Z",
       nextLocalId: 0,
     };
-    const data = deriveB08AfterDataFromReport(report, []);
+    const data = deriveB08AfterDataFromReport(report, resolveB08EffectiveHistory("LIVE_JOURNEY", []));
     expect(data.homeGoals).toBe(2);
     expect(data.awayGoals).toBe(1);
     expect(data.goalAttributionGap!.attributedGoals).toBe(2);
@@ -208,5 +209,47 @@ describe("computeEffectiveLiveEvents — mirrors the real production reversal al
     const timeline = deriveEffectiveTimeline(computeEffectiveLiveEvents(events));
     const goalItems = timeline.filter((i) => i.kind === "GOAL_FOR");
     expect(goalItems).toHaveLength(1);
+  });
+});
+
+/**
+ * Third remediation (independent review, 2026-11-08, "final data-integrity remediation",
+ * defect #1): a REFERENCE-origin persisted report (a direct edit of the canonical report, no
+ * LIVE journey involved) must keep the real 10'/22'/48' chronology — before this fix,
+ * `deriveB08AfterDataFromReport()` always received a raw `effectiveEvents` array a
+ * REFERENCE-origin caller had no correct way to populate (it has no LIVE event ledger at all),
+ * so every reference-mode edit silently derived an EMPTY timeline and a `liveGoalsRecorded: 0`
+ * goal-attribution-gap figure. `resolveB08EffectiveHistory()` is the single place this is now
+ * decided, by the real `historyOrigin`, never inferred from an array's own emptiness.
+ */
+describe("resolveB08EffectiveHistory — history provenance (third remediation)", () => {
+  it("REFERENCE origin: the real canonical chronology, never an empty derivation", () => {
+    const history = resolveB08EffectiveHistory("REFERENCE", null);
+    expect(history.liveGoalsRecorded).toBe(2);
+    expect(history.timeline.length).toBeGreaterThan(0);
+    expect(history.teamNote.length).toBeGreaterThan(0);
+    expect(history.effectiveEvents).toHaveLength(0);
+  });
+
+  it("no journey at all (a direct visit): the identical canonical chronology as REFERENCE — never a third, empty guess", () => {
+    const history = resolveB08EffectiveHistory(null, null);
+    expect(history).toEqual(resolveB08EffectiveHistory("REFERENCE", null));
+  });
+
+  it("LIVE_JOURNEY origin with a real finished ledger: the actually-recorded chronology, reversal-aware, and no reference team note", () => {
+    const events = [
+      event({ id: "g1", eventType: "GOAL_FOR", clientEventId: "c1" }),
+      event({ id: "s1", eventType: "SCORER_SET", correctsEventId: "c1", playerId: "player-gb8-vetle" }),
+      event({ id: "ga1", eventType: "GOAL_AGAINST" }),
+    ];
+    const history = resolveB08EffectiveHistory("LIVE_JOURNEY", events);
+    expect(history.liveGoalsRecorded).toBe(1);
+    expect(history.teamNote).toBe("");
+    expect(history.effectiveEvents).toHaveLength(3);
+  });
+
+  it("LIVE_JOURNEY origin with no events array (defensive — should not happen in practice) falls back to the canonical chronology, same as REFERENCE", () => {
+    const history = resolveB08EffectiveHistory("LIVE_JOURNEY", null);
+    expect(history).toEqual(resolveB08EffectiveHistory("REFERENCE", null));
   });
 });

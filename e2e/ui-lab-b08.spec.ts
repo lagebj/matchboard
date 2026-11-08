@@ -96,7 +96,7 @@ test.describe("B08 — navigation and lifecycle-state continuity", () => {
   });
 });
 
-test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second remediation 'lifecycle data consistency'): the SAME effective match appears consistently across LIVE, REPORT-DRAFT, AFTER and REPORT-COMPLETED — never a different history in a different workspace", () => {
+test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second remediation 'lifecycle data consistency' and third remediation 'final data-integrity remediation'): the SAME effective match appears consistently across LIVE, REPORT-DRAFT, AFTER and REPORT-COMPLETED — never a different history in a different workspace", () => {
   // Journey A (independent review, section 10): match finishes 1-1.
   test("Journey A — finishing LIVE without recording the 48' winner: a real 1-1 all the way through REPORT-DRAFT, completion, AFTER, REPORT-COMPLETED and a reload", async ({ page }) => {
     await page.goto(`${BASE}/live`);
@@ -171,6 +171,144 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
 
     await page.reload();
     await expect(page.getByText("2 - 1").first()).toBeAttached();
+  });
+
+  // Journey C (independent review, third remediation "final data-integrity remediation", section
+  // 6): a recorded goal followed by a real Undo, verified through the real mounted
+  // `LiveMatchClient` in a real browser — the previous remediation pass declined to test this
+  // (a real, investigated timing risk: `LiveMatchClient.handleUndo()` can target a not-yet-
+  // confirmed Recent Events row, whose own `id` is a `clientEventId`, not the real stored id).
+  // That risk is now closed at the fixture's own write boundary (`safe-transition-controller.ts`'s
+  // `recordEvent()` normalizes an `EVENT_REVERSED.correctsEventId` to the real target id even when
+  // submitted against a clientEventId — see its own doc comment and
+  // `safe-transition-controller.test.tsx`'s direct proof), so this journey no longer needs any
+  // timing-dependent wait to be reliable.
+  test("Journey C — a recorded goal followed by a real Undo: reporter and follower agree before and after, and the reversed goal never becomes an effective goal downstream", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto(`${BASE}/live`);
+    await expect(page.getByRole("button", { name: "Goal for us" })).toBeVisible({ timeout: 15_000 });
+
+    // Starting snapshot: 1-1 (the match's own real 48' winner has not happened yet).
+    await expect(page.getByTestId("live-score-us")).toHaveText("1");
+    await expect(page.getByTestId("live-score-them")).toHaveText("1");
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+
+    await page.getByRole("button", { name: "Goal for us" }).click();
+    await page.getByRole("button", { name: "Skip" }).click();
+
+    // Reporter and follower both move to 2-1 — the follower is derived from the exact same event
+    // ledger (P2-9), never a second, independently-frozen score.
+    await expect(page.getByTestId("live-score-us")).toHaveText("2");
+    await expect(page.getByTestId("live-score-them")).toHaveText("1");
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    // Locate the just-recorded, unattributed goal in Recent Events ("Goal — us" with no player
+    // name — the seed's own 10' goal is attributed to Vetle, so its row reads
+    // "Goal — us — Vetle" instead, distinct text) and use its real Undo control.
+    const goalLabel = page.getByText("Goal — us", { exact: true });
+    await expect(goalLabel).toBeVisible({ timeout: 15_000 });
+    const goalRow = goalLabel.locator("..").locator("..");
+    await goalRow.getByRole("button", { name: "Undo" }).click();
+
+    // The score itself updates immediately (LiveMatchClient's own optimistic setGoalsFor/Against,
+    // and B08's follower panel re-deriving from the same `events` React state on its next render).
+    await expect(page.getByTestId("live-score-us")).toHaveText("1");
+    await expect(page.getByTestId("live-score-them")).toHaveText("1");
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+    // The "reversed" marker and the Undo control's own removal are NOT part of that optimistic
+    // update — both depend on `isReversed` being computed from a `getRecentEvents()` refresh,
+    // which real production only re-polls every 5s (`fetchEvents`'s own `setInterval(fetchEvents,
+    // 5_000)`, confirmed directly in `live-match-client.tsx`) or on specific reconcile moments —
+    // never immediately after `handleUndo()` itself. An explicit timeout spanning that real,
+    // documented interval (not an arbitrary guess) is the correct wait here.
+    await expect(goalRow.getByText("reversed")).toBeVisible({ timeout: 8_000 });
+    await expect(goalRow.getByRole("button", { name: "Undo" })).toHaveCount(0, { timeout: 8_000 });
+
+    await page.getByRole("button", { name: "Finish live reporting" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Confirm" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
+    await expect(page.getByText(/Reflecting your LIVE session/)).toBeVisible();
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+    // The reversed goal must never become an effective goal downstream — only the real,
+    // unreversed 10' goal remains, and the reversed one's own clientEventId never resurfaces as a
+    // second attributed/unattributed goal row.
+    await expect(page.getByText("48'")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
+    await expect(page.getByText("Confirm duration", { exact: true })).toHaveCount(0);
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Reopen report", exact: true })).toBeVisible();
+
+    await page.getByRole("link", { name: "‹ Back to match" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/after\\?report=completed`));
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+
+    // Consistency across more than the score header (section 7's own requirement: "the score is
+    // one projection of the match history, not the whole history") — the reversed goal must stay
+    // excluded on AFTER's own Events and Stats tabs too, not only its Overview score.
+    await page.goto(`${BASE}/after?report=completed&tab=events`);
+    await expect(page.getByText("48'")).toHaveCount(0);
+    await page.goto(`${BASE}/after?report=completed&tab=stats`);
+    await expect(page.getByText("48'")).toHaveCount(0);
+
+    await page.goto(`${BASE}/after?report=completed`);
+    await page.getByRole("link", { name: "View report" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/report-completed`));
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+
+    await page.reload();
+    await expect(page.getByText("1 - 1").first()).toBeAttached();
+    await page.goto(`${BASE}/report-completed?tab=timeline`);
+    await expect(page.getByText("48'")).toHaveCount(0);
+  });
+
+  // Journey D (independent review, third remediation "final data-integrity remediation", section
+  // 7): a direct edit of the REFERENCE report (no LIVE journey at all) must preserve the real
+  // canonical event history — the exact defect #1 fix (`historyOrigin`, `b08-journey.ts` v3).
+  test("Journey D — editing the reference report directly (no LIVE journey) preserves the real chronology, score and narrative across REPORT-DRAFT, AFTER, REPORT-COMPLETED and a reload", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto(`${BASE}/report-draft`);
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    // A real edit — resolving the one genuine incomplete-data condition — without ever visiting
+    // LIVE. Before the fix, this alone discarded the real 10'/22'/48' chronology.
+    await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
+    await expect(page.getByText("Confirm duration", { exact: true })).toHaveCount(0);
+
+    // "Complete report" (like "Confirm duration") lives on the Players tab only — complete it
+    // here, then verify the Timeline tab separately afterward (completion flips REPORTED -> LOCKED
+    // in place, no navigation, so Timeline is still reachable on this same page).
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Complete report", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Reopen report", exact: true })).toBeVisible();
+
+    await page.goto(`${BASE}/report-draft?tab=timeline`);
+    await expect(page.getByText("10'").first()).toBeAttached();
+    await expect(page.getByText("22'").first()).toBeAttached();
+    await expect(page.getByText("48'").first()).toBeAttached();
+
+    await page.getByRole("link", { name: "‹ Back to match" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/after\\?report=completed`));
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("report completed");
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+    // Reference-origin narrative is real and preserved — never withheld as though this were an
+    // interactive journey (defect #2's other half). The Assistant Coach insight is the one
+    // narrative text AFTER itself renders (reflection is shown as rating pills only, with no note
+    // text on this page) — it must still be the real, fresh insight, not the `AdvisorPanelUnavailable`
+    // state an interactive journey correctly shows instead.
+    await expect(page.getByText(/Vollen's equalizer at 22' followed directly from a lost high turnover/)).toBeVisible();
+
+    await page.getByRole("link", { name: "View report" }).click();
+    await page.waitForURL(new RegExp(`${BASE}/report-completed`));
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+
+    await page.reload();
+    await expect(page.getByText("2 - 1").first()).toBeAttached();
+    await page.goto(`${BASE}/report-completed?tab=timeline`);
+    await expect(page.getByText("10'").first()).toBeAttached();
+    await expect(page.getByText("22'").first()).toBeAttached();
+    await expect(page.getByText("48'").first()).toBeAttached();
   });
 
   // Journey E (independent review, section 10): reference-mode isolation.

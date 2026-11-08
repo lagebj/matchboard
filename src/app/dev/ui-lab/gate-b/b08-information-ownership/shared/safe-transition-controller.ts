@@ -88,9 +88,17 @@ function generateFixtureEventId(): string {
  * cutoff seed; a journey already in progress (a reload of B08-LIVE itself, mid-session) restores
  * exactly where the coach left off, never the canonical seed again. Reference-snapshot captures
  * (a brand-new browser context, per `scripts/ui-lab-visual-review.mjs`) always see `null` here and
- * fall back to the unchanged canonical seed. */
+ * fall back to the unchanged canonical seed.
+ *
+ * W5 THIRD remediation (independent review, 2026-11-08, "final data-integrity remediation",
+ * defect #1): gated on `historyOrigin === "LIVE_JOURNEY"`, not merely "a journey exists" — a
+ * `"REFERENCE"`-origin persisted report (the coach edited the canonical report directly, with no
+ * LIVE session at all) stores `events: []`, which this function previously could not distinguish
+ * from a genuinely resumed, empty LIVE session — opening LIVE after such an edit silently lost
+ * the real canonical cutoff seed. */
 function initialLiveEvents(): LiveEventSummary[] {
-  return loadB08Journey()?.events ?? B08_LIVE_INITIAL_EVENTS;
+  const journey = loadB08Journey();
+  return journey?.historyOrigin === "LIVE_JOURNEY" ? journey.events : B08_LIVE_INITIAL_EVENTS;
 }
 
 export function useB08LiveFixtureActions(matchId: string) {
@@ -99,21 +107,76 @@ export function useB08LiveFixtureActions(matchId: string) {
   eventsRef.current = events;
 
   const recordEvent = useCallback<LiveMatchActions["recordEvent"]>(async (input) => {
+    // W5 THIRD remediation (independent review, 2026-11-08, "final data-integrity remediation",
+    // defect #3): mirrors production's own real contract exactly — `clientEventId` is REQUIRED on
+    // every real call (`LiveMatchActions["recordEvent"]`'s own type), and production's server
+    // dedups a resend by it (confirmed directly against `LiveMatchClient`'s own
+    // `reconcileOutboxWithServer()` doc comment: "a resend is dedup-safe server-side by
+    // clientEventId"). Before this fix, this fixture adapter had NO such check — it always
+    // generated a fresh `id` and appended a new row, so a genuine retry (a reconnect, a reload
+    // mid-send, a resent command) silently double-counted a goal/correction/reversal.
+    const clientEventId = input.clientEventId;
+    const normalizedPeriod = (input.period as MatchPeriod) ?? "SECOND_HALF";
+    const normalizedMatchSeconds = input.matchSeconds ?? null;
+    const normalizedPlayerId = input.playerId ?? null;
+    const normalizedSecondaryPlayerId = input.secondaryPlayerId ?? null;
+    let normalizedCorrectsEventId = input.correctsEventId ?? null;
+
+    // W5 THIRD remediation (defect #5, "verify LIVE Undo through a real browser interaction"):
+    // `LiveMatchClient.handleUndo(eventId)` reads `eventId` off whatever Recent Events row the
+    // coach clicked — a row still on the LOCAL overlay (not yet reconciled into `recentEvents`)
+    // carries `id = clientEventId` (see `overlayPendingCommands()`), not the eventual real `id`.
+    // `EVENT_REVERSED.correctsEventId` is in the REAL-`id` namespace (`computeEffectiveLiveEvents()`
+    // matches it against a target's own `id` only), so an Undo clicked on a local-overlay row would
+    // otherwise record a reversal that never actually excludes its target — exactly the kind of
+    // reporter/follower disagreement this whole programme exists to close. A real server resolves
+    // this by looking up its own canonical row via `clientEventId` before storing; this fixture does
+    // the same normalization at its own write boundary, for `EVENT_REVERSED` only (the one event
+    // type whose `correctsEventId` is ever in this ambiguous, timing-dependent namespace).
+    if (input.eventType === "EVENT_REVERSED" && normalizedCorrectsEventId) {
+      const alreadyByRealId = eventsRef.current.some((e) => e.id === normalizedCorrectsEventId);
+      if (!alreadyByRealId) {
+        const byClientEventId = eventsRef.current.find((e) => e.clientEventId === normalizedCorrectsEventId);
+        if (byClientEventId) normalizedCorrectsEventId = byClientEventId.id;
+      }
+    }
+
+    if (clientEventId) {
+      const existing = eventsRef.current.find((e) => e.clientEventId === clientEventId);
+      if (existing) {
+        const isIdenticalRetry =
+          existing.eventType === input.eventType &&
+          existing.period === normalizedPeriod &&
+          existing.matchSeconds === normalizedMatchSeconds &&
+          existing.playerId === normalizedPlayerId &&
+          existing.secondaryPlayerId === normalizedSecondaryPlayerId &&
+          existing.correctsEventId === normalizedCorrectsEventId;
+        if (isIdenticalRetry) {
+          // Idempotent no-op: the exact same event was already accepted under this clientEventId
+          // — never append a second row, never change the score, never repeat an attribution.
+          return { success: true, data: { id: existing.id } };
+        }
+        // A DIFFERENT event masquerading under an already-accepted clientEventId is a genuine
+        // conflict — never silently appended as a second row, never silently overwritten.
+        return { success: false, error: "Conflicting duplicate event for this clientEventId." };
+      }
+    }
+
     const id = generateFixtureEventId();
     const next: LiveEventSummary[] = [
       ...eventsRef.current,
       {
         id,
-        clientEventId: input.clientEventId ?? null,
+        clientEventId: clientEventId ?? null,
         eventType: input.eventType as LiveMatchEventType,
-        period: (input.period as MatchPeriod) ?? "SECOND_HALF",
-        matchSeconds: input.matchSeconds ?? null,
+        period: normalizedPeriod,
+        matchSeconds: normalizedMatchSeconds,
         wallClockTime: new Date(),
-        playerId: input.playerId ?? null,
-        secondaryPlayerId: input.secondaryPlayerId ?? null,
+        playerId: normalizedPlayerId,
+        secondaryPlayerId: normalizedSecondaryPlayerId,
         isCorrected: false,
         isReversed: false,
-        correctsEventId: input.correctsEventId ?? null,
+        correctsEventId: normalizedCorrectsEventId,
         positionChange: null,
       },
     ];

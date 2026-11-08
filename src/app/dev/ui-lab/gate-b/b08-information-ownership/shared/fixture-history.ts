@@ -199,6 +199,12 @@ export const b08OpponentObservation = {
 export const b08ShapeChangeRows: MatchDetailAfterData["shapeChangeRows"] = [];
 export const b08FirstTimeCanonicalPositions: MatchDetailAfterData["firstTimeCanonicalPositions"] = [];
 
+/** The one real, coach-authored team note for this match — identical in both variants (a team
+ * note is not re-authored between draft and completed). Exported so `b08-projection.ts` can reuse
+ * the SAME string for a REFERENCE-origin persisted report instead of either duplicating it or
+ * losing it to an empty string once any edit converts the page to `deriveB08AfterDataFromReport`. */
+export const B08_TEAM_NOTE = "Review defensive transitions in training this week — same pattern that led to their equalizer.";
+
 export const b08DebriefAnswers: DebriefAnswersSection = {
   team_execution: {
     effort: { value: "STRONG" },
@@ -236,7 +242,7 @@ export function b08InitialReport(variant: "draft" | "completed"): MatchReportDet
     status: variant === "draft" ? "REPORTED" : "LOCKED",
     homeGoals: 2,
     awayGoals: 1,
-    teamNote: "Review defensive transitions in training this week — same pattern that led to their equalizer.",
+    teamNote: B08_TEAM_NOTE,
     completedBy: variant === "draft" ? null : B08_COMPLETED_BY,
     completedAt: variant === "draft" ? null : B08_COMPLETED_AT.toISOString(),
     teamName: MATCH_B_TEAM_NAME,
@@ -259,7 +265,7 @@ export function b08AfterData(variant: "draft" | "completed"): MatchDetailAfterDa
     reportStatus: variant === "draft" ? "REPORTED" : "LOCKED",
     homeGoals: 2,
     awayGoals: 1,
-    teamNote: "Review defensive transitions in training this week — same pattern that led to their equalizer.",
+    teamNote: B08_TEAM_NOTE,
     completedBy: variant === "draft" ? null : B08_COMPLETED_BY,
     completedAt: variant === "draft" ? null : B08_COMPLETED_AT.toISOString(),
     attendance: b08AttendanceFacts,

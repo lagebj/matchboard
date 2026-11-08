@@ -55,6 +55,7 @@ export function SafePostMatchReportShell({
   completedByLabel: initialCompletedBy,
   completionTimestamp,
   debriefAnswers,
+  debriefStatus = "SUBMITTED",
   allPlayers,
   footballObservations,
   combinationEvidence,
@@ -62,6 +63,11 @@ export function SafePostMatchReportShell({
   backHrefForStatus,
   onStatusChange,
   onStateChange,
+  reportId = "report-gate-b-05",
+  debriefId = "debrief-gate-b-05",
+  minutesByParticipant = b05MinutesByParticipant,
+  observationCountByParticipant = b05ObservationCountByParticipant,
+  teamNote = "Follow up on positional shape in training this week.",
 }: {
   matchId: string;
   title: string;
@@ -78,6 +84,13 @@ export function SafePostMatchReportShell({
    * choice, not a second invented one. */
   completionTimestamp: string;
   debriefAnswers: DebriefAnswersSection;
+  /** Defaults to `"SUBMITTED"` (every existing B05 call site's exact prior behavior — the debrief
+   * really was already submitted in that fixture). A caller presenting an EMPTY debrief that was
+   * never actually recorded (B08's own interactive-journey mode, third remediation) passes
+   * `"DRAFT"` instead, so the real `PostMatchDebrief` component shows it honestly as unanswered
+   * rather than fabricating a submitted-but-empty document. Still rendered read-only either way —
+   * `readOnly` below is unconditional. */
+  debriefStatus?: "DRAFT" | "SUBMITTED";
   allPlayers: Array<{ id: string; name: string; teamName: string }>;
   footballObservations: Array<{ id: string; playerId: string; playerName: string; observationCode: string; polarity: string; note: string }>;
   combinationEvidence: CombinationEvidenceRow[];
@@ -104,6 +117,17 @@ export function SafePostMatchReportShell({
    * reload or a navigation to a different route never loses reconciliation work). Optional,
    * defaults to a no-op — no existing call site is affected. */
   onStateChange?: (state: SafeReportLocalState) => void;
+  /** B08 (third remediation, "final data-integrity remediation", defect #4): this shell was
+   * hardcoding B05's own report/debrief ids, participant-minutes map, observation-count map, and
+   * a B05-specific team note unconditionally for EVERY caller, including B08 — a different
+   * fixture with its own different player ids. All five below default to B05's exact existing
+   * values, so every existing B05 call site is byte-for-byte unaffected; B08 passes its own real
+   * equivalents instead of inheriting B05's. */
+  reportId?: string;
+  debriefId?: string;
+  minutesByParticipant?: Map<string, number>;
+  observationCountByParticipant?: Map<string, number>;
+  teamNote?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -186,10 +210,10 @@ export function SafePostMatchReportShell({
         presentParticipants: livePresentParticipants,
         goals: state.goals.map((g) => ({ id: g.id, participantKey: g.playerId, playerName: g.playerName, minute: g.minute, type: "NORMAL" as const })),
         assists: state.assists.map((a) => ({ id: a.id, participantKey: a.playerId, playerName: a.playerName, type: "NORMAL" as const })),
-        observationCountByParticipant: b05ObservationCountByParticipant,
-        minutesByParticipant: b05MinutesByParticipant,
+        observationCountByParticipant,
+        minutesByParticipant,
       }),
-    [livePresentParticipants, state.goals, state.assists],
+    [livePresentParticipants, state.goals, state.assists, observationCountByParticipant, minutesByParticipant],
   );
   const liveCombinationEvidence = surfaceState === "COMPLETED" ? combinationEvidence : [];
   // B5/R4 — the identity card's own score/outcome must track `state.ourScore`/`opponentScore`
@@ -233,7 +257,7 @@ export function SafePostMatchReportShell({
   const playerNameById = Object.fromEntries(allPlayers.map((p) => [p.id, p.name]));
 
   const reportViewModel: PostMatchReportViewModel = {
-    id: "report-gate-b-05",
+    id: reportId,
     status: state.status,
     teamLabel: ownTeamName,
     opponentLabel: opponentName,
@@ -305,7 +329,7 @@ export function SafePostMatchReportShell({
           capabilities={CAPABILITIES}
           availablePlayers={availablePlayers}
           onChanged={() => {}}
-          extraSections={<LeagueOnlyExtras state={state} />}
+          extraSections={<LeagueOnlyExtras state={state} teamNote={teamNote} />}
         />
       )}
 
@@ -318,8 +342,8 @@ export function SafePostMatchReportShell({
               something this redesign explores interactively. */}
           <PostMatchDebrief
             reportRef={{ kind: "LEAGUE", matchId }}
-            debriefId="debrief-gate-b-05"
-            status="SUBMITTED"
+            debriefId={debriefId}
+            status={debriefStatus}
             initialAnswers={{ version: DEBRIEF_SCHEMA_VERSION, answers: debriefAnswers }}
             opponentName={opponentName}
             matchupLabel={`${ownTeamName} vs ${opponentName}`}
@@ -375,11 +399,11 @@ export function SafePostMatchReportShell({
  * class of production-mutation exposure this whole redesign exists to close. A disclosed,
  * narrow scope reduction — not fake editability (nothing here looks interactive and isn't).
  */
-function LeagueOnlyExtras({ state }: { state: SafeReportLocalState }) {
+function LeagueOnlyExtras({ state, teamNote }: { state: SafeReportLocalState; teamNote: string }) {
   return (
     <Surface variant="default" padding="lg">
       <SectionHeader title="Team notes" />
-      <p className="mt-2 text-sm text-[var(--text-soft)]">Follow up on positional shape in training this week.</p>
+      <p className="mt-2 text-sm text-[var(--text-soft)]">{teamNote}</p>
       <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Squad</p>
       <div className="mt-2 flex flex-col gap-1.5">
         {state.players.map((p) => (

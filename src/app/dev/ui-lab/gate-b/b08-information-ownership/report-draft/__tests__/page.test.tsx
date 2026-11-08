@@ -151,7 +151,7 @@ describe("B08 Report · Draft page", () => {
   });
 
   describe("P1-6: a finished B08-LIVE journey changes what this page actually shows", () => {
-    const JOURNEY_KEY = "b08-live-journey-v2";
+    const JOURNEY_KEY = "b08-live-journey-v3";
 
     beforeEach(() => {
       window.sessionStorage.clear();
@@ -170,7 +170,8 @@ describe("B08 Report · Draft page", () => {
       window.sessionStorage.setItem(
         JOURNEY_KEY,
         JSON.stringify({
-          version: 2,
+          version: 3,
+          historyOrigin: "LIVE_JOURNEY",
           finished: true,
           report: null,
           events: [
@@ -195,7 +196,8 @@ describe("B08 Report · Draft page", () => {
       window.sessionStorage.setItem(
         JOURNEY_KEY,
         JSON.stringify({
-          version: 2,
+          version: 3,
+          historyOrigin: "LIVE_JOURNEY",
           finished: false,
           report: null,
           events: [
@@ -206,6 +208,57 @@ describe("B08 Report · Draft page", () => {
       renderPage("players");
       expect(screen.getAllByText("2 - 1").length).toBeGreaterThan(0);
       expect(screen.queryByText(/Reflecting your LIVE session/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("W5 THIRD remediation (independent review, 2026-11-08, 'final data-integrity remediation'): reference-origin edits preserve event history and narrative (defects #1/#2)", () => {
+    beforeEach(() => {
+      window.sessionStorage.clear();
+    });
+    afterEach(() => {
+      window.sessionStorage.clear();
+    });
+
+    it("editing the reference report directly (Confirm duration) and reloading preserves the real chronology, score and narrative — never the empty, interactive-looking derivation defect #1 fixed", async () => {
+      renderPage("players");
+      fireEvent.click(screen.getByRole("button", { name: "Confirm duration" }));
+      await waitFor(() => expect(screen.queryByText("Confirm duration")).not.toBeInTheDocument());
+
+      // Reload: a fresh mount resumes the edit (this page's own already-established behavior)
+      // AND must keep the full real chronology — before this fix, `historyOrigin` didn't exist,
+      // so this exact edit persisted `events: []`, and the next read derived an EMPTY timeline.
+      renderPage("timeline");
+      expect(screen.getAllByText("10'").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("22'").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("48'").length).toBeGreaterThan(0);
+
+      renderPage("players");
+      expect(screen.getAllByText("2 - 1").length).toBeGreaterThan(0);
+
+      // The real reference narrative/evidence stays intact too — a reference-origin edit must not
+      // be treated as an "interactive journey" whose narrative gets withheld (defect #2).
+      renderPage("reflection");
+      expect(screen.getAllByText(/Winning the ball back high led directly to our second goal/).length).toBeGreaterThan(0);
+      expect(screen.queryByText(/Reflecting your LIVE session/)).not.toBeInTheDocument();
+    });
+
+    it("a LIVE_JOURNEY-origin seeded draft shows no reference-only narrative (reflection/observations) — genuinely unavailable, not fabricated", () => {
+      const JOURNEY_KEY = "b08-live-journey-v3";
+      window.sessionStorage.setItem(
+        JOURNEY_KEY,
+        JSON.stringify({
+          version: 3,
+          historyOrigin: "LIVE_JOURNEY",
+          finished: true,
+          report: null,
+          events: [
+            { id: "e1", clientEventId: "c1", eventType: "GOAL_FOR", period: "FIRST_HALF", matchSeconds: 600_000, wallClockTime: null, playerId: "player-gb8-vetle", secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
+            { id: "e2", clientEventId: "c2", eventType: "GOAL_AGAINST", period: "FIRST_HALF", matchSeconds: 1_320_000, wallClockTime: null, playerId: null, secondaryPlayerId: null, isCorrected: false, isReversed: false, correctsEventId: null, positionChange: null },
+          ],
+        }),
+      );
+      renderPage("reflection");
+      expect(screen.queryByText(/Winning the ball back high led directly to our second goal/)).not.toBeInTheDocument();
     });
   });
 });
