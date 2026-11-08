@@ -45,8 +45,11 @@ vi.mock("next/navigation", () => ({
 
 import B08AfterPage from "../page";
 
-function renderPage(tab?: string) {
-  searchParamsState.value = new URLSearchParams(tab ? `tab=${tab}` : "");
+function renderPage(tab?: string, report?: "completed") {
+  const params = new URLSearchParams();
+  if (tab) params.set("tab", tab);
+  if (report) params.set("report", report);
+  searchParamsState.value = params;
   replaceMock.mockClear();
   return render(
     <ThemeProvider>
@@ -140,5 +143,63 @@ describe("B08 After page", () => {
     for (const a of Array.from(container.querySelectorAll("a"))) {
       expect(a.getAttribute("href")).not.toBe("#");
     }
+  });
+
+  describe("?report=completed (P1-5 remediation: a completed report survives the return to Match Details)", () => {
+    it("shows the completed heading/status and no 'Needs work'/'needs timing review' language", () => {
+      renderPage("overview", "completed");
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("report completed");
+      expect(screen.getByText("Completed")).toBeInTheDocument();
+      expect(screen.queryByText("Needs work")).not.toBeInTheDocument();
+      expect(screen.queryByText(/still needs timing review/)).not.toBeInTheDocument();
+    });
+
+    it("the primary action becomes 'View report', linking to REPORT-COMPLETED, not REPORT-DRAFT", () => {
+      renderPage("overview", "completed");
+      expect(screen.queryByRole("link", { name: "Continue report" })).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "View report" })).toHaveAttribute(
+        "href",
+        "/dev/ui-lab/gate-b/b08-information-ownership/report-completed",
+      );
+    });
+
+    it("the After-match tab's own report link also resolves to REPORT-COMPLETED, not a production-shaped URL (P2-8)", () => {
+      renderPage("after-match", "completed");
+      // "View full report" is the After-match panel's own secondary link; the page-level primary
+      // CTA shows "View report" on this tab too (both correctly point to REPORT-COMPLETED).
+      expect(screen.getByRole("link", { name: "View full report" })).toHaveAttribute(
+        "href",
+        "/dev/ui-lab/gate-b/b08-information-ownership/report-completed",
+      );
+      expect(screen.getByRole("link", { name: "View report" })).toHaveAttribute(
+        "href",
+        "/dev/ui-lab/gate-b/b08-information-ownership/report-completed",
+      );
+    });
+
+    it("the After-match tab shows the real locked status (no outstanding timing-review warning)", () => {
+      renderPage("after-match", "completed");
+      expect(screen.getByText(/^Locked/)).toBeInTheDocument();
+      expect(screen.getByText("Clear")).toBeInTheDocument();
+    });
+
+    it("the default (no ?report param) is unchanged — still the draft/incomplete reference snapshot", () => {
+      renderPage("overview");
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("report incomplete");
+      expect(screen.getByText("Needs work")).toBeInTheDocument();
+    });
+  });
+
+  describe("After-match tab's report link — draft variant (P2-8)", () => {
+    it("resolves to this candidate's own REPORT-DRAFT route, not a production-shaped URL", () => {
+      renderPage("after-match");
+      // Both the page-level primary CTA and the After-match panel's own secondary CTA render on
+      // this tab and share the accessible name "Continue report" — assert every one of them.
+      const links = screen.getAllByRole("link", { name: "Continue report" });
+      expect(links.length).toBeGreaterThanOrEqual(2);
+      for (const link of links) {
+        expect(link).toHaveAttribute("href", "/dev/ui-lab/gate-b/b08-information-ownership/report-draft");
+      }
+    });
   });
 });

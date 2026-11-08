@@ -81,11 +81,11 @@ describe("B08 Report · Completed page", () => {
     expect(screen.getByText(/Submitted|STRONG/)).toBeInTheDocument();
   });
 
-  it("'Back to match' routes to B08-AFTER, the historical Overview — no separate historical page is introduced", () => {
+  it("'Back to match' routes to B08-AFTER's own completed variant (?report=completed) — no separate historical page, and the completed status survives the return (P1-5)", () => {
     renderPage();
     expect(screen.getByRole("link", { name: "‹ Back to match" })).toHaveAttribute(
       "href",
-      "/dev/ui-lab/gate-b/b08-information-ownership/after",
+      "/dev/ui-lab/gate-b/b08-information-ownership/after?report=completed",
     );
   });
 

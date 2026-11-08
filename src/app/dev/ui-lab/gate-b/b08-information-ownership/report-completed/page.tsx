@@ -32,6 +32,13 @@ import {
  * independently-verified `b08CombinationEvidence` row. "Back to match" routes to B08-AFTER —
  * the historical Overview — since B08-AFTER already IS the historical view once a report exists
  * (no separate "historical AFTER" page is introduced).
+ *
+ * B08 W5 remediation (independent review, P1-5): the back link carries `?report=completed` so
+ * B08-AFTER — which otherwise always renders the "draft, incomplete" variant by default — renders
+ * its own completed/locked variant instead. This is the explicit, URL-backed lifecycle-variant
+ * approach the review itself sanctions for a directly inspectable static snapshot: it cannot drift
+ * from the report's own canonical state because both pages read the exact same `b08AfterData`/
+ * `b08AfterIdentity("completed")` fixture functions this file already seeds from.
  */
 export default function B08ReportCompletedPage() {
   const initialReport = b08InitialReport("completed");
@@ -64,7 +71,10 @@ export default function B08ReportCompletedPage() {
         <Link href="/dev/ui-lab/gate-b" className="text-[12px] text-[var(--text-muted)] hover:underline">
           &larr; Gate B
         </Link>
-        <Link href="/dev/ui-lab/gate-b/b08-information-ownership/after" className="text-[12px] text-[var(--text-muted)] hover:underline">
+        <Link
+          href="/dev/ui-lab/gate-b/b08-information-ownership/after?report=completed"
+          className="text-[12px] text-[var(--text-muted)] hover:underline"
+        >
           &larr; Back to match (historical After)
         </Link>
       </div>
@@ -91,7 +101,7 @@ export default function B08ReportCompletedPage() {
         allPlayers={b08AllPlayers}
         footballObservations={b08FootballObservations}
         combinationEvidence={b08CombinationEvidence}
-        backHref="/dev/ui-lab/gate-b/b08-information-ownership/after"
+        backHref="/dev/ui-lab/gate-b/b08-information-ownership/after?report=completed"
       />
     </div>
   );

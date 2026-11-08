@@ -55,12 +55,23 @@ import { b08AfterData } from "../shared/fixture-history";
  * The full status/integrity detail (reflection complete, observations, timing, out-of-range, the
  * two banners) stays owned exclusively by the real `MatchAfterMatchPanel` on the "After match" tab
  * below. This is a candidate-level correction, not a claim that production itself changed.
+ *
+ * B08 W5 remediation (independent review, P1-5): AFTER is not only the "report incomplete" state —
+ * it is the same Match Details composition for BOTH "played, report incomplete" and "played,
+ * report completed" (ADR-0147: one composition, not a third lifecycle surface). An explicit
+ * `?report=completed` query param — set only by REPORT-COMPLETED's own "back to match" link —
+ * switches the fixture variant this page reads. It cannot drift from the report's own canonical
+ * state: both read the exact same `b08AfterData`/`b08AfterIdentity("completed")` functions
+ * REPORT-COMPLETED itself seeds from. The default (no param) remains the draft/incomplete
+ * reference snapshot, unchanged, so every existing direct link/capture is unaffected.
  */
 export default function B08AfterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const data = b08AfterData("draft");
-  const presentation = b08AfterIdentity("draft");
+  const reportVariant = searchParams.get("report") === "completed" ? "completed" : "draft";
+  const isCompleted = reportVariant === "completed";
+  const data = b08AfterData(reportVariant);
+  const presentation = b08AfterIdentity(reportVariant);
   const tabs = getMatchDetailTabs("AFTER");
   const requestedTab = searchParams.get("tab");
   const activeTab = resolveMatchDetailTab("AFTER", requestedTab);
@@ -124,8 +135,12 @@ export default function B08AfterPage() {
               &larr; League matches (navigation origin)
             </Link>
           </div>
-          <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">B08 — After, report incomplete</h1>
-          <p className="mt-1 text-[12px] text-[var(--text-muted)]">Final result recorded. Report still needs timing review.</p>
+          <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">
+            {isCompleted ? "B08 — After, report completed" : "B08 — After, report incomplete"}
+          </h1>
+          <p className="mt-1 text-[12px] text-[var(--text-muted)]">
+            {isCompleted ? "Final result recorded. Report completed and locked." : "Final result recorded. Report still needs timing review."}
+          </p>
         </div>
 
         <B08TransitionNav current="after" />
@@ -253,7 +268,9 @@ export default function B08AfterPage() {
                   not a capture bug. */}
               <TouchlineWidget>
                 <WidgetHeader eyebrow="Post-match report" title="" />
-                <StatusPill size="sm" variant="warning">Needs work</StatusPill>
+                <StatusPill size="sm" variant={isCompleted ? "success" : "warning"}>
+                  {isCompleted ? "Completed" : "Needs work"}
+                </StatusPill>
                 <TouchlineButton variant="primary" size="sm" className="mt-3" onClick={() => selectTab("after-match")}>
                   See status →
                 </TouchlineButton>
@@ -273,7 +290,17 @@ export default function B08AfterPage() {
 
         {activeTab === "stats" && <MatchStatsPanel data={data} />}
 
-        {activeTab === "after-match" && <MatchAfterMatchPanel matchId={B08_MATCH_ID} data={data} />}
+        {activeTab === "after-match" && (
+          <MatchAfterMatchPanel
+            matchId={B08_MATCH_ID}
+            data={data}
+            reportHrefOverride={
+              isCompleted
+                ? "/dev/ui-lab/gate-b/b08-information-ownership/report-completed"
+                : "/dev/ui-lab/gate-b/b08-information-ownership/report-draft"
+            }
+          />
+        )}
 
         {(activeTab === "tactics" || activeTab === "opponent-context" || activeTab === "history") && (
           <Surface padding="md">
@@ -284,11 +311,15 @@ export default function B08AfterPage() {
         <div>
           <TouchlineButton
             as={Link}
-            href="/dev/ui-lab/gate-b/b08-information-ownership/report-draft"
+            href={
+              isCompleted
+                ? "/dev/ui-lab/gate-b/b08-information-ownership/report-completed"
+                : "/dev/ui-lab/gate-b/b08-information-ownership/report-draft"
+            }
             variant="primary"
             size="sm"
           >
-            Continue report
+            {isCompleted ? "View report" : "Continue report"}
           </TouchlineButton>
         </div>
       </div>
