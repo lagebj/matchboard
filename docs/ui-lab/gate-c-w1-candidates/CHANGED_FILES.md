@@ -1,68 +1,72 @@
 # Gate C W1 — Changed Files
 
-## New: UI Lab candidate routes and fixtures
+## Remediation pass (independent review of PR #826)
 
-- `src/app/dev/ui-lab/gate-c/page.tsx` — Gate C index.
-- `src/app/dev/ui-lab/gate-c/shared/fixtures.ts` — shared command-centre/matchday-context
-  builders.
-- `src/app/dev/ui-lab/gate-c/shared/matchday-nav.tsx` — C03 phase/source navigation strip.
-- `src/app/dev/ui-lab/gate-c/shared/today-mount.tsx` — the one client boundary every scenario's
-  server-component `page.tsx` renders into (see its own doc comment: this is a real-bug fix, not
-  just structure — see "Found and fixed during local verification" below).
-- `src/app/dev/ui-lab/gate-c/c01-quiet-day/{page.tsx,fixtures.ts,__tests__/page.test.tsx}`
-- `src/app/dev/ui-lab/gate-c/c02-decision-day/{page.tsx,fixtures.ts,__tests__/page.test.tsx}`
-- `src/app/dev/ui-lab/gate-c/c03-matchday-prelive/league/{prepare,verify,imminent}/{page.tsx,fixtures.ts,__tests__/page.test.tsx}`
-- `src/app/dev/ui-lab/gate-c/c03-matchday-prelive/event/{prepare,verify,imminent}/{page.tsx,fixtures.ts,__tests__/page.test.tsx}`
+### Production (new in this pass — narrow, justified, regression-tested; see `CURRENT_STATE_AUDIT.md`)
+
+- `src/components/touchline/today/today-surface.tsx` — P1-01 (`showHero` pass-through), P1-02
+  (`showOperationalTimeline`), P1-03 (context-rail squad-readiness/carry-forward suppression),
+  P2-01 (`nowIso?: string` prop, preserving exact existing behavior when omitted).
+- `src/components/touchline/today/today-quiet-state.tsx` — new `showHero: boolean` prop (P1-01).
+
+### New production regression tests
+
+- `src/components/touchline/today/__tests__/today-surface.matchday-quiet-composition.test.tsx` —
+  10 tests covering P1-01/P1-02/P1-03 directly against `TodaySurface`.
+
+### Rewritten Gate C fixtures and tests
+
+- `src/app/dev/ui-lab/gate-c/shared/fixtures.ts` — `gateCBuildBusyDay()` (replaces the old
+  `gateCBuildMatchdayContext()`), the fixed `GATE_C_NOW_ISO` reference clock, `gateCOrgUrl()`.
+- `src/app/dev/ui-lab/gate-c/shared/today-mount.tsx` — threads `nowIso` through.
+- `src/app/dev/ui-lab/gate-c/shared/__tests__/fixtures.test.ts` — new; P2-01 determinism/phase/
+  date-eligibility proofs.
+- `src/app/dev/ui-lab/gate-c/c01-quiet-day/{fixtures.ts,page.tsx,__tests__/page.test.tsx}` —
+  org-scoped hrefs, relative upcoming-match dates, P1-03 dedup assertions, P2-01 window check.
+- `src/app/dev/ui-lab/gate-c/c02-decision-day/{fixtures.ts,page.tsx,__tests__/page.test.tsx}` —
+  P2-03 identity-collision primary decision, org-scoped hrefs.
+- `src/app/dev/ui-lab/gate-c/c03-matchday-prelive/**/{fixtures.ts,page.tsx,__tests__/page.test.tsx}`
+  (all six scenarios) — real busy-day fixture via `gateCBuildBusyDay()`, org-scoped hrefs, new
+  featured-match id (`match-c03-featured`/`event-match-c03-featured`), P1-01/P1-02 assertions
+  (league/prepare and event/prepare additionally demonstrate the busy-day chronology).
 - `src/app/dev/ui-lab/gate-c/c03-matchday-prelive/shared/__tests__/live-now-matchday-exclusivity.test.tsx`
+  — updated to the new busy-day fixture builder.
 
-## New: documentation
+### Rewritten browser acceptance coverage
 
-- `docs/ui-lab/gate-c-w1-candidates/` — this directory (`SOURCE_RECONCILIATION.md`,
-  `SCENARIO_REGISTER.md`, `CURRENT_STATE_AUDIT.md`, `INFORMATION_OWNERSHIP_MATRIX.md`,
-  `DATA_TRUTH_AND_FIXTURES.md`, `INTERACTION_AND_STATE_AUDIT.md`,
-  `THREE_PART_EXPERIENCE_CONTRACT.md`, `VISUAL_VS_CURRENT.md`, `BLOCKERS.md`,
-  `CHANGED_FILES.md`, `REVIEW_RECORD.md`, `candidate_manifest.json`). `capture-attestation.json`
-  is added in a follow-up commit once CI produces real capture evidence for this branch's head
-  commit — see `REVIEW_RECORD.md`.
+- `e2e/ui-lab-gate-c.spec.ts` — org-scoped href assertions throughout; new real click-through
+  tests (P2-02) distinguishing href shape, actual click, and real verified destination
+  (`/signin`, confirmed empirically via request/response logging before writing the assertion);
+  new busy-day chronology assertions for league/prepare and event/prepare.
 
-## New: browser acceptance coverage
+### Documentation
 
-- `e2e/ui-lab-gate-c.spec.ts` — real Chromium navigation and responsive-overflow assertions for
-  C01-C03, mirroring `e2e/ui-lab-b08.spec.ts`'s established convention.
+- `CURRENT_STATE_AUDIT.md`, `INFORMATION_OWNERSHIP_MATRIX.md`, `DATA_TRUTH_AND_FIXTURES.md`,
+  `INTERACTION_AND_STATE_AUDIT.md`, `VISUAL_VS_CURRENT.md`, `BLOCKERS.md` — all updated to
+  reflect the real findings and fixes above, not re-asserting "no proposed refinement."
+  `candidate_manifest.json` — `fixtureVersion` bumped for every candidate; `componentOwners`
+  updated to include the two changed production files; `baselineAssetRef` changed to
+  `PROPOSED_REFINEMENT (implemented)` for the affected candidates.
+- `capture-attestation.json` — regenerated against this remediation's own CI run (not the
+  pre-remediation evidence) once that run completes — see `REVIEW_RECORD.md`.
 
-## Modified: capture and CI wiring
+## Original wave (first pass, PR #826 initial commits) — for reference
 
-- `scripts/ui-lab-visual-review.mjs` — registers the eight Gate C routes (`gc-360`/`gc-430`
-  smoke viewports, its own named set per this script's existing convention), and extends the
-  existing `data-ui-lab-ready` readiness wait, horizontal-overflow fail-gate, and console-error
-  fail-gate to `gate-c/` routes with the same strictness Gate B already has.
-- `playwright.config.ts` — adds the `ui-lab-gate-c` project (no auth, same local dev-server
-  target as `ui-lab-b08`) and excludes its spec from the default `chromium` project.
-- `.github/workflows/ui-lab-visual-review.yml` — runs the new Gate C Playwright suite after the
-  existing B08 suite, against the same already-running local server; bumps the job timeout
-  45→55 minutes for the added step.
-- `AGENTS.md` — the `next dev`-regenerated "This is NOT the Next.js you know" block's heading
-  level normalized (`#` → `##`); auto-generated, not hand-edited (see that block's own doc
-  comment on why this is committed rather than reverted).
-
-## Found and fixed during local verification
-
-Every scenario's `page.tsx` is a plain server component (matching the real production
-`today/page.tsx`'s own shape), not a client component — this is a real fix, not a style choice.
-An early draft made each `page.tsx` itself `"use client"` and computed C03's kickoff-offset
-fixture directly inside it; `scripts/ui-lab-visual-review.mjs`'s console-error gate caught a real
-React hydration mismatch on `gate-c-w1-c03-league-prepare` as a result (`Date.now()`-relative
-fixture data evaluated independently, and therefore differently, during the server's initial
-render pass and during browser hydration). Moving the fixture computation into each server
-component and threading the already-resolved result through `GateCTodayMount` (a single small
-client boundary) as serializable props — exactly how the real production page already passes
-`AssistantCommandCentre.computedAt`, a `Date`, across that same boundary — fixed it. Re-verified
-with a direct console/page-error check against all eight routes (zero errors) and a second full
-local capture-script run before pushing.
+- New: 8 UI Lab candidate routes + fixtures + tests under `src/app/dev/ui-lab/gate-c/`
+- New: full documentation set under `docs/ui-lab/gate-c-w1-candidates/`
+- New: `e2e/ui-lab-gate-c.spec.ts` (Playwright)
+- Modified: `scripts/ui-lab-visual-review.mjs` (registers the 8 routes, extends
+  readiness/overflow/console-error gates to `gate-c/`)
+- Modified: `playwright.config.ts` (new `ui-lab-gate-c` project)
+- Modified: `.github/workflows/ui-lab-visual-review.yml` (runs the new Playwright suite)
+- Modified: `AGENTS.md` (the `next dev`-regenerated block's heading level; auto-generated)
 
 ## Not changed
 
-No file under `src/components/touchline/today/*` or `src/lib/touchline/presentation/*` is
-modified — `CURRENT_STATE_AUDIT.md` found no defect requiring a production change. No database
-migration, no new route outside `/dev/ui-lab`, no change to Today's primary navigation, no
-change to any other Gate's approved candidates or documentation.
+No file under `src/lib/touchline/presentation/*`, `today-context-rail.tsx`,
+`today-operational-timeline.tsx`, or `today-matchday.tsx` itself is modified — the fixes are
+entirely in what `today-surface.tsx` computes and passes to these otherwise-unchanged
+components. No database migration, no new route outside `/dev/ui-lab`, no change to Today's
+primary navigation, no change to any other Gate's approved candidates or documentation, no
+change to Gate B's shared fixture files (the subject of issue #827, left untouched per that
+issue's own disposition).

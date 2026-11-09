@@ -2,14 +2,14 @@
   "programmeRevision": "0.169.5",
   "baseCommitSha": "617214cafa04788231b2ad048273deeae9633dbb",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-c/. Not a production implementation, not an authorization, not a security proof.",
-  "note": "Gate C W1 — C01 (Quiet day), C02 (Decision day), C03 (Matchday pre-live, League and Event, PREPARE/VERIFY/IMMINENT). No official Gate C wave-ordering document exists (see SOURCE_RECONCILIATION.md) — this wave's scope is self-assigned and provisional, per the handoff brief's own fallback instruction. All eight candidates mount the real, unmodified production TodaySurface/TodayMatchday against fixtures built against the real production type contracts; CURRENT_STATE_AUDIT.md classifies every underlying Today component/behavior CONFIRMS_SHIPPED_BASELINE, so these candidates confirm the shipped baseline rather than propose a visual change. C07 (Assistant Coach fallback) and C04-C06/C08 (Round Board) are explicitly deferred — see BLOCKERS.md. All eight candidates remain CANDIDATE pending owner review; sourcePr is corrected to the real PR number once opened if this placeholder prediction (826) is wrong.",
+  "note": "Gate C W1 — C01 (Quiet day), C02 (Decision day), C03 (Matchday pre-live, League and Event, PREPARE/VERIFY/IMMINENT). No official Gate C wave-ordering document exists (see SOURCE_RECONCILIATION.md) — this wave's scope is self-assigned and provisional, per the handoff brief's own fallback instruction. An independent review of this PR's first pass found three genuine production defects (P1-01 contradictory quiet-day/Matchday messaging, P1-02 busy same-day chronology never visible on a quiet-composition day, P1-03 squad-readiness/carry-forward duplication into the context rail) and three fixture-integrity gaps (P2-01 non-deterministic clock, P2-02 unscoped hrefs, P2-03 count-cap-only duplicate-suppression coverage) — all six are now fixed; see CURRENT_STATE_AUDIT.md, DATA_TRUTH_AND_FIXTURES.md, and INTERACTION_AND_STATE_AUDIT.md for the full detail. C01 and all six C03 candidates now carry a real PROPOSED_REFINEMENT (implemented) baselineAssetRef reflecting the P1-01/P1-02/P1-03 production fixes; C02 remains CONFIRMS_SHIPPED_BASELINE with a materially stronger identity-collision fixture (P2-03). C07 (Assistant Coach fallback) and C04-C06/C08 (Round Board) remain explicitly deferred — see BLOCKERS.md. All eight candidates remain CANDIDATE pending owner review. A pre-existing, unrelated Visual Authority Gate fingerprint-staleness defect (issue #827) is also tracked separately and is not resolved by, or a blocker to, this remediation.",
   "candidates": [
     {
       "scenarioId": "GATE-C-W1-C01",
       "sourcePr": 826,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w1-c01-quiet-day",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/touchline/today/today-surface.tsx",
         "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
@@ -26,8 +26,10 @@
       ],
       "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C01",
       "dataContractRef": "docs/adr/0142-today-composition-ownership-and-golden-reference-conformance.md; docs/adr/0157-contextual-coach-workspace-convergence.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Today quiet-day composition (TodaySurface + TodayQuietState); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
-      "knownGaps": [],
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — independent review of PR #826 found a genuine production defect this baseline confirmation missed; see CURRENT_STATE_AUDIT.md for the exact fix and today-surface.matchday-quiet-composition.test.tsx for its regression coverage. P1-03: squad readiness and carry-forward now render exactly once (today-quiet-state.tsx's showHero is unrelated to C01, which never has a Matchday anchor; the fix here is today-surface.tsx's own context-rail suppression logic).",
+      "knownGaps": [
+        "P1-03 fixed (see baselineAssetRef) — no remaining known gap for this scenario."
+      ],
       "approval": null
     },
     {
@@ -35,7 +37,7 @@
       "sourcePr": 826,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w1-c02-decision-day",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/touchline/today/today-surface.tsx",
         "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
@@ -53,8 +55,10 @@
       ],
       "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C02",
       "dataContractRef": "docs/adr/0141-today-operational-command-surface.md; docs/adr/0142-today-composition-ownership-and-golden-reference-conformance.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Today decision-day composition, including the real MAX_DECISION_DAY_SECONDARY_ITEMS=2 cap; see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
-      "knownGaps": [],
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Today decision-day composition, including the real MAX_DECISION_DAY_SECONDARY_ITEMS=2 cap and the real identity-collision suppression path (resolveTodayPrimaryAction()'s SELECTION_DECISION branch + today-surface.tsx's remainingSelectionDecisions filter); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "P2-03 fixed — the fixture now proves a genuine identity collision, not only a count cap. No remaining known gap for this scenario."
+      ],
       "approval": null
     },
     {
@@ -62,11 +66,13 @@
       "sourcePr": 826,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w1-c03-league-prepare",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/touchline/today/today-surface.tsx",
         "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-quiet-state.tsx",
         "src/components/touchline/today/today-matchday.tsx",
+        "src/components/touchline/today/today-operational-timeline.tsx",
         "src/lib/touchline/presentation/today-matchday-phase.ts",
         "src/lib/touchline/presentation/today-matchday-readiness.ts",
         "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/league/prepare/page.tsx"
@@ -79,9 +85,10 @@
       ],
       "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-LEAGUE-PREPARE",
       "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday PREPARE phase (League); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — independent review of PR #826 found a genuine production defect this baseline confirmation missed; see CURRENT_STATE_AUDIT.md for the exact fix and today-surface.matchday-quiet-composition.test.tsx for its regression coverage. P1-01: the contradictory quiet-day hero no longer renders alongside this scenario's real Matchday action. P1-02: 'Today in order' now shows this scenario's genuinely busy same-day chronology (an earlier finished match and a later lower-priority match), with the featured match correctly excluded from it.",
       "knownGaps": [
-        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md.",
+        "P1-01/P1-02 fixed (see baselineAssetRef) — no remaining known composition gap for this scenario."
       ],
       "approval": null
     },
@@ -90,11 +97,13 @@
       "sourcePr": 826,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w1-c03-league-verify",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/touchline/today/today-surface.tsx",
         "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-quiet-state.tsx",
         "src/components/touchline/today/today-matchday.tsx",
+        "src/components/touchline/today/today-operational-timeline.tsx",
         "src/lib/touchline/presentation/today-matchday-phase.ts",
         "src/lib/touchline/presentation/today-matchday-readiness.ts",
         "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/league/verify/page.tsx"
@@ -107,9 +116,10 @@
       ],
       "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-LEAGUE-VERIFY",
       "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday VERIFY phase (League); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — independent review of PR #826 found a genuine production defect this baseline confirmation missed; see CURRENT_STATE_AUDIT.md for the exact fix and today-surface.matchday-quiet-composition.test.tsx for its regression coverage. P1-01: the contradictory quiet-day hero no longer renders alongside this scenario's real Matchday action. P1-02: 'Today in order' now shows this scenario's genuinely busy same-day chronology (an earlier finished match and a later lower-priority match), with the featured match correctly excluded from it.",
       "knownGaps": [
-        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md.",
+        "P1-01/P1-02 fixed (see baselineAssetRef) — no remaining known composition gap for this scenario."
       ],
       "approval": null
     },
@@ -118,11 +128,13 @@
       "sourcePr": 826,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w1-c03-league-imminent",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/touchline/today/today-surface.tsx",
         "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-quiet-state.tsx",
         "src/components/touchline/today/today-matchday.tsx",
+        "src/components/touchline/today/today-operational-timeline.tsx",
         "src/lib/touchline/presentation/today-matchday-phase.ts",
         "src/lib/touchline/presentation/today-matchday-readiness.ts",
         "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/league/imminent/page.tsx"
@@ -135,9 +147,10 @@
       ],
       "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-LEAGUE-IMMINENT",
       "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday IMMINENT phase (League), including the real Start-live-reporting entry gate; see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — independent review of PR #826 found a genuine production defect this baseline confirmation missed; see CURRENT_STATE_AUDIT.md for the exact fix and today-surface.matchday-quiet-composition.test.tsx for its regression coverage. P1-01: the contradictory quiet-day hero no longer renders alongside this scenario's real Matchday action. P1-02: 'Today in order' now shows this scenario's genuinely busy same-day chronology (an earlier finished match and a later lower-priority match), with the featured match correctly excluded from it.",
       "knownGaps": [
-        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md.",
+        "P1-01/P1-02 fixed (see baselineAssetRef) — no remaining known composition gap for this scenario."
       ],
       "approval": null
     },
@@ -146,11 +159,13 @@
       "sourcePr": 826,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w1-c03-event-prepare",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/touchline/today/today-surface.tsx",
         "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-quiet-state.tsx",
         "src/components/touchline/today/today-matchday.tsx",
+        "src/components/touchline/today/today-operational-timeline.tsx",
         "src/lib/touchline/presentation/today-matchday-phase.ts",
         "src/lib/touchline/presentation/today-matchday-readiness.ts",
         "src/lib/touchline/presentation/today-football-match.ts",
@@ -164,9 +179,10 @@
       ],
       "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-EVENT-PREPARE",
       "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday PREPARE phase (Event — no venue label, no invented tactics); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — independent review of PR #826 found a genuine production defect this baseline confirmation missed; see CURRENT_STATE_AUDIT.md for the exact fix and today-surface.matchday-quiet-composition.test.tsx for its regression coverage. P1-01: the contradictory quiet-day hero no longer renders alongside this scenario's real Matchday action. P1-02: 'Today in order' now shows this scenario's genuinely busy same-day chronology (an earlier finished match and a later lower-priority match), with the featured match correctly excluded from it.",
       "knownGaps": [
-        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md.",
+        "P1-01/P1-02 fixed (see baselineAssetRef) — no remaining known composition gap for this scenario."
       ],
       "approval": null
     },
@@ -175,11 +191,13 @@
       "sourcePr": 826,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w1-c03-event-verify",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/touchline/today/today-surface.tsx",
         "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-quiet-state.tsx",
         "src/components/touchline/today/today-matchday.tsx",
+        "src/components/touchline/today/today-operational-timeline.tsx",
         "src/lib/touchline/presentation/today-matchday-phase.ts",
         "src/lib/touchline/presentation/today-matchday-readiness.ts",
         "src/lib/touchline/presentation/today-football-match.ts",
@@ -193,9 +211,10 @@
       ],
       "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-EVENT-VERIFY",
       "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday VERIFY phase (Event); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — independent review of PR #826 found a genuine production defect this baseline confirmation missed; see CURRENT_STATE_AUDIT.md for the exact fix and today-surface.matchday-quiet-composition.test.tsx for its regression coverage. P1-01: the contradictory quiet-day hero no longer renders alongside this scenario's real Matchday action. P1-02: 'Today in order' now shows this scenario's genuinely busy same-day chronology (an earlier finished match and a later lower-priority match), with the featured match correctly excluded from it.",
       "knownGaps": [
-        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md.",
+        "P1-01/P1-02 fixed (see baselineAssetRef) — no remaining known composition gap for this scenario."
       ],
       "approval": null
     },
@@ -204,11 +223,13 @@
       "sourcePr": 826,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w1-c03-event-imminent",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/components/touchline/today/today-surface.tsx",
         "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-quiet-state.tsx",
         "src/components/touchline/today/today-matchday.tsx",
+        "src/components/touchline/today/today-operational-timeline.tsx",
         "src/lib/touchline/presentation/today-matchday-phase.ts",
         "src/lib/touchline/presentation/today-matchday-readiness.ts",
         "src/lib/touchline/presentation/today-football-match.ts",
@@ -222,9 +243,10 @@
       ],
       "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-EVENT-IMMINENT",
       "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
-      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday IMMINENT phase (Event), including the real Event-scoped Start-live-reporting entry gate; see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — independent review of PR #826 found a genuine production defect this baseline confirmation missed; see CURRENT_STATE_AUDIT.md for the exact fix and today-surface.matchday-quiet-composition.test.tsx for its regression coverage. P1-01: the contradictory quiet-day hero no longer renders alongside this scenario's real Matchday action. P1-02: 'Today in order' now shows this scenario's genuinely busy same-day chronology (an earlier finished match and a later lower-priority match), with the featured match correctly excluded from it.",
       "knownGaps": [
-        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md.",
+        "P1-01/P1-02 fixed (see baselineAssetRef) — no remaining known composition gap for this scenario."
       ],
       "approval": null
     }

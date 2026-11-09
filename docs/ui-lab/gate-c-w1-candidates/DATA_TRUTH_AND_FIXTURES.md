@@ -1,48 +1,72 @@
 # Gate C W1 — Data Truth and Fixtures
 
 All fixtures live under `src/app/dev/ui-lab/gate-c/` and are built directly against the real
-production type contracts (`AssistantCommandCentre`, `CoachSituationProjection`,
-`PlanIntegritySignal`, `TodaySelectionDecision`, `AssistantWorkItem`, `TodayMatchdayContext`,
-`TodayMatchdayReadiness`, `TodayLiveNowResult`) — not ad hoc objects shaped only to look right
-visually. `npm run typecheck` verifies every fixture against these real types.
+production type contracts and adapters — not ad hoc objects shaped only to look right visually.
+`npm run typecheck` verifies every fixture against the real types.
 
-## One canonical source per fixture fact
+## One controlled clock (P2-01 remediation, independent review of PR #826)
 
-- **C01 (quiet day)** — empty projection decisions, no `matchdayContext`, no due reviews. This
-  genuinely drives `selectTodayComposition()` to `"QUIET"`; the composition is not hand-set.
-- **C02 (decision day)** — one real top `CoachDecision` whose `candidateId` resolves (via
-  `idempotencyKeyFromCandidateId()`, the real production id-mapping function) to a real
-  `PlanIntegritySignal` in `roundPlanIntegrities`. Three further genuine secondary candidates
-  exist across all three secondary sources (one `TodaySelectionDecision`, one second-round
-  `PlanIntegritySignal`, one `AssistantWorkItem`) so the real `MAX_DECISION_DAY_SECONDARY_ITEMS =
-  2` cap genuinely drops the third, rather than three screenshots of a hand-picked two-item look.
-- **C03 (matchday pre-live)** — `gateCBuildMatchdayContext()`
-  (`src/app/dev/ui-lab/gate-c/shared/fixtures.ts`) computes kickoff as a real offset from
-  `Date.now()` at request time (180/80/20 minutes for PREPARE/VERIFY/IMMINENT), comfortably
-  clear of `resolveTodayMatchdayPhase()`'s real 120/45-minute thresholds. `TodaySurface` itself
-  computes `nowIso` internally (it is the real, unmodified production composition owner, and
-  this wave does not change that) — an offset from the real current time is the only way to
-  genuinely and permanently cross those thresholds without the fixture drifting into the wrong
-  phase as real time passes. Readiness varies by phase (drafted squad/no lineup → ready squad
-  with one doubtful player → everything ready) so each phase produces a different, real primary
-  action via `resolveTodayMatchdayAction()`'s own fixed priority order, not three identical
-  actions with a different label.
+`TodaySurface` now accepts an explicit `nowIso?: string` prop (preserving exact production
+behavior when omitted — production's own `today/page.tsx` does not pass it). Every Gate C
+scenario passes the same fixed reference instant, `GATE_C_NOW_ISO = "2026-11-10T14:00:00.000Z"`
+(a Tuesday, 15:00 Oslo/CET — comfortably midday, far from any local-date boundary), exported from
+`shared/fixtures.ts`. This replaced an earlier design that computed kickoff offsets from the real
+`Date.now()` at request time: that approach genuinely avoided a hydration mismatch (server vs.
+client evaluating `Date.now()` moments apart) but still left two real gaps the independent review
+found — C01's hardcoded absolute upcoming-match dates (2026-11-14/21) would silently fall outside
+production's real 7-day window once evaluated after 2026-11-14, and nothing proved fixture phase
+selection independently of the developer machine's clock. A fixed, explicit reference instant
+closes both gaps outright: `src/app/dev/ui-lab/gate-c/shared/__tests__/fixtures.test.ts` proves
+every phase/source combination resolves to its intended `TodayMatchdayPhase` via the real
+`resolveTodayMatchdayPhase()`, that two fixture-builder calls are byte-identical (determinism),
+and that every same-day candidate match falls on the real Europe/Oslo calendar day (via the real
+`getDisplayDateKey()`) — and `c01-quiet-day/__tests__/page.test.tsx` proves every upcoming-match
+kickoff date is genuinely within the 7-day window, independent of when the test runs.
 
-## Valid League/Event match identities
+## Real same-day match selection, not a hand-picked featured match (P1-02 remediation)
 
-C03's League fixture uses `source: "LEAGUE"`, a round container, and `/matches/...` hrefs. Its
-Event fixture uses `source: "EVENT"`, an event container, `venueLabel: null` (no home/away
-concept), and `/events/.../matches/.../live` hrefs — both built from the one real
-`TodayFootballMatch` contract (`today-football-match.ts`), not two parallel ad hoc shapes.
+`gateCBuildBusyDay()` (`shared/fixtures.ts`) builds three same-day candidates — one already
+finished earlier today (needs its report), one later today (lower priority), and one at the
+phase-appropriate kickoff offset — and adapts each through the **real** production functions
+(`leagueMatchToTodayFootballMatch()`, `eventMatchToTodayFootballMatch()`). The real
+`selectFeaturedTodayFootballMatch()` — never this fixture — decides which one is featured. This
+is deliberately a genuinely busy day (three real candidates), not a day with only one match to
+begin with, so the real selector's own priority logic is actually exercised rather than bypassed.
+
+## Organisation-scoped URLs (P2-02 remediation)
+
+Every fixture href now follows production's real scoping rules, verified field-by-field against
+each consuming component (some components apply `orgUrl()` themselves and expect an unscoped
+path — e.g. `PlanIntegritySignal.primaryActionTarget`; others render the href directly and expect
+it pre-scoped — e.g. `TodaySelectionDecision.roundBoardHref`, `AssistantWorkItem.primaryActionHref`,
+`MatchPresentation.href`, `TodayCarryForwardItem.href`). `gateCOrgUrl()` (`shared/fixtures.ts`)
+mirrors `useOrgUrl()`'s real `/o/{slug}${path}` convention exactly; the real adapters
+(`leagueMatchToTodayFootballMatch()`/`eventMatchToTodayFootballMatch()`) call it internally for
+C03's matchday hrefs, so those were never hand-scoped at all. `e2e/ui-lab-gate-c.spec.ts` proves
+three separate things an href assertion alone cannot: the href has the correct canonical shape,
+the link is actually clicked, and a real destination is reached — verified empirically (request/
+response logging, not assumed) to be a genuine `307 -> /signin` redirect chain, since these are
+real auth-gated production routes with synthetic ids and `/dev/ui-lab` carries no session.
+
+## A genuine identity collision, not just a count cap (P2-03 remediation)
+
+C02's primary decision (`primarySelectionDecision`) and a raw `PlanIntegritySignal`
+(`primarySignal`) in `roundPlanIntegrities` share the exact same real identity (`signalKey` ==
+`idempotencyKey`) — the real production coupling: a `TodaySelectionDecision` is always built from
+an `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY` signal with the same key.
+`resolveTodayPrimaryAction()`'s own step 1 (never re-implemented in this fixture) resolves this to
+a `SELECTION_DECISION` primary action; `today-surface.tsx`'s own existing
+`remainingSelectionDecisions` filter (never a new dedup algorithm written for this fixture) is
+what must keep this exact decision from also appearing in the secondary Selection decisions list.
+A second, independent `secondarySelectionDecision` (a different player, a different signalKey)
+proves a genuinely different decision still renders — this is not merely "nothing else was passed
+in," which the original W1 fixture's count-cap-only test could not distinguish from real
+suppression.
 
 ## Correct player availability and plan-integrity signals
 
-C02's secondary selection decision and planning-attention signal use real `ruleCode` values
-(`AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY`-equivalent problem framing via
-`TodaySelectionDecision`, and `DUPLICATE_PLANNED_ASSIGNMENT_INTEGRITY_FAILURE` respectively) —
-not invented categories. C03's VERIFY phase uses a real `SelectedPlayerAvailabilityState:
-"DOUBTFUL"` affected player, driving the real `DOUBTFUL_PLAYER` branch of
-`resolveTodayMatchdayAction()`.
+C02's secondary planning-attention signal and C03's VERIFY-phase readiness use real `ruleCode`
+and `SelectedPlayerAvailabilityState` values, not invented categories.
 
 ## No invented coaching observations or AI conclusions
 
@@ -53,24 +77,22 @@ No fixture in this wave includes a coach observation or an Assistant Coach hypot
 
 Every C03 fixture sets `tactics.state: "UNKNOWN"` for both League and Event, deliberately — there
 is no canonical, distinctly-persisted tactics record in the domain model to invent a value from
-(D7), and Event has no tactics data source at all. This means `resolveTodayMatchdayAction()`'s
+(D7), and Event has no tactics data source at all. `resolveTodayMatchdayAction()`'s
 `MISSING_TACTICS` branch is not exercised by this wave's fixtures; that is an accepted, disclosed
-gap, not a defect (see `BLOCKERS.md`).
+gap (see `BLOCKERS.md`), not a defect.
 
 ## Internal consistency and determinism
 
-`gateCBaseCommandCentre()` and the shared matchday builder are the one place each fixture's base
-facts are constructed, reused by every scenario rather than duplicated. `GATE_C_FIXTURE_COMPUTED_AT`
-is a fixed, deterministic timestamp for everything that is not kickoff-relative. No
-scenario reads real `Math.random()` or non-deterministic input.
+`gateCBaseCommandCentre()` and `gateCBuildBusyDay()` are the one place each fixture's base facts
+are constructed, reused by every scenario rather than duplicated. Every timestamp traces back to
+the one `GATE_C_NOW_ISO` constant — no scenario reads the real wall clock or `Math.random()`.
 
 ## Scenario isolation
 
 None of C01-C03's fixtures write to browser storage, and the pages render from static,
 request-independent fixture data only (no server action, no database). The one place Today's
 production components read `localStorage` at all — `TodaySelectionDecisions`'s per-decision
-dismissal state — is keyed by a `scope` prop this wave does not set (it defaults to
-`"default"`, the same as production when no scope is supplied); since no interaction test in
-this wave exercises dismissal, no scenario depends on, or mutates, that state. Each Playwright
-test already gets its own fresh, isolated browser context by default, so even that shared key
-poses no real cross-scenario risk in this wave's actual coverage.
+dismissal state — is keyed by a `scope` prop this wave does not set (defaults to `"default"`,
+the same as production when no scope is supplied); no interaction test in this wave exercises
+dismissal, and each Playwright test already gets its own fresh, isolated browser context by
+default.

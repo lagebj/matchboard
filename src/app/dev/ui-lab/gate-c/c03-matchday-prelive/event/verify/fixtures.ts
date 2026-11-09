@@ -1,6 +1,9 @@
-import { gateCBaseCommandCentre, gateCBuildMatchdayContext, gateCNoLiveMatch } from "../../../shared/fixtures";
+import { gateCBaseCommandCentre, gateCBuildBusyDay, gateCNoLiveMatch } from "../../../shared/fixtures";
 
 /** C03 — Event · Verify (register: "Matchday or live", "Before kickoff/live", XR-T01/XR-V02). */
-export const commandCentre = gateCBaseCommandCentre();
+const busyDay = gateCBuildBusyDay({ source: "EVENT", phase: "VERIFY" });
+
+export const commandCentre = gateCBaseCommandCentre({ todayMatches: busyDay.todayMatches });
 export const liveNow = gateCNoLiveMatch();
-export const matchdayContext = gateCBuildMatchdayContext({ source: "EVENT", phase: "VERIFY" });
+export const matchdayContext = busyDay.matchdayContext;
+export const nowIso = busyDay.nowIso;

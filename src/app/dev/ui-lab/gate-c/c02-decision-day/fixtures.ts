@@ -3,30 +3,54 @@ import type { CoachDecision, CoachSituationProjection } from "@/lib/situational/
 import type { PlanIntegritySignal, RoundPlanIntegrity } from "@/lib/selection/compute-plan-integrity";
 import type { TodaySelectionDecision } from "@/lib/touchline/presentation/today-selection-recommendation-plan";
 import { PLAN_INTEGRITY_CANDIDATE_PROVIDER_ID } from "@/lib/situational/providers/plan-integrity-candidate-provider";
-import { gateCBaseCommandCentre, gateCNoLiveMatch, GATE_C_FIXTURE_COMPUTED_AT } from "../shared/fixtures";
+import { gateCBaseCommandCentre, gateCNoLiveMatch, gateCOrgUrl, GATE_C_NOW, GATE_C_NOW_ISO } from "../shared/fixtures";
 
 /**
  * C02 — Decision day (register: "One primary/2 secondary", "Priority tied to actual situation,
- * sources disclosed", XR-V01). A real top projection decision drives `resolveTodayPrimaryAction()`
- * to the `PLAN_INTEGRITY_SIGNAL` branch; three genuine secondary candidates across all three
- * sources (selection/planning/other) prove the real `MAX_DECISION_DAY_SECONDARY_ITEMS = 2` cap
- * actually drops the third one, rather than hand-picking exactly two to begin with.
+ * sources disclosed", XR-V01).
+ *
+ * P2-03 remediation (independent review of PR #826): the primary decision is a genuine identity
+ * collision, not just a count cap. `primarySelectionDecision.signalKey` is the exact same real
+ * identity (`PRIMARY_KEY`) as `primarySignal.idempotencyKey` in `roundPlanIntegrities` — the real
+ * production coupling (a `TodaySelectionDecision` is always built FROM an
+ * `AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY` plan-integrity signal, same key both places).
+ * `resolveTodayPrimaryAction()`'s own step 1 (never re-implemented here) resolves this to a
+ * `SELECTION_DECISION` primary action; `today-surface.tsx`'s own existing
+ * `remainingSelectionDecisions` filter (never a new dedup algorithm) is what must keep this exact
+ * decision from also appearing in the secondary Selection decisions list. A second, independent
+ * `secondarySelectionDecision` (different signalKey) proves a genuinely different decision still
+ * renders — this is not merely "nothing else was passed in."
  */
 
-const PRIMARY_SIGNAL_KEY = "gate-c-w1-signal-primary-squad-below-min";
+const PRIMARY_SIGNAL_KEY = "gate-c-w1-signal-primary-missing-opportunity";
 
 export const primarySignal: PlanIntegritySignal = {
   idempotencyKey: PRIMARY_SIGNAL_KEY,
-  kind: "BLOCKED",
-  ruleCode: "SQUAD_BELOW_MINIMUM",
+  kind: "DECISION_REQUIRED",
+  ruleCode: "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY",
   matchRoundId: "round-c02-1",
-  matchId: "match-c02-1",
-  title: "Squad below minimum for Saturday's match",
-  currentState: "7 of 11 minimum players planned for Round 9 vs Stoppen Juventus.",
-  consequence: "The match may not be playable if the squad is not completed before kickoff.",
-  classificationReason: "Round 9's squad is currently below Matchboard's configured minimum for this match.",
+  playerId: "player-jonas",
+  title: "Jonas has no planned opportunity this round",
+  currentState: "Available and active, but not assigned to any match in Round 9.",
+  consequence: "Jonas misses a round with no recorded reason.",
+  classificationReason: "An available, active player has no planned opportunity this round.",
   primaryActionLabel: "Open Round Board",
   primaryActionTarget: "/rounds/round-c02-1",
+};
+
+export const primarySelectionDecision: TodaySelectionDecision = {
+  signalKey: PRIMARY_SIGNAL_KEY,
+  playerId: "player-jonas",
+  displayName: "Jonas",
+  availability: "AVAILABLE",
+  roundId: "round-c02-1",
+  roundLabel: "Round 9",
+  problemTitle: "Jonas has no planned opportunity this round",
+  problemDetail: "Available and active, but not assigned to any match in Round 9.",
+  reasons: [{ text: "No core-team match currently needs additional players this round." }],
+  recommendation: null,
+  roundBoardHref: gateCOrgUrl("/rounds/round-c02-1"),
+  decisionFingerprint: "gate-c-w1-c02-primary-fixture-fingerprint",
 };
 
 const secondaryPlanningSignal: PlanIntegritySignal = {
@@ -49,13 +73,13 @@ const roundPlanIntegrity = (matchRoundId: string, signals: PlanIntegritySignal[]
   summary: {
     blockerCount: signals.filter((s) => s.kind === "BLOCKED").length,
     decisionRequiredCount: signals.filter((s) => s.kind === "DECISION_REQUIRED").length,
-    belowMinimumMatchCount: signals.filter((s) => s.ruleCode === "SQUAD_BELOW_MINIMUM").length,
+    belowMinimumMatchCount: 0,
     unavailableSelectedPlayerCount: 0,
-    missingOpportunityPlayerCount: 0,
+    missingOpportunityPlayerCount: signals.filter((s) => s.ruleCode === "AVAILABLE_PLAYER_WITHOUT_PLANNED_OPPORTUNITY").length,
     integrityFailureCount: signals.filter((s) => s.ruleCode === "DUPLICATE_PLANNED_ASSIGNMENT_INTEGRITY_FAILURE").length,
   },
-  coverage: { eligibleAvailablePlayerCount: 11, assignedEligibleAvailablePlayerCount: 7, unassignedEligibleAvailablePlayerIds: [] },
-  computedAt: GATE_C_FIXTURE_COMPUTED_AT,
+  coverage: { eligibleAvailablePlayerCount: 11, assignedEligibleAvailablePlayerCount: 10, unassignedEligibleAvailablePlayerIds: ["player-jonas"] },
+  computedAt: GATE_C_NOW,
 });
 
 export const secondarySelectionDecision: TodaySelectionDecision = {
@@ -69,8 +93,8 @@ export const secondarySelectionDecision: TodaySelectionDecision = {
   problemDetail: "Available and active, but not assigned to any match in Round 7.",
   reasons: [{ text: "No core-team match needs additional players this round." }],
   recommendation: null,
-  roundBoardHref: "/rounds/round-c02-3",
-  decisionFingerprint: "gate-c-w1-c02-selection-fixture-fingerprint",
+  roundBoardHref: gateCOrgUrl("/rounds/round-c02-3"),
+  decisionFingerprint: "gate-c-w1-c02-secondary-fixture-fingerprint",
 };
 
 const secondaryOtherWorkItem: AssistantWorkItem = {
@@ -83,7 +107,7 @@ const secondaryOtherWorkItem: AssistantWorkItem = {
   affectedTeamIds: [],
   affectedPlayerIds: [],
   primaryActionLabel: "Open Round 11",
-  primaryActionHref: "/rounds/round-c02-4",
+  primaryActionHref: gateCOrgUrl("/rounds/round-c02-4"),
 };
 
 const primaryDecision: CoachDecision = {
@@ -92,17 +116,19 @@ const primaryDecision: CoachDecision = {
   situation: "NEXT",
   horizon: "NEXT",
   visibility: "PROMOTE",
-  urgency: "IMMEDIATE",
-  interaction: "INFORM",
+  urgency: "NORMAL",
+  interaction: "CHOOSE",
   title: primarySignal.title,
   summary: primarySignal.currentState,
   alternatives: [],
   affectedEntities: [],
-  reasonCodes: ["HARD_CONSEQUENCE"],
+  reasonCodes: ["MULTIPLE_ALTERNATIVES"],
 };
 
+export const nowIso = GATE_C_NOW_ISO;
+
 export const projection: CoachSituationProjection = {
-  situation: { nowIso: GATE_C_FIXTURE_COMPUTED_AT.toISOString(), primarySituation: "NEXT", imminentMatchIds: [], temporal: {} },
+  situation: { nowIso: GATE_C_NOW_ISO, primarySituation: "NEXT", imminentMatchIds: [], temporal: {} },
   decisions: [primaryDecision],
   deferredCount: 0,
   status: "ACTION_REQUIRED",
@@ -118,4 +144,4 @@ export const commandCentre = gateCBaseCommandCentre({
 });
 
 export const liveNow = gateCNoLiveMatch();
-export const selectionDecisions: TodaySelectionDecision[] = [secondarySelectionDecision];
+export const selectionDecisions: TodaySelectionDecision[] = [primarySelectionDecision, secondarySelectionDecision];

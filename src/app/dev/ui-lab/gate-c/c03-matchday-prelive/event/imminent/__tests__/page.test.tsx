@@ -21,6 +21,6 @@ describe("Gate C W1 — C03 Event · Imminent", () => {
     renderPage();
     expect(screen.getByText("vs Nordby IL")).toBeInTheDocument();
     const action = screen.getByRole("link", { name: "Start live reporting" });
-    expect(action).toHaveAttribute("href", "/events/event-c03-1/matches/event-match-c03-1/live");
+    expect(action).toHaveAttribute("href", "/o/acme/events/event-c03-1/matches/event-match-c03-featured/live");
   });
 });

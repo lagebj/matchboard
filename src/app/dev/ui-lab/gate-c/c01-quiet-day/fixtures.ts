@@ -1,7 +1,7 @@
 import type { TodayCarryForwardItem } from "@/lib/touchline/presentation/today-carry-forward";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
-import { gateCBaseCommandCentre, gateCNoLiveMatch } from "../shared/fixtures";
+import { gateCBaseCommandCentre, gateCNoLiveMatch, gateCOrgUrl, GATE_C_NOW_ISO } from "../shared/fixtures";
 
 /**
  * C01 — Quiet day (register: "One relevant football object", XR-T01/XR-S02/XR-V01). Empty
@@ -9,7 +9,13 @@ import { gateCBaseCommandCentre, gateCNoLiveMatch } from "../shared/fixtures";
  * resolves `"QUIET"` for real, not by a hand-set flag. See
  * `docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md` for why this confirms the shipped
  * baseline rather than proposing a change.
+ *
+ * P2-01 remediation: kickoff dates are relative to the shared fixed `GATE_C_NOW_ISO` (2026-11-10)
+ * rather than hardcoded absolute dates — the earlier hardcoded 2026-11-21 date silently fell
+ * outside production's real 7-day upcoming window once evaluated after 2026-11-14. +2/+5 days
+ * stays comfortably inside that window regardless of when this fixture is viewed.
  */
+export const nowIso = GATE_C_NOW_ISO;
 export const commandCentre = gateCBaseCommandCentre();
 export const liveNow = gateCNoLiveMatch();
 
@@ -23,11 +29,11 @@ export const squadStatus: TodaySquadStatus = {
 export const upcomingMatches: MatchPresentation[] = [
   {
     id: "match-c01-upcoming-1",
-    href: "/matches/match-c01-upcoming-1",
+    href: gateCOrgUrl("/matches/match-c01-upcoming-1"),
     homeTeam: "Blå",
     awayTeam: "Nordby IL",
     ownTeamSide: "home",
-    kickoffDate: "2026-11-14",
+    kickoffDate: "2026-11-12",
     kickoffTime: "17:00",
     lifecycle: "planning_open",
     score: null,
@@ -40,11 +46,11 @@ export const upcomingMatches: MatchPresentation[] = [
   },
   {
     id: "match-c01-upcoming-2",
-    href: "/matches/match-c01-upcoming-2",
+    href: gateCOrgUrl("/matches/match-c01-upcoming-2"),
     homeTeam: "Vollen",
     awayTeam: "Blå",
     ownTeamSide: "away",
-    kickoffDate: "2026-11-21",
+    kickoffDate: "2026-11-15",
     kickoffTime: "11:00",
     lifecycle: "planning_open",
     score: null,
@@ -58,5 +64,5 @@ export const upcomingMatches: MatchPresentation[] = [
 ];
 
 export const carryForwardItems: TodayCarryForwardItem[] = [
-  { id: "carry-c01-1", label: "Report still open — Blå 3-1 Åsgård", href: "/matches/match-c01-past-1" },
+  { id: "carry-c01-1", label: "Report still open — Blå 3-1 Åsgård", href: gateCOrgUrl("/matches/match-c01-past-1") },
 ];

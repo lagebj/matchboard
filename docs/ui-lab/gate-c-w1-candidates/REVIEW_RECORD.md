@@ -6,66 +6,89 @@
 
 ## Summary
 
-Eight candidates (C01, C02, six C03 phase/source combinations) mount the real, unmodified
-production `TodaySurface`/`TodayMatchday` against fixtures built against real production type
-contracts. `CURRENT_STATE_AUDIT.md` classifies every underlying Today behavior
-`CONFIRMS_SHIPPED_BASELINE` — this wave is a documentation-and-capture exercise for already-
-correct production behavior, not a redesign. No production Today file is changed.
+An independent review of this PR's first pass (reviewed HEAD `d13feb206c14e00792ba1844e8de327cbb8eee4a`)
+found three genuine production defects and three fixture-integrity gaps:
 
-No official Gate C wave-ordering document exists in the handoff bundle (`SOURCE_RECONCILIATION.md`);
-this wave's scope (C01-C03) is self-assigned per the brief's own fallback instruction. C07
-(Assistant Coach fallback) and C04-C06/C08 (Round Board) are explicitly deferred, with reasons,
-in `BLOCKERS.md`.
+- **P1-01** — the quiet-day "Nothing needs your attention" hero could render directly below a
+  real Matchday action, contradicting it.
+- **P1-02** — "Today in order" (the busy same-day chronology) never rendered on a
+  quiet-composition day, even with a genuine same-day Matchday object.
+- **P1-03** — squad readiness and carry-forward could render twice: once in the main composition
+  (or Matchday's own card) and again, unconditionally, in the context rail.
+- **P2-01** — C03's kickoff fixture was relative to the real `Date.now()`, and C01's hardcoded
+  upcoming-match dates would silently fall outside production's real 7-day window over time.
+- **P2-02** — several fixture hrefs were unscoped paths, not production's real
+  `/o/{orgSlug}/...` shape.
+- **P2-03** — C02's duplicate-suppression test proved a count cap, not a genuine identity
+  collision.
+- **G-01** — a pre-existing, unrelated Visual Authority Gate fingerprint-staleness defect
+  (issue #827), correctly left out of this PR's scope.
 
-## Validation
+**All six findings (P1-01 through P2-03) are now fixed.** Two production files received a
+narrow, justified, regression-tested correction (`today-surface.tsx`, `today-quiet-state.tsx`);
+every Gate C fixture was reworked to use a fixed deterministic clock, production's real
+same-day-match-selection pipeline, and production's real organisation-scoped href rules; C02's
+fixture now demonstrates a genuine identity collision. See `CURRENT_STATE_AUDIT.md`,
+`DATA_TRUTH_AND_FIXTURES.md`, and `INTERACTION_AND_STATE_AUDIT.md` for the full detail.
 
-- `npm run typecheck` — clean.
-- `npm run lint` — clean (3 pre-existing, unrelated warnings in `compute-plan-integrity.ts`).
-- `npm test` (Vitest node + component suites) — 592+162 files, 6564+1011 tests, all passing,
-  including 10 new Gate C test files / 21 new tests.
-- `npm run build` — not completed locally (OOMs in this sandbox on a clean `main` too, a
-  pre-existing sandbox memory limitation unrelated to this change; CI's `ci-checks.yml` build
-  job is the authoritative result).
-- `e2e/ui-lab-gate-c.spec.ts` — 55/55 passing locally against a local `next dev` server on the
-  `ui-lab-gate-c` Playwright project, exactly mirroring how CI's `ui-lab-visual-review.yml` runs
-  it.
-- `node scripts/ui-lab-visual-review.mjs` — run locally against the same local server to confirm
-  the eight new Gate C scenarios capture cleanly end-to-end (readiness gate, overflow gate,
-  console-error gate) before pushing; see this file's own capture-run note below once the local
-  run completes.
+## A. Findings and corrections
 
-## Capture evidence
+See the Summary above and the referenced documents for exact findings and corrections. In brief:
+P1-01/P1-02 are fixed by two small, additive conditions in `today-surface.tsx`'s own render
+logic (`showHero={!matchdayContext}`, `showOperationalTimeline = compositionState === "DECISION"
+|| Boolean(matchdayContext)`), never a new ranking engine. P1-03 is fixed by computing
+`squadStatusShownElsewhere`/`carryForwardShownElsewhere` from facts already resolved
+(`matchdayContext`, `compositionState`) and suppressing the context rail's own props accordingly.
 
-Real Chromium capture evidence is produced by CI (`ui-lab-visual-review.yml`'s `capture` job)
-against this branch's head commit. `capture-attestation.json` is added in a follow-up commit on
-this same branch once that CI run completes, per this repository's established two-commit
-attestation convention (implementation commit → CI produces real captures → attestation commit
-referencing the real run URL and independently re-verified hashes) — it is not fabricated ahead
-of that run.
+## B. Production changes
 
-## Visual Authority Gate
+`today-surface.tsx` and `today-quiet-state.tsx` — see `CURRENT_STATE_AUDIT.md` for why fixture
+changes alone could not have corrected these: the defect was in production's own composition
+logic (what renders, and when), not in what data a fixture supplied.
 
-Per ADR-0159 (as amended by PR #825): this PR does not post `/visual-approve` or
-`/visual-reject`. The owner reviews the rendered CI capture evidence and the real routes under
-`/dev/ui-lab/gate-c/` directly, then comments their own approval/rejection on the PR, optionally
-scoped with `scenarios: GATE-C-W1-C01, GATE-C-W1-C02, ...`. `candidate_manifest.json`'s
-`approval: null` is not evidence of no approval — the PR's own `Visual Authority Gate` check and
-`npm run visual-authority:status -- --gate C` (once that gate id is recognized) are the
-authoritative source for the real effective state.
+## C. Fixture integrity
 
-**This PR's `Visual Authority Gate` check currently reports `INVALID`, not
-`AWAITING_APPROVAL`** — but for a reason unrelated to Gate C: evaluating it surfaced a
-pre-existing fingerprint-staleness defect affecting Gate B's already-approved B01/B01-AFTER/
-B02/B03/B04 (see `BLOCKERS.md` and
-[issue #827](https://github.com/lagebj/matchboard/issues/827)). This PR does not touch any of
-those scenarios' files; the drift predates this branch. Once the owner posts a fresh
-`/visual-approve` scoped to those five scenarios (clearing the pre-existing INVALID state) and
-separately approves Gate C's own eight scenarios once CI's real captures are in, this check
-reports `APPROVED`.
+- **Controlled clock:** `GATE_C_NOW_ISO`, a fixed reference instant, replaces every real-clock
+  dependency; `TodaySurface` gained an explicit `nowIso?: string` prop for this (production
+  behavior unchanged when omitted).
+- **Real same-day match selection:** `gateCBuildBusyDay()` builds three real candidates and lets
+  the real `selectFeaturedTodayFootballMatch()` choose the featured one.
+- **Canonical URL construction:** every fixture href now follows the exact scoping rule its real
+  consuming component expects, verified field-by-field against source.
 
-## Known limitations
+## D. Interaction coverage
 
-- Tactics readiness is fixed at `UNKNOWN` in every C03 fixture (see `BLOCKERS.md`) —
-  `resolveTodayMatchdayAction()`'s `MISSING_TACTICS` branch is not exercised by this wave's
-  capture coverage, though the function itself is unchanged, already-tested production code.
-- C07, C04-C06, and C08 are not part of this wave (see `BLOCKERS.md`).
+See `INTERACTION_AND_STATE_AUDIT.md` for the complete list, including the 10 new production
+regression tests, the new fixture-builder determinism/phase tests, and the rewritten Playwright
+suite's real click-through navigation assertions.
+
+## E. Visual evidence
+
+Real Chromium capture evidence for this remediated revision is produced by CI
+(`ui-lab-visual-review.yml`), against this branch's new head commit — **not** reusing the
+pre-remediation 80-capture attestation, per the independent review's explicit instruction.
+`capture-attestation.json` is regenerated once that run completes (two-commit attestation
+convention: this commit lands the remediation, the next commits the real evidence once CI has
+produced it).
+
+## F. Governance
+
+This PR's `Visual Authority Gate` check reports `AWAITING_APPROVAL` for Gate C's own eight
+scenarios (unchanged — this remediation does not fabricate an approval) and separately surfaces
+issue #827 (pre-existing, unrelated, Gate B's own stale B01-B04 approvals) when the gate
+re-evaluates the full registry. Neither state is conflated with a technical-check failure: all
+of `npm run validate`'s own checks (typecheck, lint, tests, build) pass independently of the
+Visual Authority Gate's human-approval state. No `/visual-approve`/`/visual-reject` is posted by
+this remediation.
+
+## G. Known limitations
+
+- Tactics readiness is fixed at `UNKNOWN` in every C03 fixture (no canonical tactics data source
+  to invent from) — unchanged from the original wave, disclosed in `BLOCKERS.md`.
+- C07, C04-C06, and C08 remain out of this wave's scope — unchanged, disclosed in `BLOCKERS.md`.
+- Issue #827 (Visual Authority Gate fingerprint staleness) remains open and tracked separately;
+  this remediation does not attempt to fix it, per that issue's own disposition.
+
+## H. Disposition
+
+`READY_FOR_INDEPENDENT_REVIEW`

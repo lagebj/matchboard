@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AppearanceControl } from "@/components/touchline";
 import { GateCTodayMount } from "../shared/today-mount";
-import { commandCentre, liveNow, squadStatus, upcomingMatches, carryForwardItems } from "./fixtures";
+import { commandCentre, liveNow, squadStatus, upcomingMatches, carryForwardItems, nowIso } from "./fixtures";
 
 /**
  * Gate C W1 — C01, Quiet day. A plain server component (matching the real production
@@ -28,6 +28,7 @@ export default function C01QuietDayPage() {
         squadStatus={squadStatus}
         upcomingMatches={upcomingMatches}
         carryForwardItems={carryForwardItems}
+        nowIso={nowIso}
       />
     </div>
   );

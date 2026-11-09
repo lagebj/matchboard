@@ -10,20 +10,21 @@ import type { TodaySelectionDecision } from "@/lib/touchline/presentation/today-
 import type { TodayCarryForwardItem } from "@/lib/touchline/presentation/today-carry-forward";
 import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
+import { GATE_C_ORG_SLUG } from "./fixtures";
 
 /**
  * Gate C W1 shared mount. Kept as its own small client boundary so every scenario's `page.tsx`
  * can stay a plain server component — exactly the real production `today/page.tsx`'s own shape
  * (server loader -> client `TodaySurface`), not a Gate-C-local pattern. This matters beyond
- * convention: C03's kickoff-offset fixture is relative to the real `Date.now()``(see
- * `shared/fixtures.ts`'s own doc comment), and computing it inside a CLIENT page component means
- * it evaluates once during the server's initial render pass and again, independently, a moment
- * later during browser hydration — two different timestamps, producing a React hydration
- * mismatch (confirmed live: `gate-c-w1-c03-league-prepare` failed the capture script's
- * console-error gate with exactly this error before this fix). A server component computes the
- * fixture exactly once per request; this component only ever receives the already-resolved,
- * serializable result as props, the same way `TodaySurface` already receives
- * `AssistantCommandCentre.computedAt` (a `Date`) from the real production server loader.
+ * convention: a client page component computing fixture data directly evaluates it once during
+ * the server's initial render pass and again, independently, a moment later during browser
+ * hydration — a real React hydration mismatch this exact shape once produced (confirmed live on
+ * `gate-c-w1-c03-league-prepare`, caught by the capture script's own console-error gate, before
+ * this fix). A server component computes the fixture exactly once per request; this component
+ * only ever receives the already-resolved, serializable result as props, the same way
+ * `TodaySurface` already receives `AssistantCommandCentre.computedAt` (a `Date`) from the real
+ * production server loader. P2-01 remediation additionally threads an explicit `nowIso` through
+ * (see `shared/fixtures.ts`), so no part of this rendering depends on the real wall clock at all.
  */
 export function GateCTodayMount(props: {
   commandCentre: AssistantCommandCentre;
@@ -34,9 +35,13 @@ export function GateCTodayMount(props: {
   squadStatus?: TodaySquadStatus | null;
   upcomingMatches?: MatchPresentation[];
   carryForwardItems?: TodayCarryForwardItem[];
+  /** P2-01 remediation: every Gate C scenario passes the shared fixed reference instant
+   * (`GATE_C_NOW_ISO`, `shared/fixtures.ts`) explicitly, rather than relying on `TodaySurface`'s
+   * own `new Date()` fallback. */
+  nowIso: string;
 }) {
   return (
-    <OrgSlugProvider orgSlug="acme">
+    <OrgSlugProvider orgSlug={GATE_C_ORG_SLUG}>
       <TodaySurface
         commandCentre={props.commandCentre}
         projection={props.projection}
@@ -50,6 +55,7 @@ export function GateCTodayMount(props: {
         squadStatus={props.squadStatus}
         upcomingMatches={props.upcomingMatches}
         matchdayContext={props.matchdayContext}
+        nowIso={props.nowIso}
       />
     </OrgSlugProvider>
   );

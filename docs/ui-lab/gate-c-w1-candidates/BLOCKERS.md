@@ -1,5 +1,13 @@
 # Gate C W1 — Blockers and Deferrals
 
+## Remediation status (independent review of PR #826)
+
+Findings P1-01, P1-02, P1-03, P2-01, P2-02, and P2-03 from the independent review have all been
+addressed — see `CURRENT_STATE_AUDIT.md` (production fixes), `DATA_TRUTH_AND_FIXTURES.md`
+(fixture-integrity fixes), and `INTERACTION_AND_STATE_AUDIT.md` (new test coverage) for the full
+detail. Finding G-01 (Visual Authority Gate fingerprint invalidation, issue #827) remains
+correctly out of this wave's scope — see that section below, unchanged.
+
 ## No official Gate C wave-ordering document
 
 The handoff bundle has no Gate-C equivalent of `20_UI_LAB_CANDIDATE_WAVES.md` — see

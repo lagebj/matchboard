@@ -21,7 +21,7 @@ describe("Gate C W1 — C03 Event · Verify", () => {
     renderPage();
     expect(screen.getByText("vs Nordby IL")).toBeInTheDocument();
     const action = screen.getByRole("link", { name: "Review squad" });
-    expect(action).toHaveAttribute("href", "/events/event-c03-1");
+    expect(action).toHaveAttribute("href", "/o/acme/events/event-c03-1");
     expect(screen.getByText("Jonas is doubtful")).toBeInTheDocument();
   });
 });

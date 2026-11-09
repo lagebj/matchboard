@@ -11,6 +11,8 @@ vi.mock("@/components/assistant/due-decision-review-section", () => ({
 }));
 
 const { default: C01QuietDayPage } = await import("../page");
+const { upcomingMatches } = await import("../fixtures");
+const { GATE_C_NOW_ISO } = await import("../../shared/fixtures");
 
 function renderPage() {
   return render(
@@ -31,17 +33,35 @@ describe("Gate C W1 — C01 Quiet day", () => {
   it("shows the bounded 'This week' chronology with real, navigable matches", () => {
     renderPage();
     const upcoming = screen.getByText("Blå vs Nordby IL");
-    expect(upcoming.closest("a")).toHaveAttribute("href", "/matches/match-c01-upcoming-1");
+    expect(upcoming.closest("a")).toHaveAttribute("href", "/o/acme/matches/match-c01-upcoming-1");
     expect(screen.getByText("Vollen vs Blå")).toBeInTheDocument();
   });
 
-  it("shows the one carry-forward item (main composition and context rail both surface it)", () => {
+  it("P1-03: shows the one carry-forward item exactly once — never duplicated into the context rail", () => {
     renderPage();
-    expect(screen.getAllByText(/Report still open/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Report still open/).length).toBe(1);
+  });
+
+  it("P1-03: shows squad readiness exactly once — never duplicated into the context rail", () => {
+    renderPage();
+    // SquadReadinessWidget renders each count as its own label; "Available" alone is specific
+    // enough to this widget (not shared with any other quiet-day text) to prove it isn't
+    // rendered a second time in a separate context-rail column.
+    expect(screen.getAllByText("Available").length).toBe(1);
   });
 
   it("never renders InstallPwaCard", () => {
     renderPage();
     expect(screen.queryByText(/install matchboard/i)).not.toBeInTheDocument();
+  });
+
+  it("P2-01: every upcoming-match kickoff date falls within production's real 7-day window", () => {
+    const now = new Date(GATE_C_NOW_ISO);
+    for (const match of upcomingMatches) {
+      const kickoff = new Date(`${match.kickoffDate}T00:00:00.000Z`);
+      const daysAhead = (kickoff.getTime() - now.getTime()) / (24 * 60 * 60 * 1000);
+      expect(daysAhead).toBeGreaterThan(0);
+      expect(daysAhead).toBeLessThanOrEqual(7);
+    }
   });
 });

@@ -21,7 +21,7 @@ describe("Gate C W1 — C03 League · Imminent", () => {
     renderPage();
     expect(screen.getByText("vs Stoppen Juventus")).toBeInTheDocument();
     const action = screen.getByRole("link", { name: "Start live reporting" });
-    expect(action).toHaveAttribute("href", "/matches/match-c03-1/live");
+    expect(action).toHaveAttribute("href", "/o/acme/matches/match-c03-featured/live");
   });
 
   it("still shows Matchday, not Live Now, before kickoff actually happens", () => {

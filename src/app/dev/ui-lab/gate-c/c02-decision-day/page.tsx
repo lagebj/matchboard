@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AppearanceControl } from "@/components/touchline";
 import { GateCTodayMount } from "../shared/today-mount";
-import { commandCentre, liveNow, projection, selectionDecisions } from "./fixtures";
+import { commandCentre, liveNow, projection, selectionDecisions, nowIso } from "./fixtures";
 
 /**
  * Gate C W1 — C02, Decision day. A plain server component (matching the real production
@@ -28,6 +28,7 @@ export default function C02DecisionDayPage() {
         liveNow={liveNow}
         projection={projection}
         selectionDecisions={selectionDecisions}
+        nowIso={nowIso}
       />
     </div>
   );

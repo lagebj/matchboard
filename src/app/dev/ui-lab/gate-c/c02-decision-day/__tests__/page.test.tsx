@@ -2,10 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
 
-// Same pre-existing test-infra gap documented against the production TodaySurface tests
-// (today-surface.composition.test.tsx) — DueDecisionReviewSection transitively imports a
-// "use server" actions module that does not resolve under vitest's jsdom component config.
-// `dueDecisionReviews` is empty in this scenario's fixture anyway.
 vi.mock("@/components/assistant/due-decision-review-section", () => ({
   DueDecisionReviewSection: () => null,
 }));
@@ -21,16 +17,31 @@ function renderPage() {
 }
 
 describe("Gate C W1 — C02 Decision day", () => {
-  it("renders the primary decision and its Why? disclosure, not the quiet hero", () => {
+  it("renders the primary decision inline, not the quiet hero", () => {
     renderPage();
     expect(screen.queryByText("Nothing needs your attention.")).not.toBeInTheDocument();
-    expect(screen.getByText("Squad below minimum for Saturday's match")).toBeInTheDocument();
-    expect(screen.getByText("Why?")).toBeInTheDocument();
-    expect(screen.getByText("Round 9's squad is currently below Matchboard's configured minimum for this match.")).toBeInTheDocument();
+    // P2-03: the primary action IS the real Jonas selection decision (not a generic/plan-
+    // integrity rendering) — proven by its real inline WHY-zone heading ("CURRENT SITUATION",
+    // since this decision has no directly-actionable recommendation) rather than a duplicated
+    // standalone "Why?" box (today-composition.ts deliberately returns null for this kind). The
+    // secondary Noah decision shares the same heading text (it also has no recommendation), so
+    // this asserts presence, not uniqueness — uniqueness of Jonas's own content is asserted below.
+    expect(screen.getAllByText("CURRENT SITUATION").length).toBeGreaterThan(0);
+    expect(screen.getByText("No core-team match currently needs additional players this round.")).toBeInTheDocument();
   });
 
-  it("shows the two genuine secondary items the real cap allows (selection + planning)", () => {
+  it("P2-03: does not repeat the promoted identity-colliding decision in the secondary Selection decisions list", () => {
     renderPage();
+    // Jonas's own problem text appears exactly once — as the primary action — even though the
+    // exact same signalKey/idempotencyKey also exists in roundPlanIntegrities and could, if the
+    // real exclusion logic were broken, render a second time as a secondary Selection decision.
+    expect(screen.getAllByText("Available and active, but not assigned to any match in Round 9.").length).toBe(1);
+  });
+
+  it("shows the two genuine secondary items the real cap allows (a different decision + planning)", () => {
+    renderPage();
+    // A genuinely different player/decision (Noah, Round 7) remains visible — proving dedup
+    // suppresses only the identity collision, not every Selection decision.
     expect(screen.getByText("Available and active, but not assigned to any match in Round 7.")).toBeInTheDocument();
     expect(screen.getByText("Theodor is planned twice in Round 10")).toBeInTheDocument();
   });

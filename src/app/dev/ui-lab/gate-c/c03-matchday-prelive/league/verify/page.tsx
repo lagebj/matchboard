@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AppearanceControl } from "@/components/touchline";
 import { GateCTodayMount } from "../../../shared/today-mount";
 import { MatchdayNav } from "../../../shared/matchday-nav";
-import { commandCentre, liveNow, matchdayContext } from "./fixtures";
+import { commandCentre, liveNow, matchdayContext, nowIso } from "./fixtures";
 
 /**
  * Gate C W1 — C03, League · Verify. A plain server component (matching the real production
@@ -26,7 +26,7 @@ export default function C03LeagueVerifyPage() {
       <div className="mb-4">
         <MatchdayNav active="league-verify" />
       </div>
-      <GateCTodayMount commandCentre={commandCentre} liveNow={liveNow} matchdayContext={matchdayContext} />
+      <GateCTodayMount commandCentre={commandCentre} liveNow={liveNow} matchdayContext={matchdayContext} nowIso={nowIso} />
     </div>
   );
 }

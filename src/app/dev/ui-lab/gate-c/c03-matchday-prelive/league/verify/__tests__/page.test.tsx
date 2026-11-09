@@ -21,7 +21,7 @@ describe("Gate C W1 — C03 League · Verify", () => {
     renderPage();
     expect(screen.getByText("vs Stoppen Juventus")).toBeInTheDocument();
     const action = screen.getByRole("link", { name: "Review squad" });
-    expect(action).toHaveAttribute("href", "/matches/match-c03-1");
+    expect(action).toHaveAttribute("href", "/o/acme/matches/match-c03-featured");
     expect(screen.getByText("Jonas is doubtful")).toBeInTheDocument();
   });
 

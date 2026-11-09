@@ -10,7 +10,7 @@ vi.mock("@/components/assistant/due-decision-review-section", () => ({
 const { TodaySurface } = await import("@/components/touchline/today/today-surface");
 import { OrgSlugProvider } from "@/components/shell/org-slug-context";
 import type { TodayLiveNowResult } from "@/lib/live-match/get-today-live-match-summaries";
-import { gateCBaseCommandCentre, gateCBuildMatchdayContext } from "../../../shared/fixtures";
+import { gateCBaseCommandCentre, gateCBuildBusyDay } from "../../../shared/fixtures";
 
 /**
  * Gate C W1 — Live Now/Matchday exclusivity, exercised against THIS wave's own fixture builder
@@ -20,17 +20,19 @@ import { gateCBaseCommandCentre, gateCBuildMatchdayContext } from "../../../shar
  * (today-surface.matchday-livenow-gate.test.tsx) with Gate C's own matchday fixture rather than
  * duplicating that test file.
  */
+const busyDay = gateCBuildBusyDay({ source: "LEAGUE", phase: "IMMINENT" });
+
 function renderSurface(liveNow: TodayLiveNowResult) {
-  const matchdayContext = gateCBuildMatchdayContext({ source: "LEAGUE", phase: "IMMINENT" });
   return render(
     <OrgSlugProvider orgSlug="acme">
       <TodaySurface
-        commandCentre={gateCBaseCommandCentre()}
+        commandCentre={gateCBaseCommandCentre({ todayMatches: busyDay.todayMatches })}
         selectionDecisions={[]}
         applyRecommendation={vi.fn()}
         carryForwardItems={[]}
         liveNow={liveNow}
-        matchdayContext={matchdayContext}
+        matchdayContext={busyDay.matchdayContext}
+        nowIso={busyDay.nowIso}
       />
     </OrgSlugProvider>,
   );
@@ -46,7 +48,7 @@ describe("Gate C W1 — C03 Live Now / Matchday exclusivity", () => {
   it("renders Live Now instead of Matchday once the same match is actually live — never both", () => {
     renderSurface({
       primary: {
-        matchId: "match-c03-1",
+        matchId: busyDay.matchdayContext!.featured.id,
         sessionId: "session-c03-1",
         teamName: "Blå",
         opponentName: "Stoppen Juventus",
@@ -56,7 +58,7 @@ describe("Gate C W1 — C03 Live Now / Matchday exclusivity", () => {
         elapsedLabel: "5:00",
         isRunning: true,
         primaryAction: { kind: "END_PERIOD", period: "FIRST_HALF", label: "End first half" },
-        startsAtIso: new Date().toISOString(),
+        startsAtIso: busyDay.nowIso,
         kind: "LEAGUE",
         eventId: null,
       },

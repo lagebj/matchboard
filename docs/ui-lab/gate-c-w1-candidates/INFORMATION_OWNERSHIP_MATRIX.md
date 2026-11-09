@@ -1,31 +1,36 @@
 # Gate C W1 — Information Ownership Matrix
 
 Per the brief's §4. Today owns priority and context; it must not duplicate a destination
-workspace's complete detail.
+workspace's complete detail, and (P1-03 remediation, independent review of PR #826) it must not
+duplicate itself either — every repeated element below now has exactly one real owner, enforced
+in `today-surface.tsx`, not asserted as a matter of policy.
 
-| Information element | Canonical source | Today component | Region | Duplicated elsewhere? | Changes a coach decision? |
+| Information element | Canonical source | Owner when a same-day Matchday anchor exists | Owner when it doesn't (quiet) | Owner when it doesn't (decision) | Changes a coach decision? |
 |---|---|---|---|---|---|
-| The single top decision/situation | `CoachSituationProjection.decisions[0]` (situation policy, Rego) | `TodayNextAction` | Primary | No — excluded from every secondary section once promoted | Yes — this is the decision |
-| Why the primary decision is valid | Closed Rego reason-code set, or the signal's own `classificationReason` | `TodayDecisionWhy` | Primary (inline) | No | Yes — justifies the action |
-| Player-specific selection problems (not primary) | `PlanIntegritySignal` via the selection recommendation planner | `TodaySelectionDecisions` | Secondary (capped) | No — signal key excluded from Planning attention and from the primary if promoted | Yes, bounded to 2 total |
-| Round-level plan-integrity signals (not primary, not selection) | `AssistantCommandCentre.roundPlanIntegrities` | `TodayPlanningAttention` | Secondary (capped) | No | Yes, bounded to 2 total |
-| Other concrete work items (setup, event prep, review, report) | `AssistantCommandCentre.items` (allowlisted categories only) | `TodayOtherAttention` | Secondary (capped) | No | Yes, bounded to 2 total |
-| Same-day match identity, kickoff, readiness, one primary action | `TodayMatchdayContext` (League `TodayMatch` or Event facts, unified) | `TodayMatchday` | Primary anchor (pre-live) | No — Matchday's consumed signal is excluded from the secondary sections and from the lower chronology | Yes — the one correct next action for that match |
-| Live match in progress | `TodayLiveNowResult` | `TodayLiveNow` | Primary anchor (live) | No — mutually exclusive with Matchday for the same anchor | Yes |
-| Bounded "This week" chronology (quiet day only) | Upcoming `MatchPresentation[]` + due reviews | `TodayQuietState`'s chronology | Primary (quiet only) | No | Informational only |
-| Today's own operational timeline (decision day only) | `AssistantCommandCentre.todayMatches` | `TodayOperationalTimeline` | Primary (decision only) | No — excludes whichever match Live Now/Matchday already shows | Informational only |
-| Squad readiness snapshot | `TodaySquadStatus` | `TodayQuietState` (conditional) / `TodayContextRail` | Context rail, or inline on quiet day only when no Matchday object already shows its own | Possible inline-vs-rail overlap is deliberate and documented in `today-surface.tsx`'s own `showSquadReadiness` guard, not accidental duplication | No |
-| Recent football / carry-forward items | `TodayCarryForwardItem[]` / recent `MatchPresentation[]` | `TodayContextRail`, and at most one item inline on quiet day | Context rail (always) + at most one inline on quiet day | Deliberate — documented in `today-quiet-state.tsx`'s own doc comment | No |
-| Due peer/development reviews | `DueDecisionReviewCard[]` | `DueDecisionReviewSection` (decision day only) | Primary (decision day), trailing | No | Yes — forces DECISION composition when present |
+| The single top decision/situation | `CoachSituationProjection.decisions[0]` | `TodayNextAction` (decision composition only) | — (none exists) | `TodayNextAction` | Yes |
+| Why the primary decision is valid | Closed Rego reason-code set / signal's own fields | `TodayDecisionWhy` (decision composition only) | — | `TodayDecisionWhy` | Yes |
+| Player-specific/round-level/other secondary decisions | `PlanIntegritySignal` / `AssistantWorkItem` | `TodaySelectionDecisions`/`TodayPlanningAttention`/`TodayOtherAttention` (decision composition only), capped at 2 combined | — | same | Yes, bounded to 2 |
+| Same-day match identity, kickoff, readiness, one primary action | `TodayMatchdayContext` | **`TodayMatchday`'s own card** — the one and only place squad readiness renders when a Matchday anchor exists (P1-03: the context rail's squad-readiness widget is explicitly suppressed here, since `TodayMatchday` already shows equivalent readiness via `formatSquadPlannedLine()`/`formatSelectedAvailabilityLine()`) | n/a | n/a | Yes |
+| Other same-day football ("Today in order") | `AssistantCommandCentre.todayMatches` | `TodayOperationalTimeline` (P1-02: now renders whenever a Matchday anchor exists, not only on decision days), excluding whichever match Matchday/Live Now already owns | `TodayOperationalTimeline` only if a decision also exists | `TodayOperationalTimeline` | Informational |
+| Live match in progress | `TodayLiveNowResult` | `TodayLiveNow` (mutually exclusive with Matchday for the same anchor) | same | same | Yes |
+| Calm "nothing needs your attention" hero | n/a (a fact about the absence of other facts) | **Never shown** — P1-01: a Matchday anchor already answers "is there something to do," so the hero would contradict it | `TodayQuietState`'s own hero | n/a (decision composition never shows this hero) | Informational |
+| Compact squad readiness (no Matchday anchor) | `TodaySquadStatus` | n/a | `TodayQuietState`'s own inline readiness (P1-03: suppressed from the context rail) | **`TodayContextRail`** — the sole owner on a decision day with no Matchday anchor | No |
+| Bounded "This week" chronology (quiet day only) | Upcoming `MatchPresentation[]` + due reviews | `TodayQuietState`'s chronology, still shown (not a duplicate of "Today in order," which is same-day only) | same | n/a | Informational only |
+| Carry-forward item(s) | `TodayCarryForwardItem[]` | n/a (orthogonal to Matchday) | `TodayQuietState`'s own at-most-one inline item (P1-03: suppressed from the context rail whenever quiet) | **`TodayContextRail`** — the sole owner on a decision day, which never shows carry-forward inline | No |
+| Recent football / since-last-visit | `MatchPresentation[]` / `TodayVisitCurrentFacts` | `TodayContextRail` — always the sole owner; neither the quiet nor the decision composition shows these at all | same | same | No |
+| Due peer/development reviews | `DueDecisionReviewCard[]` | `DueDecisionReviewSection` (decision composition only — forces DECISION when present) | n/a | same | Yes |
 
 ## What Today does **not** own (per the brief's §4), and this wave does not duplicate
 
-- **Match Details** — detailed match preparation, recorded events, historical match information.
-  Matchday's action always deep-links to the match/event's own canonical detail page; no second
-  lineup/availability/live-start route is introduced by this wave.
-- **Round Board** — multi-match allocation and squad movement decisions. Today's Selection
-  decisions/Planning attention rows link into Round Board for the full workspace; they never
-  reproduce its allocation UI.
-- **Player Detail** — player development and evidence history. Not surfaced by C01-C03 at all.
-- **Post-Match Report** — report reconciliation and mutation. Not surfaced by C01-C03's scope
-  (PREPARE/VERIFY/IMMINENT is pre-live only).
+- **Match Details**, **Round Board**, **Player Detail**, **Post-Match Report** — unchanged from
+  the original wave's own statement; this remediation touches only Today's own internal
+  composition, never another workspace's ownership.
+
+## Why the first pass's claim of "intentional" duplication was wrong
+
+The original version of this document asserted the context rail's repetition of squad readiness
+and carry-forward was deliberate (citing `today-quiet-state.tsx`'s own doc comment). The
+independent review correctly rejected that as insufficient justification: a component's own doc
+comment describing its *current* behavior is not evidence that the behavior is *correct*. The
+table above is the corrected, single-owner model, enforced in code and regression-tested
+(`today-surface.matchday-quiet-composition.test.tsx`), not merely documented as a rule to trust.
