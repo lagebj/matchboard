@@ -32,7 +32,28 @@ describe("parseCommand", () => {
   it("parses a reject command with no reason", () => {
     const result = parseCommand("/visual-reject abc1234");
     expect(result.kind).toBe("reject");
-    if (result.kind === "reject") expect(result.reason).toBeNull();
+    if (result.kind === "reject") {
+      expect(result.reason).toBeNull();
+      expect(result.scenarios).toBeNull();
+    }
+  });
+
+  it("parses a reject command scoped to specific scenarios, excluding the scenarios line from the reason", () => {
+    const result = parseCommand("/visual-reject abc1234\nscenarios: B04\nThe pitch layout is broken on mobile.");
+    expect(result.kind).toBe("reject");
+    if (result.kind === "reject") {
+      expect(result.scenarios).toEqual(["B04"]);
+      expect(result.reason).toBe("The pitch layout is broken on mobile.");
+    }
+  });
+
+  it("parses a scoped reject command with no further reason text", () => {
+    const result = parseCommand("/visual-reject abc1234\nscenarios: B01, B04");
+    expect(result.kind).toBe("reject");
+    if (result.kind === "reject") {
+      expect(result.scenarios).toEqual(["B01", "B04"]);
+      expect(result.reason).toBeNull();
+    }
   });
 
   it("parses a deploy-request command", () => {
