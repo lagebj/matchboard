@@ -53,6 +53,16 @@ scoped with `scenarios: GATE-C-W1-C01, GATE-C-W1-C02, ...`. `candidate_manifest.
 `npm run visual-authority:status -- --gate C` (once that gate id is recognized) are the
 authoritative source for the real effective state.
 
+**This PR's `Visual Authority Gate` check currently reports `INVALID`, not
+`AWAITING_APPROVAL`** — but for a reason unrelated to Gate C: evaluating it surfaced a
+pre-existing fingerprint-staleness defect affecting Gate B's already-approved B01/B01-AFTER/
+B02/B03/B04 (see `BLOCKERS.md` and
+[issue #827](https://github.com/lagebj/matchboard/issues/827)). This PR does not touch any of
+those scenarios' files; the drift predates this branch. Once the owner posts a fresh
+`/visual-approve` scoped to those five scenarios (clearing the pre-existing INVALID state) and
+separately approves Gate C's own eight scenarios once CI's real captures are in, this check
+reports `APPROVED`.
+
 ## Known limitations
 
 - Tactics readiness is fixed at `UNKNOWN` in every C03 fixture (see `BLOCKERS.md`) —

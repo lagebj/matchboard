@@ -45,7 +45,36 @@ exercised by this wave. This is a disclosed, accepted gap in capture coverage of
 function branch, not a defect — the function itself is unchanged production code with its own
 existing unit tests.
 
-## No genuine production defect found
+## No genuine Today production defect found
 
-The audit in `CURRENT_STATE_AUDIT.md` found nothing requiring an ARR or GitHub issue. This
-section exists to confirm that explicitly, not to leave it implicit.
+The audit in `CURRENT_STATE_AUDIT.md` found nothing in Today's own production code requiring an
+ARR or GitHub issue.
+
+## Pre-existing, unrelated finding surfaced by this PR: Visual Authority Gate reports B01/B01-AFTER/B02/B03/B04 as INVALID
+
+This PR's own `Visual Authority Gate` check fails — not because of anything in Gate C, but
+because evaluating it exposed a pre-existing issue in Gate B's already-merged, already-approved
+candidates. Filed as
+[issue #827](https://github.com/lagebj/matchboard/issues/827).
+
+**Root cause:** `computeFingerprint()` hashes the *entire content* of each file in a scenario's
+`componentOwners` list. B01/B01-AFTER/B02/B03/B04 (Gate B W1, PR #790) all list the shared
+`src/app/dev/ui-lab/gate-b/shared/match-b-fixture.ts` as a componentOwner. Every subsequent Gate
+B wave (W2/B05 #805, W3/B06 #808, W4/B07 #811) correctly appended its own new, unrelated exports
+to that same shared file — each addition silently invalidated B01-B04's already-approved
+fingerprint, even though none of their own rendered output changed.
+
+**Why this PR is the one surfacing it:** this PR touches `scripts/ui-lab-visual-review.mjs`
+(registering the new Gate C routes), which matches the gate's `classify()` applicability rule
+and triggers a full re-evaluation of *every* scenario in the repository's entire
+`docs/ui-lab/**/candidate_manifest.json` registry — not just scenarios this PR's own diff
+touches. This PR does not modify `match-b-fixture.ts` or any B01-B04 file; `git diff` between
+B01-B04's approved commit and current `main` confirms their own componentOwner files are
+byte-identical, only the shared file changed, and only because of later, unrelated Gate B waves.
+
+**Disposition:** not fixed here — this is pre-existing drift on `main` predating this branch,
+touching Gate B's own approved candidates, which this wave's own constraints explicitly forbid
+reopening. Filed as a GitHub issue (not an ARR — one mechanism with a granularity defect, not two
+competing implementations) rather than silently worked around. The owner needs to post a fresh
+`/visual-approve <sha> scenarios: B01, B01-AFTER, B02, B03, B04` to clear it (their real rendered
+output hasn't changed); Gate C's own scenarios remain `AWAITING_APPROVAL` independently of this.
