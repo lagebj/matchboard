@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { evaluateGateFromScenarios } from "../evaluate-gate.mjs";
 
+type EffectiveVisualApproval = import("../resolve-approval.mjs").EffectiveVisualApproval;
+
 const HEAD = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
 
-function scenarioResult(overrides: Record<string, unknown> = {}) {
+function scenarioResult(overrides: Partial<EffectiveVisualApproval> = {}): EffectiveVisualApproval {
   return {
     scenarioId: "B01",
     state: "APPROVED",
