@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "A01",
+      "sourcePr": 777,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a01-sports-first",
       "fixtureVersion": 5,
@@ -73,6 +74,7 @@
     },
     {
       "scenarioId": "A02",
+      "sourcePr": 777,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a02-match-lifecycle",
       "fixtureVersion": 1,
@@ -112,6 +114,7 @@
     },
     {
       "scenarioId": "A06",
+      "sourcePr": 777,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a06-position-pitches",
       "fixtureVersion": 4,
@@ -160,6 +163,7 @@
     },
     {
       "scenarioId": "A12",
+      "sourcePr": 777,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a12-profile-editor",
       "fixtureVersion": 3,

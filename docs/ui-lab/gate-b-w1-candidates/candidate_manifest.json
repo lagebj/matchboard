@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "B01",
+      "sourcePr": 790,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w1-b01-planned-ready",
       "fixtureVersion": 2,
@@ -440,6 +441,7 @@
     },
     {
       "scenarioId": "B01-AFTER",
+      "sourcePr": 790,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w1-b01-after",
       "fixtureVersion": 1,
@@ -542,6 +544,7 @@
     },
     {
       "scenarioId": "B02",
+      "sourcePr": 790,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w1-b02-planned-incomplete",
       "fixtureVersion": 1,
@@ -646,6 +649,7 @@
     },
     {
       "scenarioId": "B03",
+      "sourcePr": 790,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w1-b03-completed-sparse",
       "fixtureVersion": 1,
@@ -752,6 +756,7 @@
     },
     {
       "scenarioId": "B04",
+      "sourcePr": 790,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w1-b04-completed-rich",
       "fixtureVersion": 2,

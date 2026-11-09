@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "B08-BEFORE",
+      "sourcePr": 822,
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-before",
@@ -29,6 +30,7 @@
     },
     {
       "scenarioId": "B08-LIVE",
+      "sourcePr": 822,
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-live",
@@ -52,6 +54,7 @@
     },
     {
       "scenarioId": "B08-AFTER",
+      "sourcePr": 822,
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-after",
@@ -78,6 +81,7 @@
     },
     {
       "scenarioId": "B08-REPORT-DRAFT",
+      "sourcePr": 822,
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-report-draft",
@@ -99,6 +103,7 @@
     },
     {
       "scenarioId": "B08-REPORT-COMPLETED",
+      "sourcePr": 822,
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w5-b08-report-completed",

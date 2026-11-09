@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "B07-HISTORICAL-PATTERN",
+      "sourcePr": 811,
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w4-b07-historical-pattern",
@@ -43,6 +44,7 @@
     },
     {
       "scenarioId": "B07-TRIVIAL-FACT",
+      "sourcePr": 811,
       "status": "CANDIDATE",
       "official_golden_status": "NOT_READY",
       "fixtureId": "gate-b-w4-b07-trivial-fact",

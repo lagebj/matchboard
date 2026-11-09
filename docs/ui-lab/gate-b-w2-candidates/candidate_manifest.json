@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "B05",
+      "sourcePr": 805,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w2-b05-draft",
       "fixtureVersion": 6,
@@ -168,6 +169,7 @@
     },
     {
       "scenarioId": "B05-COMPLETED",
+      "sourcePr": 805,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w2-b05-completed",
       "fixtureVersion": 6,

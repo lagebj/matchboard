@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "B06-LEAGUE-BEFORE",
+      "sourcePr": 808,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w3-b06-league-before",
       "fixtureVersion": 1,
@@ -34,6 +35,7 @@
     },
     {
       "scenarioId": "B06-LEAGUE-AFTER",
+      "sourcePr": 808,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w3-b06-league-after",
       "fixtureVersion": 2,
@@ -62,6 +64,7 @@
     },
     {
       "scenarioId": "B06-EVENT-BEFORE",
+      "sourcePr": 808,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w3-b06-event-before",
       "fixtureVersion": 1,
@@ -91,6 +94,7 @@
     },
     {
       "scenarioId": "B06-EVENT-AFTER",
+      "sourcePr": 808,
       "status": "CANDIDATE",
       "fixtureId": "gate-b-w3-b06-event-after",
       "fixtureVersion": 4,

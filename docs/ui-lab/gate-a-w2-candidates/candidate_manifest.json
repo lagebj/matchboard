@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "A04-S1",
+      "sourcePr": 778,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-partial-minutes",
       "fixtureVersion": 2,
@@ -175,6 +176,7 @@
     },
     {
       "scenarioId": "A04-S2",
+      "sourcePr": 778,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-role-exposure-sparse",
       "fixtureVersion": 1,
@@ -283,6 +285,7 @@
     },
     {
       "scenarioId": "A04-S3",
+      "sourcePr": 778,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-role-exposure-supported",
       "fixtureVersion": 2,
@@ -419,6 +422,7 @@
     },
     {
       "scenarioId": "A04-S4",
+      "sourcePr": 778,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-sparse-score-events",
       "fixtureVersion": 1,
@@ -583,6 +587,7 @@
     },
     {
       "scenarioId": "A04-S5",
+      "sourcePr": 778,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-central-profile-projection",
       "fixtureVersion": 1,
@@ -718,6 +723,7 @@
     },
     {
       "scenarioId": "A04-S6",
+      "sourcePr": 778,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-a04-declared-only-versus-evidenced",
       "fixtureVersion": 2,
