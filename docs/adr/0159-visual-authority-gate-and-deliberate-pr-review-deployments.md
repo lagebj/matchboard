@@ -8,7 +8,8 @@ Test-slot lease wiring, documentation updates) implemented. **Stage B is also no
 the repository owner's explicit direction, once PR #802 corrected the two Stage A bugs described
 in that ADR's History (the `neutral`-conclusion bug and the approval-record fingerprint
 self-invalidation bug) that would otherwise have made Stage B's enforcement ineffective. See
-"Rollout" below.
+"Rollout" below. **A 2026-11-09 follow-up (see History) generalized the comment-ledger model to be
+scenario-scoped and confirmed it already works, unmodified, after a PR merges.**
 
 ## Date
 
@@ -330,3 +331,71 @@ repository-wide, merge-blocking change — never as a side effect of implementin
   check whose own resolution the deploy is meant to inform is excluded. New tests cover both the
   exclusion itself and that it never excuses a different, genuinely failing required check. See
   `scripts/visual-authority/__tests__/required-checks.test.ts`.
+- 2026-11-09: Follow-up generalizing the comment-ledger model from PR-level to scenario-level, and
+  confirming (rather than building from scratch) that it already works after a PR merges.
+  Motivated by a concrete, confirmed instance of the exact anti-pattern this ADR's "comment thread
+  is the ledger" principle was meant to prevent: PR #807 ("record real Visual Authority Gate
+  approval for Gate B W2") was a second PR whose only purpose was writing `promote-to-golden.mjs`'s
+  output into a manifest, for an approval (on PR #805) that was already fully valid without it.
+  Re-running the resolver (read-only) against PRs #808 and #811 found the same gap already present
+  but unrecorded: both carry real `lagebj` `/visual-approve <sha>` comments with a
+  `success`/"Visually approved" check-run at the time, yet `gate-b-w3-candidates/` and
+  `gate-b-w4-candidates/candidate_manifest.json` still said `approval: null` — exactly this ADR's
+  own warning ("a missing manifest approval block is not itself evidence of no approval") being
+  true in practice, not just in principle.
+  - `scripts/visual-authority/resolve-approval.mjs` (new): generalizes `evaluate-gate.mjs`'s
+    PR-level decision to per-scenario, reusing each candidate's existing `componentOwners` for
+    scope resolution — an unscoped `/visual-approve` command covers every scenario whose
+    `componentOwners` the PR's diff actually touches (falling back to every scenario in the
+    registry only if none do, never to none), while `scenarios: B01, B04` scopes a command
+    explicitly. Each scenario's approve/reject timeline is independent — a rejection of one never
+    touches another's state. `evaluate-gate.mjs`'s old whole-PR `evaluateGate()` is retired in
+    favor of `evaluateGateFromScenarios()`, which aggregates the per-scenario map into the gate's
+    one Checks-API conclusion: `APPROVED` only once every applicable scenario is, one
+    `REJECTED`/`STALE` scenario (or a reference to an unknown scenario ID) fails the whole PR
+    closed, otherwise `AWAITING_APPROVAL` — this is what makes partial approval across scenarios in
+    one PR behave correctly, which the old PR-level-only core had no way to express.
+  - `scripts/visual-authority/visual-authority-config.mjs` (new): a narrower allowlist
+    (`visual-authority.config.json`, currently `["lagebj"]`) on top of the existing real-time
+    `hasWriteAccess` check — approval now requires both, closing the gap where any repository
+    writer, not just the actual repository owner, could grant golden-reference approval.
+  - `scripts/visual-authority/revision.mjs` (new): validates that an approved/rejected SHA is
+    structurally part of the PR — its head, one of its own commits, its real post-merge commit, or
+    a GitHub-generated `refs/pull/<n>/merge` preview commit (identified by the PR's head SHA being
+    one of ITS parents, since that ref stops resolving once the PR merges but the commit object
+    remains fetchable by SHA) — rather than relying on fingerprint coincidence alone. Found live,
+    not hypothetically: PR #822's own real approval comment referenced exactly this kind of
+    preview commit, and the first version of this validation incorrectly rejected it before the
+    parent-SHA check was added.
+  - `scripts/visual-authority/status-report.mjs` (new, `npm run visual-authority:status -- --gate
+    <A|B> [--format table|json]`): read-only, cross-PR status reporting, reusing
+    `resolve-approval.mjs` directly rather than a second approval algorithm. Resolves each
+    scenario's introducing PR from a new `sourcePr` field on the candidate (candidate-origin
+    metadata, backfilled from each manifest's own real `git log --diff-filter=A` history, never
+    guessed — a scenario with no verified `sourcePr` reports `UNVERIFIABLE`, never a guessed
+    state), bounding every lookup to one API call per distinct introducing PR rather than an
+    unbounded repository-wide scan. Known limitation: this only evaluates a scenario against its
+    own introducing PR's comment thread, not every later PR that may have touched a dependency it
+    shares with other scenarios — a genuinely later re-approval on a different PR is not yet
+    picked up by this report (the live gate itself has no such limitation, since it always
+    evaluates the current PR's own full comment thread).
+  - `scripts/visual-authority/archive-evidence.mjs` + `evidence-tag.mjs` (new): a new
+    `archive-evidence` job in `visual-authority-gate.yml`, `needs: gate`, running only once the
+    gate job itself already reported `APPROVED`, with its own narrowly-scoped `contents: write`
+    (granted nowhere else in this workflow). Downloads the relevant `ui-lab-visual-review.yml`
+    run's capture evidence via `gh run download`, verifies every screenshot's sha256 against
+    `capture-attestation.json`, then creates (or idempotently reuses) a GitHub Release tagged
+    deterministically from the scenario ID and approved revision. Archival failure is reported but
+    never affects the already-recorded approval — this closes this ADR's previously-deferred
+    "durable (non-7-day-expiring) storage strategy for capture attestations."
+  - Confirmed, not assumed: existing Gate A approvals and Gate B W1's (B01-B04, recorded directly
+    in their merged PRs rather than via a `promote-to-golden.mjs` follow-up) remain valid and
+    unaffected under every change above. No approval was invented for B06/B07/B08 — their real,
+    already-existing PR comments are what the resolver now recognizes; where no valid comment
+    exists for a scenario, the gate and status report both still correctly report
+    `AWAITING_APPROVAL`/`UNVERIFIABLE`, never a fabricated approval.
+  - `promote-to-golden.mjs` is retained, unchanged, as an optional historical-materialization tool
+    only — never required to merge, and never auto-wired into the gate (unchanged from this ADR's
+    original "Deferred" scope decision; auto-promotion was considered and rejected again here, for
+    the same reason: the manifest's `approval` block is a record of a decision, and this ADR's
+    resolver is now the authoritative place to read that decision from, not the manifest).

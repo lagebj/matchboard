@@ -171,19 +171,31 @@ check. The process:
    green and the PR is UI-Lab-only (otherwise it's refused in favor of the full `acceptance`
    path). Release it afterward with `/visual-review release`, or it releases automatically when
    the PR closes.
-6. The repository owner (or anyone with write access to the repo — checked in real time, never
-   cached) reviews the rendered output and comments `/visual-approve <sha>` or
-   `/visual-reject <sha>`. **A coding agent must never post this comment itself, under any task
-   framing** — see ADR-0159's "Self-approval / credential-indistinguishability limitation" for
-   why this can only be a behavioral rule, not a technical one, when an agent session holds the
-   owner's own credential.
-7. Once approved, a golden record can be written via `scripts/visual-authority/promote-to-golden.mjs`,
-   reusing the exact `approval` schema Gate A already established.
+6. An actor with both current write access to the repo (checked in real time, never cached) AND
+   configured Visual Authority (`scripts/visual-authority/visual-authority.config.json`) reviews
+   the rendered output and comments `/visual-approve <sha>` or `/visual-reject <sha>`, optionally
+   scoped to specific scenario IDs with a `scenarios: B01, B04` line when the PR touches several.
+   **A coding agent must never post this comment itself, under any task framing** — see
+   ADR-0159's "Self-approval / credential-indistinguishability limitation" for why this can only
+   be a behavioral rule, not a technical one, when an agent session holds the owner's own
+   credential.
+7. That comment is already the complete, authoritative approval — nothing else needs to happen to
+   make it effective. `scripts/visual-authority/promote-to-golden.mjs` remains available to
+   explicitly materialize the decision into `candidate_manifest.json`'s `approval` block for
+   historical/human-readable convenience, but it is optional and **never required to merge or to
+   consider the candidate approved** — a candidate manifest showing `approval: null` is not
+   evidence that no approval exists; check `npm run visual-authority:status -- --gate <A|B>` (or
+   the live `Visual Authority Gate` check itself) for the actual effective state. Never open a
+   second PR solely to run this script or otherwise record an approval that already happened.
 8. The `Visual Authority Gate` check must be green — it is a required, merge-blocking status
    check on ruleset `21317362` as of 2026-10-21 (ADR-0159's Stage B). `NOT_APPLICABLE`/`APPROVED`
-   report `success`; `AWAITING_APPROVAL`/`INVALID` report `failure` and block merge.
+   report `success`; `AWAITING_APPROVAL`/`INVALID` report `failure` and block merge. A PR touching
+   several scenarios only reports `APPROVED` once every applicable scenario is.
 9. Merge.
 10. Release the Test slot (`/visual-review release`) if still held.
+11. A real `/visual-approve`/`/visual-reject` comment posted on this PR *after* it merges is still
+    recognized — the comment thread remains the approval ledger after merge, and the gate replies
+    with a one-line acknowledgment (never an approval itself) confirming it was recognized.
 
 ## Version management (mandatory)
 
