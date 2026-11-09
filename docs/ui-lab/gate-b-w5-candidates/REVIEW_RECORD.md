@@ -184,13 +184,32 @@ Full detail: `BLOCKERS.md`'s "Fourth remediation" section, `TRANSITION_AND_NAVIG
   every changed file.
 - Full repo-wide regression: `npx vitest run --config vitest.config.components.ts` (153 files, 990
   tests) and `npx vitest run` (588 files, 6533 tests) — both all passing.
-- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts` — Journey D extended with
-  reflection-consistency assertions (AFTER's "Team reflection" widget, REPORT-COMPLETED's own
-  Reflection tab) and Journey F added (a reference-report edit, an attempted LIVE recording
-  correctly rejected via the real "Needs review" mechanism, Reset journey, then a genuinely new
-  LIVE journey). Not runnable in this session's own devcontainer (the already-documented local
-  `next dev` + Playwright HMR WebSocket blocker) — see Governance below for the real CI count/result
-  once this pass's own push is confirmed green.
+- Real browser (Playwright) tests: `e2e/ui-lab-b08.spec.ts`, now **54 tests** (added Journey F on
+  top of the third remediation's 53, plus Journey D extended with reflection-consistency assertions
+  — AFTER's "Team reflection" widget, REPORT-COMPLETED's own Reflection tab). Journey F edits the
+  reference report, attempts a LIVE recording (correctly rejected via the real "Needs review"
+  mechanism), uses Reset journey, then completes a genuinely new LIVE journey end to end.
+  **54/54 passed** in this PR's own CI run (workflow run 42540278747, 1.7m). Getting there took
+  three real, disclosed fix-and-rerun cycles this pass: two transient infrastructure failures
+  (`net::ERR_CONNECTION_RESET` resource-load errors during unrelated capture scenarios, resolved by
+  rerunning the job, not a code change — workflow runs 42536118488 ×2) and one genuine test-timing
+  issue (Journey F makes more real page navigations than any other journey and needed a larger
+  timeout budget, the same accommodation Journey E needed previously — the real
+  `recordEvent()`/`endSession()` rejection contract itself is independently and precisely proven at
+  the unit/adapter level, unaffected by that fix). Not runnable in this session's own devcontainer
+  (the already-documented local `next dev` + Playwright HMR WebSocket blocker).
+- Real browser capture evidence: this PR's own "Capture fixture-backed UI Lab views" CI run
+  (workflow run 42540278747, the POST-FOURTH-remediation run) produced 72 real screenshots across
+  all 5 scenarios, downloaded via `gh run download` and every SHA-256 independently recomputed from
+  the raw bytes against the artifact's own manifest.json — zero mismatches, zero missing files.
+  `capture-attestation.json` holds this real, verified evidence (superseding the third remediation's
+  attestation from workflow run 42525103572). The manifest's own `sourceCommitSha` (`b8a5f330`) was
+  independently confirmed, via `git fetch origin pull/822/merge`, to be GitHub's own synthetic merge
+  of this PR's actual branch-tip commit (`91d6213d`, recorded as `reviewedBranchHeadSha`) into
+  `main`. This pass's own fixes change narrative provenance and write-boundary rejection behavior —
+  neither affects any of these five pages' own default, no-journey, no-edit appearance; no visual
+  difference from the third remediation's own already-inspected reference-mode screenshots was
+  expected or found.
 
 **Third remediation's own CI history (for continuity):** `e2e/ui-lab-b08.spec.ts` reached 53/53
 passing in workflow run 42525103572 (2.0m), after three disclosed fix-and-rerun cycles (workflow
@@ -202,10 +221,8 @@ seed's own identically-unattributed 10' goal by its known, fixed elapsed-time la
 by DOM order (which the local-overlay-vs-reconciled timing makes unreliable). The third
 remediation's own capture evidence (workflow run 42525103572, 72 screenshots, zero hash mismatches,
 `sourceCommitSha` `7ee923ca` independently confirmed as GitHub's synthetic merge of branch-tip
-`399b86d7`) is superseded below by this fourth pass's own fresh capture run. This pass's own fixes
-change narrative provenance and write-boundary rejection behavior — neither affects any of these
-five pages' own default, no-journey, no-edit appearance; no visual difference from the third
-remediation's own already-inspected reference-mode screenshots was expected or found.
+`399b86d7`) is superseded above by this fourth pass's own fresh capture run (workflow run
+42540278747, `sourceCommitSha` `b8a5f330`).
 
 No `/visual-approve` or `/visual-reject` has been posted on this PR by any coding agent. No
 promotion to `APPROVED_GOLDEN` has been attempted — `approvalStatus`/`official_golden_status`
