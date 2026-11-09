@@ -35,7 +35,10 @@ jobs:
     # tests against the same local server — section 11 of the independent review requires real
     # browser assertions, not only unit/component tests, for B08's navigation/continuity/
     # responsive-overflow coverage).
-    timeout-minutes: 45
+    # Gate C W1: bumped 45 -> 55 for the new Gate C Playwright acceptance step below (same
+    # rationale — real browser navigation and responsive-overflow coverage for C01-C03, not only
+    # component tests).
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -87,6 +90,22 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-lab-b08-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      # Gate C W1 — real Chromium assertions for navigation and responsive overflow (C01-C03),
+      # same rationale and same dedicated no-`setup`-dependency Playwright project convention as
+      # the B08 step above; against the same already-running local server. Deliberately no `if:`
+      # override, matching the B08 step's own default-continuation behavior.
+      - name: Run Gate C Playwright acceptance suite
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3333
+        run: npx playwright test --project=ui-lab-gate-c
+      - name: Upload Gate C Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-lab-gate-c-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: playwright-report/
           if-no-files-found: ignore
           retention-days: 7

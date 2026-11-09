@@ -1,0 +1,232 @@
+{
+  "programmeRevision": "0.169.5",
+  "baseCommitSha": "617214cafa04788231b2ad048273deeae9633dbb",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-c/. Not a production implementation, not an authorization, not a security proof.",
+  "note": "Gate C W1 — C01 (Quiet day), C02 (Decision day), C03 (Matchday pre-live, League and Event, PREPARE/VERIFY/IMMINENT). No official Gate C wave-ordering document exists (see SOURCE_RECONCILIATION.md) — this wave's scope is self-assigned and provisional, per the handoff brief's own fallback instruction. All eight candidates mount the real, unmodified production TodaySurface/TodayMatchday against fixtures built against the real production type contracts; CURRENT_STATE_AUDIT.md classifies every underlying Today component/behavior CONFIRMS_SHIPPED_BASELINE, so these candidates confirm the shipped baseline rather than propose a visual change. C07 (Assistant Coach fallback) and C04-C06/C08 (Round Board) are explicitly deferred — see BLOCKERS.md. All eight candidates remain CANDIDATE pending owner review; sourcePr is corrected to the real PR number once opened if this placeholder prediction (826) is wrong.",
+  "candidates": [
+    {
+      "scenarioId": "GATE-C-W1-C01",
+      "sourcePr": 826,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w1-c01-quiet-day",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-quiet-state.tsx",
+        "src/components/touchline/today/today-context-rail.tsx",
+        "src/app/dev/ui-lab/gate-c/c01-quiet-day/page.tsx"
+      ],
+      "lifecycle": "quiet_day",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-T01",
+        "XR-S02",
+        "XR-V01"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C01",
+      "dataContractRef": "docs/adr/0142-today-composition-ownership-and-golden-reference-conformance.md; docs/adr/0157-contextual-coach-workspace-convergence.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Today quiet-day composition (TodaySurface + TodayQuietState); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W1-C02",
+      "sourcePr": 826,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w1-c02-decision-day",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-next-action.tsx",
+        "src/components/touchline/today/today-decision-why.tsx",
+        "src/components/touchline/today/today-selection-decisions.tsx",
+        "src/components/touchline/today/today-planning-attention.tsx",
+        "src/components/touchline/today/today-other-attention.tsx",
+        "src/app/dev/ui-lab/gate-c/c02-decision-day/page.tsx"
+      ],
+      "lifecycle": "decision_day",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-V01"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C02",
+      "dataContractRef": "docs/adr/0141-today-operational-command-surface.md; docs/adr/0142-today-composition-ownership-and-golden-reference-conformance.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Today decision-day composition, including the real MAX_DECISION_DAY_SECONDARY_ITEMS=2 cap; see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W1-C03-LEAGUE-PREPARE",
+      "sourcePr": 826,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w1-c03-league-prepare",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-matchday.tsx",
+        "src/lib/touchline/presentation/today-matchday-phase.ts",
+        "src/lib/touchline/presentation/today-matchday-readiness.ts",
+        "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/league/prepare/page.tsx"
+      ],
+      "lifecycle": "matchday_prepare",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-T01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-LEAGUE-PREPARE",
+      "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday PREPARE phase (League); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W1-C03-LEAGUE-VERIFY",
+      "sourcePr": 826,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w1-c03-league-verify",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-matchday.tsx",
+        "src/lib/touchline/presentation/today-matchday-phase.ts",
+        "src/lib/touchline/presentation/today-matchday-readiness.ts",
+        "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/league/verify/page.tsx"
+      ],
+      "lifecycle": "matchday_verify",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-T01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-LEAGUE-VERIFY",
+      "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday VERIFY phase (League); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W1-C03-LEAGUE-IMMINENT",
+      "sourcePr": 826,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w1-c03-league-imminent",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-matchday.tsx",
+        "src/lib/touchline/presentation/today-matchday-phase.ts",
+        "src/lib/touchline/presentation/today-matchday-readiness.ts",
+        "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/league/imminent/page.tsx"
+      ],
+      "lifecycle": "matchday_imminent",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-T01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-LEAGUE-IMMINENT",
+      "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday IMMINENT phase (League), including the real Start-live-reporting entry gate; see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W1-C03-EVENT-PREPARE",
+      "sourcePr": 826,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w1-c03-event-prepare",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-matchday.tsx",
+        "src/lib/touchline/presentation/today-matchday-phase.ts",
+        "src/lib/touchline/presentation/today-matchday-readiness.ts",
+        "src/lib/touchline/presentation/today-football-match.ts",
+        "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/event/prepare/page.tsx"
+      ],
+      "lifecycle": "matchday_prepare",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-T01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-EVENT-PREPARE",
+      "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday PREPARE phase (Event — no venue label, no invented tactics); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W1-C03-EVENT-VERIFY",
+      "sourcePr": 826,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w1-c03-event-verify",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-matchday.tsx",
+        "src/lib/touchline/presentation/today-matchday-phase.ts",
+        "src/lib/touchline/presentation/today-matchday-readiness.ts",
+        "src/lib/touchline/presentation/today-football-match.ts",
+        "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/event/verify/page.tsx"
+      ],
+      "lifecycle": "matchday_verify",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-T01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-EVENT-VERIFY",
+      "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday VERIFY phase (Event); see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W1-C03-EVENT-IMMINENT",
+      "sourcePr": 826,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w1-c03-event-imminent",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/app/dev/ui-lab/gate-c/shared/today-mount.tsx",
+        "src/components/touchline/today/today-matchday.tsx",
+        "src/lib/touchline/presentation/today-matchday-phase.ts",
+        "src/lib/touchline/presentation/today-matchday-readiness.ts",
+        "src/lib/touchline/presentation/today-football-match.ts",
+        "src/app/dev/ui-lab/gate-c/c03-matchday-prelive/event/imminent/page.tsx"
+      ],
+      "lifecycle": "matchday_imminent",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "XR-T01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-c-w1-candidates/SCENARIO_REGISTER.md row GATE-C-W1-C03-EVENT-IMMINENT",
+      "dataContractRef": "docs/adr/0143-today-matchday-prelive-surface-and-composition-dedup.md",
+      "baselineAssetRef": "CONFIRMS_SHIPPED_BASELINE — real shipped Matchday IMMINENT phase (Event), including the real Event-scoped Start-live-reporting entry gate; see docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md and VISUAL_VS_CURRENT.md",
+      "knownGaps": [
+        "Tactics readiness fixed at UNKNOWN — see BLOCKERS.md."
+      ],
+      "approval": null
+    }
+  ]
+}

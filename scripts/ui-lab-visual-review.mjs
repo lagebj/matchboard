@@ -103,6 +103,13 @@ const gbExtraSmokeViewports = [
   { name: "gb-430", width: 430, height: 900 },
 ];
 
+// Gate C W1 (C01-C03 Today) smoke widths, same 360/430px rationale as every prior gate's — own
+// named set per this script's established "no hidden coupling between waves" convention.
+const gcExtraSmokeViewports = [
+  { name: "gc-360", width: 360, height: 800 },
+  { name: "gc-430", width: 430, height: 900 },
+];
+
 // Gate B W5 (B08 information ownership) — same 360/430px smoke rationale as every prior Gate B
 // wave, plus 600/768/900px for AFTER and the two Report compositions specifically: these are the
 // three transition-sensitive/layout-dense B08 pages (tab rail + multi-widget Overview, or the
@@ -859,6 +866,52 @@ const scenarios = [
     route: "gate-b/b08-information-ownership/report-completed",
     extraViewports: b08ExtraViewports,
   },
+  // Gate C W1 candidates (official register C01-C03, "Today Operational Decision Surface") —
+  // CANDIDATE, not approved; no official Gate C wave-ordering document exists at all (see
+  // docs/ui-lab/gate-c-w1-candidates/SOURCE_RECONCILIATION.md), so this wave's scope is
+  // self-assigned. Registered here from the first commit so this wave does not repeat B06's own
+  // B5/R7 finding (real pages shipped with zero capture evidence because they were never added
+  // to this array).
+  {
+    slug: "gate-c-w1-c01-quiet-day",
+    route: "gate-c/c01-quiet-day",
+    extraViewports: gcExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w1-c02-decision-day",
+    route: "gate-c/c02-decision-day",
+    extraViewports: gcExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w1-c03-league-prepare",
+    route: "gate-c/c03-matchday-prelive/league/prepare",
+    extraViewports: gcExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w1-c03-league-verify",
+    route: "gate-c/c03-matchday-prelive/league/verify",
+    extraViewports: gcExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w1-c03-league-imminent",
+    route: "gate-c/c03-matchday-prelive/league/imminent",
+    extraViewports: gcExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w1-c03-event-prepare",
+    route: "gate-c/c03-matchday-prelive/event/prepare",
+    extraViewports: gcExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w1-c03-event-verify",
+    route: "gate-c/c03-matchday-prelive/event/verify",
+    extraViewports: gcExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w1-c03-event-imminent",
+    route: "gate-c/c03-matchday-prelive/event/imminent",
+    extraViewports: gcExtraSmokeViewports,
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
@@ -896,6 +949,10 @@ try {
   // root with `data-ui-lab-ready="true"`. Scoped to the gate-b/ prefix only, so every Gate A wave
   // is provably unaffected by this addition.
   const isGateBRoute = (route) => route.startsWith("gate-b/");
+  // Same gate, extended additively to Gate C W1 (C01-C03) — every Gate C page also marks its
+  // root with `data-ui-lab-ready="true"`. Scoped to the gate-c/ prefix only, so every earlier
+  // wave is provably unaffected by this addition.
+  const isGateCRoute = (route) => route.startsWith("gate-c/");
 
   for (const scenario of scenarios) for (const viewport of [...viewports, ...(scenario.extraViewports ?? [])]) for (const theme of ["dark","light"]) {
     // Width-based, not name-based: correct for any current or future viewport, including the
@@ -925,7 +982,7 @@ try {
       // A04 candidate-ready signal (04_TEST_AND_CAPTURE_MATRIX.md: "Wait for an explicit
       // candidate-ready indicator"), independent review round 1 verification gap — every A04
       // scenario page marks its root with `data-ui-lab-ready="true"` once mounted.
-      if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route) || isGateBRoute(scenario.route)) {
+      if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route) || isGateBRoute(scenario.route) || isGateCRoute(scenario.route)) {
         await page.locator('[data-ui-lab-ready="true"]').first().waitFor({state:"attached",timeout:30000});
       }
       await page.evaluate(()=>document.fonts.ready);
@@ -937,7 +994,7 @@ try {
         const { scrollWidth, innerWidth } = await measureHorizontalOverflow(page);
         if (scrollWidth > innerWidth + 1) {
           const message = scenario.slug+" "+viewport.name+"/"+theme+" (initial): horizontal overflow — document.scrollWidth="+scrollWidth+" > window.innerWidth="+innerWidth;
-          if (isGateBRoute(scenario.route)) throw new Error(message);
+          if (isGateBRoute(scenario.route) || isGateCRoute(scenario.route)) throw new Error(message);
           console.warn("WARNING (non-Gate-B scenario, not failing the run): "+message);
         }
       }
@@ -971,7 +1028,7 @@ try {
           const { scrollWidth, innerWidth } = await measureHorizontalOverflow(page);
           if (scrollWidth > innerWidth + 1) {
             const message = scenario.slug+" "+viewport.name+"/"+theme+" ("+interaction.id+"): horizontal overflow — document.scrollWidth="+scrollWidth+" > window.innerWidth="+innerWidth;
-            if (isGateBRoute(scenario.route)) throw new Error(message);
+            if (isGateBRoute(scenario.route) || isGateCRoute(scenario.route)) throw new Error(message);
             console.warn("WARNING (non-Gate-B scenario, not failing the run): "+message);
           }
         }
@@ -1007,7 +1064,7 @@ try {
       // scenario's CI result can change as a side effect of this addition.
       if (consoleErrors.length > 0) {
         const message = scenario.slug+" "+viewport.name+"/"+theme+": "+consoleErrors.length+" console/page error(s): "+consoleErrors.slice(0,3).join(" | ");
-        if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route) || isGateBRoute(scenario.route)) throw new Error(message);
+        if (isA04Route(scenario.route) || isW3Route(scenario.route) || isW4Route(scenario.route) || isGateBRoute(scenario.route) || isGateCRoute(scenario.route)) throw new Error(message);
         console.warn("WARNING (non-A04 scenario, not failing the run): "+message);
       }
     } finally { await context.close(); }
