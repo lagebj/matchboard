@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "A03-S1",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a03-open-decision",
       "fixtureVersion": 1,
@@ -185,6 +186,7 @@
     },
     {
       "scenarioId": "A03-S2",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a03-closed-plan-review",
       "fixtureVersion": 1,
@@ -361,6 +363,7 @@
     },
     {
       "scenarioId": "A03-S3",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a03-permission-denied",
       "fixtureVersion": 1,
@@ -468,6 +471,7 @@
     },
     {
       "scenarioId": "A03-S4",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a03-integrity-signal",
       "fixtureVersion": 1,
@@ -644,6 +648,7 @@
     },
     {
       "scenarioId": "A07-S1/A07-S2",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a07-assign-reserve-success",
       "fixtureVersion": 1,
@@ -1082,6 +1087,7 @@
     },
     {
       "scenarioId": "A07-S3",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a07-assign-reserve-denied",
       "fixtureVersion": 1,
@@ -1516,6 +1522,7 @@
     },
     {
       "scenarioId": "A07-S4",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a07-server-conflict",
       "fixtureVersion": 1,
@@ -1950,6 +1957,7 @@
     },
     {
       "scenarioId": "A07-S5",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a07-planning-closed-after-opening",
       "fixtureVersion": 1,
@@ -2382,6 +2390,7 @@
     },
     {
       "scenarioId": "A07-S6",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a07-dirty-draft-close",
       "fixtureVersion": 1,
@@ -2817,6 +2826,7 @@
     },
     {
       "scenarioId": "A09-S1",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a09-add-eligible-player-success",
       "fixtureVersion": 1,
@@ -3096,6 +3106,7 @@
     },
     {
       "scenarioId": "A09-S2",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a09-add-player-denied",
       "fixtureVersion": 1,
@@ -3232,6 +3243,7 @@
     },
     {
       "scenarioId": "A09-S3",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a09-add-player-rsvp-blocked",
       "fixtureVersion": 1,
@@ -3368,6 +3380,7 @@
     },
     {
       "scenarioId": "A09-S4",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a09-add-player-planning-closed",
       "fixtureVersion": 1,
@@ -3588,6 +3601,7 @@
     },
     {
       "scenarioId": "A09-S5",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a09-add-player-conflict",
       "fixtureVersion": 1,
@@ -3808,6 +3822,7 @@
     },
     {
       "scenarioId": "A09-S6",
+      "sourcePr": 779,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w3-a09-match-day-addition",
       "fixtureVersion": 1,

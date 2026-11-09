@@ -1,7 +1,8 @@
 // Visual Authority Gate (ADR-0159) — structured PR-comment command parsing. Pure, synchronous.
 // Recognized commands (first non-empty line, trimmed, case-sensitive on the command token):
 //   /visual-approve <sha>            (optional next line: "scenarios: B01, B04")
-//   /visual-reject <sha>              (rest of the comment body, trimmed, is the reason)
+//   /visual-reject <sha>              (optional next line: "scenarios: B01, B04";
+//                                      remaining lines, trimmed, are the reason)
 //   /visual-review deploy
 //   /visual-review release
 // Anything else returns { kind: "none" } — unrecognized comments are silently ignored, not
@@ -31,7 +32,7 @@ function parseScenarios(line) {
  * @param {string} commentBody
  * @returns {
  *   | { kind: "approve", sha: string, scenarios: string[] | null }
- *   | { kind: "reject", sha: string, reason: string | null }
+ *   | { kind: "reject", sha: string, scenarios: string[] | null, reason: string | null }
  *   | { kind: "deploy-request" }
  *   | { kind: "release-request" }
  *   | { kind: "none" }
@@ -55,8 +56,16 @@ export function parseCommand(commentBody) {
   const rejectMatch = trimmed.match(/^\/visual-reject\s+(\S+)\s*$/);
   if (rejectMatch) {
     if (!SHA_RE.test(rejectMatch[1])) return { kind: "none" };
-    const reasonLines = lines.slice(index + 1).join("\n").trim();
-    return { kind: "reject", sha: rejectMatch[1].toLowerCase(), reason: reasonLines.length > 0 ? reasonLines : null };
+    const nextLine = lines[index + 1];
+    const scenarios = parseScenarios(nextLine);
+    const reasonStartIndex = scenarios ? index + 2 : index + 1;
+    const reasonLines = lines.slice(reasonStartIndex).join("\n").trim();
+    return {
+      kind: "reject",
+      sha: rejectMatch[1].toLowerCase(),
+      scenarios,
+      reason: reasonLines.length > 0 ? reasonLines : null,
+    };
   }
 
   if (trimmed === "/visual-review deploy") return { kind: "deploy-request" };

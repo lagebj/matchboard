@@ -1,141 +1,119 @@
 import { describe, it, expect } from "vitest";
-import { evaluateGate } from "../evaluate-gate.mjs";
+import { evaluateGateFromScenarios } from "../evaluate-gate.mjs";
+
+type EffectiveVisualApproval = import("../resolve-approval.mjs").EffectiveVisualApproval;
 
 const HEAD = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
-const OLD = "0000000000000000000000000000000000000000";
-const alwaysPrivileged = () => true;
-const neverPrivileged = () => false;
-const noFingerprint = () => null;
 
-function base(overrides: Partial<Parameters<typeof evaluateGate>[0]> = {}) {
+function scenarioResult(overrides: Partial<EffectiveVisualApproval> = {}): EffectiveVisualApproval {
   return {
-    applicable: true,
-    headSha: HEAD,
-    comments: [],
-    isActorPrivileged: alwaysPrivileged,
-    currentFingerprint: "fp-current",
-    fingerprintAtSha: noFingerprint,
+    scenarioId: "B01",
+    state: "APPROVED",
+    source: "PR_COMMENT",
+    approvedBy: "lagebj",
+    approvedAt: "2026-01-01T00:00:00Z",
+    approvedRevision: HEAD,
+    reason: "Approved.",
     ...overrides,
   };
 }
 
-describe("evaluateGate", () => {
-  it("reports NOT_APPLICABLE when the classifier says not applicable, regardless of comments", () => {
-    const result = evaluateGate(base({ applicable: false, comments: [{ body: "/visual-approve " + HEAD, user: "x", createdAt: "t", id: 1 }] }));
+describe("evaluateGateFromScenarios", () => {
+  it("reports NOT_APPLICABLE when not applicable, regardless of scenario results", () => {
+    const result = evaluateGateFromScenarios({
+      applicable: false,
+      scenarioResults: new Map([["B01", scenarioResult({ state: "REJECTED" })]]),
+      errors: [],
+    });
     expect(result.state).toBe("NOT_APPLICABLE");
     expect(result.conclusion).toBe("success");
   });
 
-  it("reports AWAITING_APPROVAL with a blocking failure conclusion when applicable with no comments at all", () => {
-    // GitHub's required-status-checks merge gate treats "neutral" as passing (same as
-    // "success"/"skipped" — see required-checks.mjs). AWAITING_APPROVAL must report "failure" so
-    // that once Stage B makes this check required, an unreviewed PR cannot merge.
-    const result = evaluateGate(base());
-    expect(result.state).toBe("AWAITING_APPROVAL");
+  it("reports INVALID when the resolver surfaced a malformed-command error, even with otherwise-approved scenarios", () => {
+    const result = evaluateGateFromScenarios({
+      applicable: true,
+      scenarioResults: new Map([["B01", scenarioResult()]]),
+      errors: ["Comment from @lagebj references unknown scenario ID(s): B99"],
+    });
+    expect(result.state).toBe("INVALID");
     expect(result.conclusion).toBe("failure");
   });
 
-  it("reports AWAITING_APPROVAL with a blocking failure conclusion when the only approve comment is from a non-privileged actor", () => {
-    const result = evaluateGate(
-      base({
-        comments: [{ body: `/visual-approve ${HEAD}`, user: "random", createdAt: "t", id: 1 }],
-        isActorPrivileged: neverPrivileged,
-      }),
-    );
-    expect(result.state).toBe("AWAITING_APPROVAL");
-    expect(result.conclusion).toBe("failure");
-  });
-
-  it("reports APPROVED for a privileged approve at the exact head SHA", () => {
-    const result = evaluateGate(
-      base({ comments: [{ body: `/visual-approve ${HEAD}`, user: "owner", createdAt: "t", id: 1 }] }),
-    );
+  it("reports APPROVED only when every applicable scenario is approved", () => {
+    const result = evaluateGateFromScenarios({
+      applicable: true,
+      scenarioResults: new Map([
+        ["B01", scenarioResult({ scenarioId: "B01" })],
+        ["B04", scenarioResult({ scenarioId: "B04" })],
+      ]),
+      errors: [],
+    });
     expect(result.state).toBe("APPROVED");
     expect(result.conclusion).toBe("success");
-    expect(result.summary).toContain("owner");
   });
 
-  it("reports INVALID for a privileged approve at an old SHA with no matching fingerprint", () => {
-    const result = evaluateGate(
-      base({ comments: [{ body: `/visual-approve ${OLD}`, user: "owner", createdAt: "t", id: 1 }] }),
-    );
-    expect(result.state).toBe("INVALID");
-    expect(result.conclusion).toBe("failure");
-  });
-
-  it("reports APPROVED for a privileged approve at an old SHA whose fingerprint matches the current one (doc-only follow-up)", () => {
-    const result = evaluateGate(
-      base({
-        comments: [{ body: `/visual-approve ${OLD}`, user: "owner", createdAt: "t", id: 1 }],
-        fingerprintAtSha: (sha: string) => (sha === OLD ? "fp-current" : null),
-      }),
-    );
-    expect(result.state).toBe("APPROVED");
-    expect(result.summary).toMatch(/fingerprint/i);
-  });
-
-  it("reports INVALID when a later privileged reject supersedes an earlier approve", () => {
-    const result = evaluateGate(
-      base({
-        comments: [
-          { body: `/visual-approve ${HEAD}`, user: "owner", createdAt: "t1", id: 1 },
-          { body: `/visual-reject ${HEAD}\nbroken on mobile`, user: "owner", createdAt: "t2", id: 2 },
-        ],
-      }),
-    );
-    expect(result.state).toBe("INVALID");
-    expect(result.conclusion).toBe("failure");
-    expect(result.summary).toContain("broken on mobile");
-  });
-
-  it("reports APPROVED when a later privileged approve supersedes an earlier reject", () => {
-    const result = evaluateGate(
-      base({
-        comments: [
-          { body: `/visual-reject ${HEAD}`, user: "owner", createdAt: "t1", id: 1 },
-          { body: `/visual-approve ${HEAD}`, user: "owner", createdAt: "t2", id: 2 },
-        ],
-      }),
-    );
-    expect(result.state).toBe("APPROVED");
-  });
-
-  it("ignores a malformed command embedded in a comment — ordinary conversation around it doesn't become an approval", () => {
-    const result = evaluateGate(
-      base({ comments: [{ body: "/visual-approve not-a-real-sha, please review soon", user: "owner", createdAt: "t", id: 1 }] }),
-    );
+  it("reports AWAITING_APPROVAL when one scenario is approved but another is not (partial approval)", () => {
+    const result = evaluateGateFromScenarios({
+      applicable: true,
+      scenarioResults: new Map([
+        ["B01", scenarioResult({ scenarioId: "B01", state: "APPROVED" })],
+        ["B04", scenarioResult({ scenarioId: "B04", state: "AWAITING_APPROVAL", source: null, approvedBy: null })],
+      ]),
+      errors: [],
+    });
     expect(result.state).toBe("AWAITING_APPROVAL");
     expect(result.conclusion).toBe("failure");
   });
 
-  it("a non-privileged actor's reject does not invalidate a privileged actor's approval", () => {
-    const result = evaluateGate(
-      base({
-        comments: [
-          { body: `/visual-approve ${HEAD}`, user: "owner", createdAt: "t1", id: 1 },
-          { body: `/visual-reject ${HEAD}`, user: "random", createdAt: "t2", id: 2 },
-        ],
-        isActorPrivileged: (login: string) => login === "owner",
-      }),
-    );
-    expect(result.state).toBe("APPROVED");
+  it("reports INVALID when any scenario is REJECTED, even if others are approved", () => {
+    const result = evaluateGateFromScenarios({
+      applicable: true,
+      scenarioResults: new Map([
+        ["B01", scenarioResult({ scenarioId: "B01", state: "APPROVED" })],
+        ["B04", scenarioResult({ scenarioId: "B04", state: "REJECTED", source: "PR_COMMENT", approvedBy: null })],
+      ]),
+      errors: [],
+    });
+    expect(result.state).toBe("INVALID");
+    expect(result.conclusion).toBe("failure");
   });
-});
 
-describe("evaluateGate conclusion matches GitHub required-status-check merge semantics", () => {
-  // GitHub treats a required check's "success", "skipped", or "neutral" conclusion as
-  // merge-eligible, and only "failure" (among the terminal conclusions this gate ever reports) as
-  // blocking. Every state this gate can report must map to the conclusion that actually produces
-  // its intended merge-blocking behavior once Stage B makes it a required check.
-  it.each([
-    ["NOT_APPLICABLE", "success", base({ applicable: false })],
-    ["APPROVED", "success", base({ comments: [{ body: `/visual-approve ${HEAD}`, user: "owner", createdAt: "t", id: 1 }] })],
-    ["AWAITING_APPROVAL", "failure", base()],
-    ["INVALID", "failure", base({ comments: [{ body: `/visual-approve ${OLD}`, user: "owner", createdAt: "t", id: 1 }] })],
-  ] as const)("%s reports conclusion %s", (state, conclusion, args) => {
-    const result = evaluateGate(args);
-    expect(result.state).toBe(state);
-    expect(result.conclusion).toBe(conclusion);
-    expect(["success", "failure"]).toContain(result.conclusion); // never "neutral" — see evaluate-gate.mjs header
+  it("reports INVALID when any scenario is STALE", () => {
+    const result = evaluateGateFromScenarios({
+      applicable: true,
+      scenarioResults: new Map([["B01", scenarioResult({ state: "STALE" })]]),
+      errors: [],
+    });
+    expect(result.state).toBe("INVALID");
+    expect(result.conclusion).toBe("failure");
   });
+
+  it("fails closed with AWAITING_APPROVAL when applicable but no scenario registry entries resolved at all", () => {
+    const result = evaluateGateFromScenarios({ applicable: true, scenarioResults: new Map(), errors: [] });
+    expect(result.state).toBe("AWAITING_APPROVAL");
+    expect(result.conclusion).toBe("failure");
+  });
+
+  it.each([
+    ["NOT_APPLICABLE", "success"],
+    ["APPROVED", "success"],
+    ["AWAITING_APPROVAL", "failure"],
+    ["INVALID", "failure"],
+  ] as const)(
+    "%s always reports conclusion %s — GitHub's required-status-checks merge gate treats success/skipped/neutral as passing and only failure as blocking",
+    (state, conclusion) => {
+      const args =
+        state === "NOT_APPLICABLE"
+          ? { applicable: false, scenarioResults: new Map(), errors: [] }
+          : state === "APPROVED"
+            ? { applicable: true, scenarioResults: new Map([["B01", scenarioResult()]]), errors: [] }
+            : state === "AWAITING_APPROVAL"
+              ? { applicable: true, scenarioResults: new Map([["B01", scenarioResult({ state: "AWAITING_APPROVAL", source: null, approvedBy: null })]]), errors: [] }
+              : { applicable: true, scenarioResults: new Map([["B01", scenarioResult({ state: "STALE" })]]), errors: [] };
+      const result = evaluateGateFromScenarios(args);
+      expect(result.state).toBe(state);
+      expect(result.conclusion).toBe(conclusion);
+      expect(["success", "failure"]).toContain(result.conclusion); // never "neutral" — see evaluate-gate.mjs header
+    },
+  );
 });

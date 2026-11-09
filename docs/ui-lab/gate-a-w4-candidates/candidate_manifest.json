@@ -6,6 +6,7 @@
   "candidates": [
     {
       "scenarioId": "A05-disabled",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a05-disabled",
       "fixtureVersion": 1,
@@ -109,6 +110,7 @@
     },
     {
       "scenarioId": "A05-enabled-with-pattern",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a05-enabled-with-pattern",
       "fixtureVersion": 1,
@@ -243,6 +245,7 @@
     },
     {
       "scenarioId": "A05-enabled-without-pattern",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a05-enabled-without-pattern",
       "fixtureVersion": 1,
@@ -346,6 +349,7 @@
     },
     {
       "scenarioId": "A05-unavailable",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a05-unavailable",
       "fixtureVersion": 1,
@@ -449,6 +453,7 @@
     },
     {
       "scenarioId": "A08-off",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a08-off",
       "fixtureVersion": 1,
@@ -551,6 +556,7 @@
     },
     {
       "scenarioId": "A08-on-strong-pattern",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a08-on-strong-pattern",
       "fixtureVersion": 1,
@@ -654,6 +660,7 @@
     },
     {
       "scenarioId": "A08-on-no-insight",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a08-on-no-insight",
       "fixtureVersion": 1,
@@ -757,6 +764,7 @@
     },
     {
       "scenarioId": "A10-review-alternative-success",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a10-review-alternative-success",
       "fixtureVersion": 2,
@@ -1330,6 +1338,7 @@
     },
     {
       "scenarioId": "A10-stale-proposal-blocked",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a10-stale-proposal-blocked",
       "fixtureVersion": 2,
@@ -1549,6 +1558,7 @@
     },
     {
       "scenarioId": "A10-disabled-or-failed",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a10-disabled-or-failed",
       "fixtureVersion": 1,
@@ -1766,6 +1776,7 @@
     },
     {
       "scenarioId": "A11-coach-text-and-parsed-evidence",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a11-coach-text-and-parsed-evidence",
       "fixtureVersion": 3,
@@ -1868,6 +1879,7 @@
     },
     {
       "scenarioId": "A11-profile-change-review-guarded",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a11-profile-change-review-guarded",
       "fixtureVersion": 1,
@@ -2042,6 +2054,7 @@
     },
     {
       "scenarioId": "A11-profile-change-review-rejected",
+      "sourcePr": 780,
       "status": "APPROVED_GOLDEN",
       "fixtureId": "gate-a-w4-a11-profile-change-review-rejected",
       "fixtureVersion": 1,
