@@ -11,6 +11,7 @@
 //
 // Required env: GH_TOKEN, GITHUB_REPOSITORY (owner/repo), PR_NUMBER, HEAD_SHA
 
+import { appendFileSync } from "node:fs";
 import { classify } from "./classify.mjs";
 import { computeFingerprint } from "./fingerprint.mjs";
 import { hasWriteAccess } from "./check-actor-permission.mjs";
@@ -209,6 +210,21 @@ async function postCheckRun({ conclusion, title, summary }) {
   }
 }
 
+// Exposes this job's result as GitHub Actions job outputs so the archive-evidence job (needs:
+// gate) can decide whether to run, and which revisions to archive, without re-deriving anything —
+// archival reads this job's already-computed decision, it never recomputes approval itself.
+function writeJobOutputs(result, scenarioResults) {
+  const outputPath = process.env.GITHUB_OUTPUT;
+  if (!outputPath) return; // not running in Actions (e.g. local/manual invocation) — nothing to write
+  const approvedScenarios = [...scenarioResults.values()]
+    .filter((r) => r.state === "APPROVED")
+    .map((r) => ({ scenarioId: r.scenarioId, approvedRevision: r.approvedRevision ?? headSha }));
+  appendFileSync(
+    outputPath,
+    `conclusion=${result.conclusion}\nstate=${result.state}\napproved_scenarios_json=${JSON.stringify(approvedScenarios)}\n`,
+  );
+}
+
 function approveShasReferencedIn(comments) {
   const shas = new Set();
   for (const comment of comments) {
@@ -226,6 +242,7 @@ async function main() {
     const result = evaluateGateFromScenarios({ applicable: false, scenarioResults: new Map(), errors: [] });
     await postCheckRun(result);
     console.log(`${result.state}: ${result.summary}`);
+    writeJobOutputs(result, new Map());
     return;
   }
 
@@ -316,6 +333,7 @@ async function main() {
 
   await postCheckRun(result);
   console.log(`${result.state}: ${result.summary}`);
+  writeJobOutputs(result, scenarioResults);
 
   // Merged PRs no longer have a merge-blocking check to update visibly, so acknowledge a real
   // approve/reject command with a reply — never the approval/rejection itself, only a receipt
