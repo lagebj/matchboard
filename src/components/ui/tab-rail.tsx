@@ -51,7 +51,15 @@ export function TabRail<TKey extends string>({
       <nav
         aria-label={ariaLabel}
         className={[
-          "inline-flex items-center gap-1 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 p-1",
+          // B08 W5 remediation (independent review, P1-4): `max-w-full` + `overflow-x-auto`
+          // caps this rail at its own container's width and lets it scroll WITHIN its own
+          // bounds once its tabs' combined content is wider than the viewport (a real,
+          // pre-existing defect at narrow widths — unbounded `inline-flex` content simply blew
+          // out the whole page's horizontal scroll). Both are additive to the existing
+          // `inline-flex` shrink-to-fit sizing: a rail that already fits its container renders
+          // byte-identical to before — it only ever activates once content would have
+          // overflowed, which previously meant the whole page, not just this rail.
+          "inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)]/40 p-1",
           className,
         ]
           .filter(Boolean)
@@ -74,7 +82,11 @@ export function TabRail<TKey extends string>({
               )}
             </span>
           );
-          const classes = `inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 ${
+          // `shrink-0` (P1-4): without it, a flex item's default `flex-shrink: 1` would let the
+          // browser compress/wrap individual pill labels once `overflow-x-auto` above is
+          // introduced, instead of letting the whole rail scroll cleanly — the same `shrink-0`
+          // discipline the `underline` variant below already uses for exactly this reason.
+          const classes = `inline-flex shrink-0 items-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 ${
             isActive
               ? "bg-[var(--accent-subtle)] text-[var(--foreground)]"
               : "text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)]/40"

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { TabRail } from "@/components/ui/tab-rail";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -55,9 +55,19 @@ export function SafePostMatchReportShell({
   completedByLabel: initialCompletedBy,
   completionTimestamp,
   debriefAnswers,
+  debriefStatus = "SUBMITTED",
   allPlayers,
   footballObservations,
   combinationEvidence,
+  backHref = "/dev/ui-lab/gate-b/b05-post-match-report/match-details",
+  backHrefForStatus,
+  onStatusChange,
+  onStateChange,
+  reportId = "report-gate-b-05",
+  debriefId = "debrief-gate-b-05",
+  minutesByParticipant = b05MinutesByParticipant,
+  observationCountByParticipant = b05ObservationCountByParticipant,
+  teamNote = "Follow up on positional shape in training this week.",
 }: {
   matchId: string;
   title: string;
@@ -74,9 +84,50 @@ export function SafePostMatchReportShell({
    * choice, not a second invented one. */
   completionTimestamp: string;
   debriefAnswers: DebriefAnswersSection;
+  /** Defaults to `"SUBMITTED"` (every existing B05 call site's exact prior behavior — the debrief
+   * really was already submitted in that fixture). A caller presenting an EMPTY debrief that was
+   * never actually recorded (B08's own interactive-journey mode, third remediation) passes
+   * `"DRAFT"` instead, so the real `PostMatchDebrief` component shows it honestly as unanswered
+   * rather than fabricating a submitted-but-empty document. Still rendered read-only either way —
+   * `readOnly` below is unconditional. */
+  debriefStatus?: "DRAFT" | "SUBMITTED";
   allPlayers: Array<{ id: string; name: string; teamName: string }>;
   footballObservations: Array<{ id: string; playerId: string; playerName: string; observationCode: string; polarity: string; note: string }>;
   combinationEvidence: CombinationEvidenceRow[];
+  /** B08 (Gate B W5) — the "back to match" destination is this report's OWN match, which may not
+   * be B05's. Defaults to B05's own Match Details stand-in so every existing B05 call site keeps
+   * its exact prior behavior unchanged; B08 passes its own `/after` route. */
+  backHref?: string;
+  /** B08 W5 remediation (independent review, P1-5/P1-6): when the coach completes the report IN
+   * PLACE on this page (status flips REPORTED -> LOCKED via the real `complete()` action, no
+   * navigation), the static `backHref` above would send them back to Match Details' draft/
+   * incomplete variant even though the report they just left is now locked. This optional
+   * callback, given the CURRENT live `state.status`, lets a caller return a different back
+   * destination once locked. Defaults to always returning the static `backHref`, so every
+   * existing call site (including every other B08 page) keeps its exact prior behavior. */
+  backHrefForStatus?: (status: SafeReportLocalState["status"]) => string;
+  /** B08 W5 remediation (P1-6): lets a caller observe the live `state.status` from outside this
+   * shell (e.g. to keep its own page-level breadcrumb in sync too) without lifting the whole
+   * reducer. Optional, defaults to a no-op — no existing call site is affected. */
+  onStatusChange?: (status: SafeReportLocalState["status"]) => void;
+  /** B08 W5 second remediation (independent review, 2026-11-08, "lifecycle data consistency"):
+   * fires with the FULL current state on every change (goal/assist/attendance edits, timing
+   * resolution, completion) — not just `status`. Lets a caller persist the reconciled report
+   * beyond this component's own React state (e.g. B08's own sessionStorage-backed journey, so a
+   * reload or a navigation to a different route never loses reconciliation work). Optional,
+   * defaults to a no-op — no existing call site is affected. */
+  onStateChange?: (state: SafeReportLocalState) => void;
+  /** B08 (third remediation, "final data-integrity remediation", defect #4): this shell was
+   * hardcoding B05's own report/debrief ids, participant-minutes map, observation-count map, and
+   * a B05-specific team note unconditionally for EVERY caller, including B08 — a different
+   * fixture with its own different player ids. All five below default to B05's exact existing
+   * values, so every existing B05 call site is byte-for-byte unaffected; B08 passes its own real
+   * equivalents instead of inheriting B05's. */
+  reportId?: string;
+  debriefId?: string;
+  minutesByParticipant?: Map<string, number>;
+  observationCountByParticipant?: Map<string, number>;
+  teamNote?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -85,6 +136,26 @@ export function SafePostMatchReportShell({
   // inventing a second roster.
   const eligiblePlayers = useMemo(() => allPlayers.map((p) => ({ id: p.id, name: p.name })), [allPlayers]);
   const { state, actions } = useSafeReportLifecycle(initialLocalState, initialCompletedBy, completionTimestamp, eligiblePlayers);
+  const liveBackHref = backHrefForStatus ? backHrefForStatus(state.status) : backHref;
+
+  useEffect(() => {
+    onStatusChange?.(state.status);
+  }, [state.status]);
+
+  // B08 W5 second remediation: `useEffect` fires on the INITIAL render too, not only on a real
+  // change — without this guard, merely mounting this shell (e.g. a bare direct visit, or a
+  // CI/Playwright capture) would echo `initialLocalState` straight back out through
+  // `onStateChange` as though the coach had made a real edit, silently starting a persisted
+  // "interactive journey" a caller like B08 never actually asked for. Skip the first fire;
+  // every REAL state transition after that (a genuine reducer action) still reports normally.
+  const skippedFirstStateChange = useRef(false);
+  useEffect(() => {
+    if (!skippedFirstStateChange.current) {
+      skippedFirstStateChange.current = true;
+      return;
+    }
+    onStateChange?.(state);
+  }, [state]);
 
   const surfaceState = state.status === "LOCKED" ? "COMPLETED" : "DRAFT";
   const isDraft = surfaceState === "DRAFT";
@@ -139,10 +210,10 @@ export function SafePostMatchReportShell({
         presentParticipants: livePresentParticipants,
         goals: state.goals.map((g) => ({ id: g.id, participantKey: g.playerId, playerName: g.playerName, minute: g.minute, type: "NORMAL" as const })),
         assists: state.assists.map((a) => ({ id: a.id, participantKey: a.playerId, playerName: a.playerName, type: "NORMAL" as const })),
-        observationCountByParticipant: b05ObservationCountByParticipant,
-        minutesByParticipant: b05MinutesByParticipant,
+        observationCountByParticipant,
+        minutesByParticipant,
       }),
-    [livePresentParticipants, state.goals, state.assists],
+    [livePresentParticipants, state.goals, state.assists, observationCountByParticipant, minutesByParticipant],
   );
   const liveCombinationEvidence = surfaceState === "COMPLETED" ? combinationEvidence : [];
   // B5/R4 — the identity card's own score/outcome must track `state.ourScore`/`opponentScore`
@@ -186,7 +257,7 @@ export function SafePostMatchReportShell({
   const playerNameById = Object.fromEntries(allPlayers.map((p) => [p.id, p.name]));
 
   const reportViewModel: PostMatchReportViewModel = {
-    id: "report-gate-b-05",
+    id: reportId,
     status: state.status,
     teamLabel: ownTeamName,
     opponentLabel: opponentName,
@@ -210,7 +281,7 @@ export function SafePostMatchReportShell({
           `src/app/(app)/o/[orgSlug]/matches/[matchId]/post-match/page.tsx`), not a fragment and
           not another match's identity. */}
       <Link
-        href="/dev/ui-lab/gate-b/b05-post-match-report/match-details"
+        href={liveBackHref}
         className="inline-flex w-fit items-center gap-1.5 text-[13px] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
       >
         &lsaquo; Back to match
@@ -218,7 +289,7 @@ export function SafePostMatchReportShell({
 
       <PostMatchReportHeader
         breadcrumbLabel="Matches"
-        breadcrumbHref="/dev/ui-lab/gate-b/b05-post-match-report/match-details"
+        breadcrumbHref={liveBackHref}
         title={title}
         surfaceState={surfaceState}
         completedByLabel={state.completedBy ? `Completed by ${state.completedBy}` : null}
@@ -258,7 +329,7 @@ export function SafePostMatchReportShell({
           capabilities={CAPABILITIES}
           availablePlayers={availablePlayers}
           onChanged={() => {}}
-          extraSections={<LeagueOnlyExtras state={state} />}
+          extraSections={<LeagueOnlyExtras state={state} teamNote={teamNote} />}
         />
       )}
 
@@ -271,8 +342,8 @@ export function SafePostMatchReportShell({
               something this redesign explores interactively. */}
           <PostMatchDebrief
             reportRef={{ kind: "LEAGUE", matchId }}
-            debriefId="debrief-gate-b-05"
-            status="SUBMITTED"
+            debriefId={debriefId}
+            status={debriefStatus}
             initialAnswers={{ version: DEBRIEF_SCHEMA_VERSION, answers: debriefAnswers }}
             opponentName={opponentName}
             matchupLabel={`${ownTeamName} vs ${opponentName}`}
@@ -328,11 +399,11 @@ export function SafePostMatchReportShell({
  * class of production-mutation exposure this whole redesign exists to close. A disclosed,
  * narrow scope reduction — not fake editability (nothing here looks interactive and isn't).
  */
-function LeagueOnlyExtras({ state }: { state: SafeReportLocalState }) {
+function LeagueOnlyExtras({ state, teamNote }: { state: SafeReportLocalState; teamNote: string }) {
   return (
     <Surface variant="default" padding="lg">
       <SectionHeader title="Team notes" />
-      <p className="mt-2 text-sm text-[var(--text-soft)]">Follow up on positional shape in training this week.</p>
+      <p className="mt-2 text-sm text-[var(--text-soft)]">{teamNote}</p>
       <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Squad</p>
       <div className="mt-2 flex flex-col gap-1.5">
         {state.players.map((p) => (

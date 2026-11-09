@@ -31,7 +31,11 @@ jobs:
     # variance, not caused by this wave's change), leaving the actual capture step only 13m29s
     # before the overall job timeout cut it off mid-run. The capture step itself, not install
     # variance, should be what a timeout here is budgeting for.
-    timeout-minutes: 35
+    # W5/B08: bumped 35 -> 45 for the new Playwright acceptance step below (50 real-browser
+    # tests against the same local server — section 11 of the independent review requires real
+    # browser assertions, not only unit/component tests, for B08's navigation/continuity/
+    # responsive-overflow coverage).
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -67,6 +71,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
           compression-level: 6
+      # B08 W5 remediation (independent review, section 11) — real Chromium assertions for
+      # navigation, lifecycle-state continuity, and responsive overflow, against the SAME local
+      # server the capture step above already started (no auth, no database — `ui-lab-b08` is a
+      # dedicated, no-`setup`-dependency Playwright project; see `playwright.config.ts`'s own doc
+      # comment on it). Deliberately no `if:` override — runs only if the server actually started
+      # and the capture step succeeded, the same default-continuation behavior every other step
+      # in this job already relies on.
+      - name: Run B08 Playwright acceptance suite
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3333
+        run: npx playwright test --project=ui-lab-b08
+      - name: Upload B08 Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-lab-b08-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Print server errors on failure
         if: failure()
         run: tail -n 120 /tmp/matchboard-ui-lab.log || true

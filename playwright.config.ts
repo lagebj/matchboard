@@ -54,6 +54,31 @@ export default defineConfig({
       name: "setup",
       testMatch: /auth\.setup\.ts/,
     },
+    // B08 W5 remediation (independent review, section 11 "Browser-based acceptance coverage") —
+    // `/dev/ui-lab` is explicitly no-auth/no-org-context/no-database (`src/app/dev/ui-lab/
+    // layout.tsx`'s own doc comment), so this project deliberately has no `dependencies: ["setup"]`
+    // and no `storageState` — it needs neither, and inheriting the coach persona's auth cookies
+    // would only risk masking a real auth-independence regression. Points at the SAME local
+    // `next dev` server `scripts/ui-lab-visual-review.mjs` already starts in CI
+    // (`.github/workflows/ui-lab-visual-review.yml`), never the shared Test slot or production —
+    // `UI_LAB_BASE_URL`/`PLAYWRIGHT_BASE_URL` both default to that same local port for consistency
+    // with the capture script's own env var.
+    //
+    // Deliberately excluded from `npm run test:e2e`'s own `--project` list (package.json) — that
+    // script backs both `ci-checks.yml`'s post-merge smoke job and `test-acceptance.yml`'s
+    // functional-acceptance job, neither of which starts a local dev server, so a bare `playwright
+    // test` picking this project up by default produces `ERR_CONNECTION_REFUSED` at
+    // localhost:3333 (confirmed live in test-acceptance.yml's run for this PR, 2026-11-09).
+    // `ui-lab-visual-review.yml` is the only workflow that should ever run it, and already does so
+    // explicitly via `--project=ui-lab-b08`.
+    {
+      name: "ui-lab-b08",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: process.env.UI_LAB_BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333",
+      },
+      testMatch: /ui-lab-b08\.spec\.ts/,
+    },
     {
       name: "chromium",
       use: {
@@ -65,7 +90,7 @@ export default defineConfig({
       // it under the full-access coach persona would make its "denied" assertions false. It runs
       // only under the "chromium-viewer" project below (ADR-0078). mobile-critical.spec.ts is a
       // compact-viewport-only contract — it runs under the two mobile-critical-* projects below.
-      testIgnore: [/authz-failure\.spec\.ts/, /mobile-critical\.spec\.ts/],
+      testIgnore: [/authz-failure\.spec\.ts/, /mobile-critical\.spec\.ts/, /ui-lab-b08\.spec\.ts/],
     },
     {
       name: "chromium-viewer",

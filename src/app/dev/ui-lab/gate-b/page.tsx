@@ -5,8 +5,8 @@ import { AppearanceControl } from "@/components/touchline";
  * `/dev/ui-lab/gate-b` index — Gate B candidates (official register
  * `25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv`). Dev-only, fixture-backed, `CANDIDATE` only — no
  * production route, component, or data loader is changed by this programme. See
- * `docs/ui-lab/gate-b-w1-candidates/` (B01-B04) and `docs/ui-lab/gate-b-w2-candidates/` (B05)
- * for the full review records.
+ * `docs/ui-lab/gate-b-w1-candidates/` (B01-B04), `docs/ui-lab/gate-b-w2-candidates/` (B05), and
+ * `docs/ui-lab/gate-b-w5-candidates/` (B08) for the full review records.
  */
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-b/b01-planned-ready", id: "B01", title: "Before match, planned ready" },
@@ -24,6 +24,11 @@ const SCENARIOS = [
   { href: "/dev/ui-lab/gate-b/b06-league-event-parity/event/event-detail", id: "B06-EVENT-NAV", title: "League/Event parity — Event Detail (navigation origin, not a comparison candidate)" },
   { href: "/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/historical-pattern", id: "B07-HISTORICAL-PATTERN", title: "Assistant Coach longitudinal context — meaningful historical pattern" },
   { href: "/dev/ui-lab/gate-b/b07-assistant-coach-longitudinal/trivial-fact", id: "B07-TRIVIAL-FACT", title: "Assistant Coach longitudinal context — trivial hat-trick fact (contrast)" },
+  { href: "/dev/ui-lab/gate-b/b08-information-ownership/before", id: "B08-BEFORE", title: "Information ownership — Before (planned and ready)" },
+  { href: "/dev/ui-lab/gate-b/b08-information-ownership/live", id: "B08-LIVE", title: "Information ownership — Live (active reporting session)" },
+  { href: "/dev/ui-lab/gate-b/b08-information-ownership/after", id: "B08-AFTER", title: "Information ownership — After (played, report incomplete)" },
+  { href: "/dev/ui-lab/gate-b/b08-information-ownership/report-draft", id: "B08-REPORT-DRAFT", title: "Information ownership — Report, draft (editable)" },
+  { href: "/dev/ui-lab/gate-b/b08-information-ownership/report-completed", id: "B08-REPORT-COMPLETED", title: "Information ownership — Report, completed (locked)" },
 ];
 
 export default function GateBIndexPage() {
@@ -34,9 +39,9 @@ export default function GateBIndexPage() {
       </Link>
       <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">Gate B — Match Details &amp; Post-Match Report</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-        B01-B04 (W1), B05 (W2), B06 (W3, League/Event parity), and B07 (W4, Assistant Coach
-        longitudinal context). B08 (information ownership/transitions) remains deferred, not
-        deleted from scope. Dev-only, synthetic fixtures only.
+        B01-B04 (W1), B05 (W2), B06 (W3, League/Event parity), B07 (W4, Assistant Coach
+        longitudinal context), and B08 (W5, information ownership and lifecycle transitions — the
+        final Gate B candidate wave). Dev-only, synthetic fixtures only.
       </p>
 
       <div className="mt-6">

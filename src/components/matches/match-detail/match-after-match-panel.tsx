@@ -13,10 +13,23 @@ import { useUnresolvedLiveActionState } from "@/components/live-match/use-unreso
  * surface, never a clone of the report editor — mutation stays in `/post-match`
  * (`02_PRODUCT_MODEL_AND_LIFECYCLE.md`).
  */
-export function MatchAfterMatchPanel({ matchId, data }: { matchId: string; data: MatchDetailAfterData }) {
+export function MatchAfterMatchPanel({
+  matchId,
+  data,
+  reportHrefOverride,
+}: {
+  matchId: string;
+  data: MatchDetailAfterData;
+  /** B08 (Gate B W5) — the report destination is this match's OWN fixture-local report route,
+   * which may not resolve under `orgUrl()`'s production-shaped `/o/<orgSlug>/matches/<id>/...`
+   * path. Defaults to `undefined`, so every existing production call site keeps its exact prior
+   * `orgUrl(...)` behavior unchanged; only a UI Lab candidate passes this. */
+  reportHrefOverride?: string;
+}) {
   const orgUrl = useOrgUrl();
   const unresolved = useUnresolvedLiveActionState(matchId);
   const isLocked = data.reportStatus === "LOCKED";
+  const reportHref = reportHrefOverride ?? orgUrl(`/matches/${matchId}/post-match`);
 
   return (
     <div className="flex flex-col gap-4">
@@ -26,7 +39,7 @@ export function MatchAfterMatchPanel({ matchId, data }: { matchId: string; data:
           title="Report integrity needs attention"
           description={`${unresolved.actionableCount} recorded live action${unresolved.actionableCount === 1 ? "" : "s"} on this device need review before this report can be trusted as complete.`}
           action={
-            <TouchlineButton as={Link} href={orgUrl(`/matches/${matchId}/post-match`)} variant="primary" size="sm">
+            <TouchlineButton as={Link} href={reportHref} variant="primary" size="sm">
               Review issues
             </TouchlineButton>
           }
@@ -55,7 +68,7 @@ export function MatchAfterMatchPanel({ matchId, data }: { matchId: string; data:
           <SummaryRow label="Timing review" value={data.timingNeedsReviewCount > 0 ? `${data.timingNeedsReviewCount} need review` : "Clear"} />
           <SummaryRow label="Out-of-range events" value={String(data.outOfRangeEventCount)} />
         </div>
-        <TouchlineButton as={Link} href={orgUrl(`/matches/${matchId}/post-match`)} variant={isLocked ? "secondary" : "primary"} size="md" className="mt-4 self-start">
+        <TouchlineButton as={Link} href={reportHref} variant={isLocked ? "secondary" : "primary"} size="md" className="mt-4 self-start">
           {isLocked ? "View full report" : "Continue report"}
         </TouchlineButton>
       </Surface>
