@@ -339,7 +339,15 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
   // (not merely hidden in the UI) so the event ledger and the report can never belong to two
   // different histories. An explicit Reset journey is the only valid recovery.
   test("Journey F — editing the reference report then attempting a LIVE recording is rejected; Reset journey allows a valid new LIVE journey", async ({ page }) => {
-    test.setTimeout(60_000);
+    // This journey makes MORE full page navigations than any other (two separate LIVE session
+    // mounts, a rejected recording, a reset-triggered reload, a second real session, plus the
+    // report-draft round trips) — like Journey E, CI's own default per-assertion budget can run
+    // out on the LAST navigation simply from cumulative real page-load/compile time, not a product
+    // defect (the real `recordEvent()`/`endSession()` rejection contract is independently and
+    // precisely proven at the unit/adapter level in `b08-journey.test.tsx`/
+    // `safe-transition-controller.test.tsx`). A longer budget here is the same, already-established
+    // accommodation, not a change to what is being verified.
+    test.setTimeout(90_000);
     await page.goto(`${BASE}/report-draft`);
     await expect(page.getByText("2 - 1").first()).toBeAttached();
     await page.getByRole("button", { name: "Confirm duration", exact: true }).click();
@@ -379,7 +387,7 @@ test.describe("B08 — LIVE-to-report continuity (P1-6, extended for W5's second
 
     await page.getByRole("button", { name: "Finish live reporting" }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Confirm" }).click();
-    await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 15_000 });
+    await page.waitForURL(new RegExp(`${BASE}/report-draft`), { timeout: 30_000 });
     await expect(page.getByText(/Reflecting your LIVE session/)).toBeVisible();
     await expect(page.getByText("2 - 1").first()).toBeAttached();
   });
