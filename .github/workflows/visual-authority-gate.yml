@@ -13,9 +13,14 @@ name: Visual Authority Gate
 # defaulting to a detached merge ref with no explicit `ref:`). It also never deploys anything;
 # see visual-review-deploy.yml for the separate, explicitly-requested lightweight deploy path.
 #
-# Stage A only (see docs/adr/0159-...md): this check is NOT yet added to ruleset 21317362's
-# required checks, so it cannot block any merge. That is a separate, later, explicitly-authorized
-# action (Stage B).
+# `Visual Authority Gate` has been a required, merge-blocking check on ruleset 21317362 since Stage
+# B (2026-10-21) — see docs/adr/0159-...md.
+#
+# This workflow's `issue_comment` trigger and resolve-pr job below have no open/closed-PR filter,
+# so a real /visual-approve or /visual-reject comment posted on an already-merged PR is evaluated
+# exactly the same way as one on an open PR (the PR's own comment thread remains the approval
+# ledger after merge — see ADR-0159's 2026-11-09 follow-up). run-gate.mjs additionally posts a
+# one-line acknowledgment reply (never an approval/rejection itself) when that happens.
 
 on:
   pull_request:
@@ -27,6 +32,9 @@ permissions:
   contents: read
   pull-requests: read
   checks: write
+  issues: write # only used to post an informational acknowledgment reply when a real
+                # /visual-approve or /visual-reject comment lands on an already-merged PR — never
+                # to post the approval/rejection itself. See run-gate.mjs's postAcknowledgmentReply.
 
 jobs:
   resolve-pr:
@@ -96,4 +104,6 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ needs.resolve-pr.outputs.pr_number }}
           HEAD_SHA: ${{ needs.resolve-pr.outputs.head_sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: node scripts/visual-authority/run-gate.mjs

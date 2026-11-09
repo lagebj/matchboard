@@ -1,8 +1,11 @@
-// Visual Authority Gate (ADR-0159) — pure decision core. No network/filesystem access: the
-// workflow gathers everything (changed-file classification, every PR comment, each distinct
-// commenter's current permission, the current and any referenced-SHA fingerprints) and calls
-// this function once with the gathered facts. Kept pure/sync specifically so it's exhaustively
-// unit-testable without mocking the network on every branch.
+// Visual Authority Gate (ADR-0159, scenario-scoped follow-up) — pure aggregation core. No
+// network/filesystem access: run-gate.mjs gathers everything (changed-file classification, every
+// PR comment, each distinct commenter's current permission and Visual Authority allowlist
+// membership, the candidate scenario registry, and per-scenario fingerprints) and calls
+// resolve-approval.mjs's resolveApproval() to get a per-scenario decision map, then this module's
+// evaluateGateFromScenarios() once to aggregate that map into the single Checks-API conclusion
+// this gate reports per PR. Kept pure/sync specifically so it's exhaustively unit-testable without
+// mocking the network on every branch.
 //
 // There is no separate "approval record" storage — the PR's own comment thread is the ledger.
 // Re-deriving the decision from that thread on every evaluation (rather than caching a prior
@@ -17,21 +20,22 @@
 // reserved for states that are correctly non-blocking (NOT_APPLICABLE is reported as "success"
 // instead, so "neutral" is unused by this gate entirely now).
 
-import { parseCommand } from "./parse-comment.mjs";
-
 /**
+ * Aggregates resolve-approval.mjs's per-scenario results into the single Checks-API conclusion
+ * this gate reports per PR. PR-level approval permits merge; scenario-level approval (the Map
+ * passed in here) records which candidate presentations were actually reviewed — see ADR-0159's
+ * 2026-11-09 follow-up. A PR touching several scenarios only reports APPROVED once every
+ * applicable scenario does; one rejected or stale scenario blocks the whole PR even if its
+ * siblings are fine, matching the "partial approval" requirement this generalization exists for.
+ *
  * @param {object} args
  * @param {boolean} args.applicable
- * @param {string} args.headSha
- * @param {Array<{body: string, user: string, createdAt: string, id: number}>} args.comments
- *   Must already reflect each comment's CURRENT body (the workflow's responsibility to fetch
- *   fresh, not a stale cache) and be in chronological order.
- * @param {(login: string) => boolean} args.isActorPrivileged
- * @param {string} args.currentFingerprint
- * @param {(sha: string) => string | null} args.fingerprintAtSha
+ * @param {Map<string, import("./resolve-approval.mjs").EffectiveVisualApproval>} args.scenarioResults
+ * @param {string[]} args.errors - malformed-command errors from resolveApproval (e.g. an unknown
+ *   scenario ID referenced in a comment) — always fails the whole PR closed, never partially.
  * @returns {{conclusion: "success"|"failure", state: "NOT_APPLICABLE"|"APPROVED"|"AWAITING_APPROVAL"|"INVALID", title: string, summary: string}}
  */
-export function evaluateGate({ applicable, headSha, comments, isActorPrivileged, currentFingerprint, fingerprintAtSha }) {
+export function evaluateGateFromScenarios({ applicable, scenarioResults, errors }) {
   if (!applicable) {
     return {
       conclusion: "success",
@@ -41,61 +45,50 @@ export function evaluateGate({ applicable, headSha, comments, isActorPrivileged,
     };
   }
 
-  const privilegedCommands = [];
-  for (const comment of comments) {
-    if (!isActorPrivileged(comment.user)) continue;
-    const parsed = parseCommand(comment.body);
-    if (parsed.kind === "approve" || parsed.kind === "reject") {
-      privilegedCommands.push({ ...parsed, user: comment.user, createdAt: comment.createdAt });
-    }
+  if (errors.length > 0) {
+    return {
+      conclusion: "failure",
+      state: "INVALID",
+      title: "Malformed visual approval command",
+      summary: errors.join(" "),
+    };
   }
 
-  if (privilegedCommands.length === 0) {
+  const results = [...scenarioResults.values()];
+
+  if (results.length === 0) {
     return {
       conclusion: "failure",
       state: "AWAITING_APPROVAL",
       title: "Awaiting visual approval",
-      summary: "This PR touches UI Lab/visual-authority-relevant content. Post `/visual-approve <sha>` (from an actor with write access) once the rendered output has been reviewed.",
+      summary: "This PR touches visual-authority-relevant content, but no scenario registry entry could be resolved for it — failing closed.",
     };
   }
 
-  const last = privilegedCommands[privilegedCommands.length - 1];
-
-  if (last.kind === "reject") {
+  const rejectedOrStale = results.filter((r) => r.state === "REJECTED" || r.state === "STALE");
+  if (rejectedOrStale.length > 0) {
     return {
       conclusion: "failure",
       state: "INVALID",
-      title: "Visual approval rejected",
-      summary: last.reason
-        ? `Rejected by @${last.user}: ${last.reason}`
-        : `Rejected by @${last.user} (no reason given).`,
+      title: "Visual approval rejected or stale",
+      summary: rejectedOrStale.map((r) => `${r.scenarioId}: ${r.reason}`).join(" "),
     };
   }
 
-  // last.kind === "approve"
-  if (last.sha === headSha) {
+  const awaiting = results.filter((r) => r.state === "AWAITING_APPROVAL");
+  if (awaiting.length > 0) {
     return {
-      conclusion: "success",
-      state: "APPROVED",
-      title: "Visually approved",
-      summary: `Approved by @${last.user} for the exact current head commit (${headSha}).`,
-    };
-  }
-
-  const approvedFingerprint = fingerprintAtSha(last.sha);
-  if (approvedFingerprint !== null && approvedFingerprint === currentFingerprint) {
-    return {
-      conclusion: "success",
-      state: "APPROVED",
-      title: "Visually approved (unchanged visual content)",
-      summary: `Approved by @${last.user} for ${last.sha}; the current head (${headSha}) has a different SHA but an identical visual-content fingerprint (e.g. a documentation-only follow-up commit), so the approval still applies.`,
+      conclusion: "failure",
+      state: "AWAITING_APPROVAL",
+      title: "Awaiting visual approval",
+      summary: `Awaiting approval for: ${awaiting.map((r) => r.scenarioId).join(", ")}. Post /visual-approve <sha> (optionally scoped with a scenarios: line) from an actor with write access and Visual Authority.`,
     };
   }
 
   return {
-    conclusion: "failure",
-    state: "INVALID",
-    title: "Approval is stale",
-    summary: `@${last.user} approved ${last.sha}, but the current head is ${headSha} with a different visual-content fingerprint. A fresh \`/visual-approve ${headSha}\` is required.`,
+    conclusion: "success",
+    state: "APPROVED",
+    title: "Visually approved",
+    summary: results.map((r) => `${r.scenarioId}: approved by ${r.approvedBy ?? "a historical record"} (${r.source}).`).join(" "),
   };
 }
