@@ -16,7 +16,7 @@
     "test": "vitest run && vitest run --config vitest.config.components.ts",
     "test:watch": "vitest",
     "test:components": "vitest run --config vitest.config.components.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=setup --project=chromium --project=chromium-viewer --project=accessibility-phone --project=accessibility-tablet --project=mobile-critical-chromium --project=mobile-critical-webkit",
     "test:e2e:ui": "playwright test --ui",
     "dev:realtime": "wrangler dev --config workers/live-match/wrangler.jsonc --port 8787",
     "test:workers": "vitest run --config workers/live-match/vitest.config.ts",

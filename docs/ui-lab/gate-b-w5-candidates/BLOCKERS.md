@@ -1,9 +1,45 @@
 # Gate B W5 — Blockers / Open Questions (B08)
 
 Status: implementation complete (all 9 original spec steps), PLUS FOUR remediation passes against
-independent reviews of the merged PR (2026-11-08) — see the four "Remediation" sections below. All
-items are resolved or disclosed as permanent, deliberate scope boundaries; none block the PR — see
-`REVIEW_RECORD.md` for the real current status.
+independent reviews of the merged PR (2026-11-08) — see the four "Remediation" sections below —
+PLUS one acceptance-pipeline CI/test-config fix (2026-11-09, see below) found while running real
+ADR-0153 acceptance deployment, unrelated to B08's own behavior. All items are resolved or
+disclosed as permanent, deliberate scope boundaries; none block the PR — see `REVIEW_RECORD.md` for
+the real current status.
+
+## Acceptance-pipeline fix (not a remediation pass, 2026-11-09)
+
+Not a B08 defect — a CI/test-infrastructure regression this PR's own `ui-lab-b08` Playwright
+project addition exposed in the two *other* workflows that share `playwright.config.ts` and
+`package.json`'s `test:e2e` script. Found while running real ADR-0153 label-gated acceptance
+(`gh pr edit 822 --add-label acceptance`) against the deployed `pr-822` Test slot, this PR's own
+first real exercise of that pipeline.
+
+- **Symptom:** `test-acceptance.yml`'s "Functional acceptance" step (workflow run 42571569930, job
+  129009897286) failed every test with `page.goto: net::ERR_CONNECTION_REFUSED at
+  http://localhost:3333/dev/ui-lab/...` — the deploy itself (Neon branch, Vercel Test-slot alias,
+  Worker, secrets) succeeded; only the Playwright step failed.
+- **Root cause:** `npm run test:e2e` was a bare `playwright test`, which runs every project in
+  `playwright.config.ts` by default — including this PR's own new `ui-lab-b08` project, which is
+  deliberately, intentionally pointed at a local `next dev` server (`localhost:3333`) that only
+  `ui-lab-visual-review.yml` starts. Neither `test-acceptance.yml`'s acceptance job nor
+  `ci-checks.yml`'s post-merge `e2e` job starts a local dev server — both deploy/test against a
+  real Vercel Test-slot URL instead. `ci-checks.yml`'s own `e2e` job never caught this because it is
+  `push`-only (post-merge), so it has never run for this still-open PR.
+- **Fix:** `package.json`'s `test:e2e` script now passes an explicit `--project` list covering every
+  project except `ui-lab-b08` (`setup`, `chromium`, `chromium-viewer`, `accessibility-phone`,
+  `accessibility-tablet`, `mobile-critical-chromium`, `mobile-critical-webkit`), matching the
+  existing pattern where `ui-lab-b08` is already excluded from the `chromium` project's own
+  `testIgnore` list. `ui-lab-visual-review.yml` is unaffected — it already invokes
+  `ui-lab-b08` directly via `npx playwright test --project=ui-lab-b08`, never through the
+  `test:e2e` script. A matching comment was added next to the `ui-lab-b08` project definition in
+  `playwright.config.ts` so this doesn't regress again. Verified locally: bare `playwright test
+  --list` resolves 104 tests/13 files; `npm run test:e2e -- --list` now resolves 50 tests/12 files,
+  with `ui-lab-b08` absent from the second list.
+- **Scope:** `package.json` and `playwright.config.ts` only — no B08 page, component, fixture, or
+  production code touched. This is the one change to a file outside
+  `src/app/dev/ui-lab/gate-b/b08-information-ownership/` and `e2e/ui-lab-b08.spec.ts` this PR makes,
+  and it is a shared-CI-config correctness fix, not a B08 behavior change.
 
 ## Fourth remediation ("final source-of-truth remediation", independent review, 2026-11-08)
 

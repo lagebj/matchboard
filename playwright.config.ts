@@ -63,6 +63,14 @@ export default defineConfig({
     // (`.github/workflows/ui-lab-visual-review.yml`), never the shared Test slot or production —
     // `UI_LAB_BASE_URL`/`PLAYWRIGHT_BASE_URL` both default to that same local port for consistency
     // with the capture script's own env var.
+    //
+    // Deliberately excluded from `npm run test:e2e`'s own `--project` list (package.json) — that
+    // script backs both `ci-checks.yml`'s post-merge smoke job and `test-acceptance.yml`'s
+    // functional-acceptance job, neither of which starts a local dev server, so a bare `playwright
+    // test` picking this project up by default produces `ERR_CONNECTION_REFUSED` at
+    // localhost:3333 (confirmed live in test-acceptance.yml's run for this PR, 2026-11-09).
+    // `ui-lab-visual-review.yml` is the only workflow that should ever run it, and already does so
+    // explicitly via `--project=ui-lab-b08`.
     {
       name: "ui-lab-b08",
       use: {
