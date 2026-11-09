@@ -105,6 +105,28 @@ async function getPrCommitShas() {
   return { shas: results.map((c) => c.sha), complete };
 }
 
+// Only called as a fallback when the cheap checks in isKnownRevision() don't already resolve a
+// referenced SHA — e.g. a GitHub-generated refs/pull/<n>/merge preview commit, whose ref stops
+// resolving once the PR is merged but whose commit object (and parent list) remains fetchable by
+// SHA. Returns null (never throws) on any failure, which isKnownRevision treats as "not known."
+async function getCommitParentShas(sha) {
+  try {
+    const response = await ghFetch(`/repos/${owner}/${repo}/commits/${sha}`);
+    if (!response.ok) return null;
+    const json = await response.json();
+    return Array.isArray(json.parents) ? json.parents.map((p) => p.sha) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function isKnownRevisionLazy(sha, { headSha, prCommitShas, mergeCommitSha }) {
+  if (isKnownRevision({ sha, headSha, prCommitShas, mergeCommitSha })) return true;
+  const parentShas = await getCommitParentShas(sha);
+  if (!parentShas) return false;
+  return isKnownRevision({ sha, headSha, prCommitShas, mergeCommitSha, parentShas });
+}
+
 async function readFileAtRef(path, ref) {
   const response = await ghFetch(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${ref}`);
   if (!response.ok) return null;
@@ -244,12 +266,18 @@ async function main() {
   }
 
   const referencedShas = approveShasReferencedIn(comments);
+  const knownByReferencedSha = new Map();
+  for (const sha of referencedShas) {
+    if (sha === headSha.toLowerCase()) continue;
+    knownByReferencedSha.set(sha, await isKnownRevisionLazy(sha, { headSha, prCommitShas, mergeCommitSha }));
+  }
+
   const fingerprintAtShaCache = new Map();
   for (const scenario of scenarios) {
     for (const sha of referencedShas) {
       if (sha === headSha.toLowerCase()) continue;
       const key = `${scenario.scenarioId}::${sha}`;
-      if (!isKnownRevision({ sha, headSha, prCommitShas, mergeCommitSha })) {
+      if (!knownByReferencedSha.get(sha)) {
         fingerprintAtShaCache.set(key, null);
         continue;
       }

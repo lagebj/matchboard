@@ -14,6 +14,7 @@
     "lint": "eslint src prisma.config.ts next.config.ts eslint.config.mjs prisma/seed-demo.cjs playwright.config.ts e2e",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && vitest run --config vitest.config.components.ts",
+    "visual-authority:status": "node scripts/visual-authority/status-report.mjs",
     "test:watch": "vitest",
     "test:components": "vitest run --config vitest.config.components.ts",
     "test:e2e": "playwright test --project=setup --project=chromium --project=chromium-viewer --project=accessibility-phone --project=accessibility-tablet --project=mobile-critical-chromium --project=mobile-critical-webkit",
