@@ -6,88 +6,111 @@
 
 ## Summary
 
-An independent review of this PR's first pass (reviewed HEAD `d13feb206c14e00792ba1844e8de327cbb8eee4a`)
-found three genuine production defects and three fixture-integrity gaps:
+Two rounds of independent review of PR #826 found, in total, five genuine production defects
+and three fixture-integrity gaps.
 
-- **P1-01** — the quiet-day "Nothing needs your attention" hero could render directly below a
-  real Matchday action, contradicting it.
-- **P1-02** — "Today in order" (the busy same-day chronology) never rendered on a
-  quiet-composition day, even with a genuine same-day Matchday object.
-- **P1-03** — squad readiness and carry-forward could render twice: once in the main composition
-  (or Matchday's own card) and again, unconditionally, in the context rail.
-- **P2-01** — C03's kickoff fixture was relative to the real `Date.now()`, and C01's hardcoded
-  upcoming-match dates would silently fall outside production's real 7-day window over time.
-- **P2-02** — several fixture hrefs were unscoped paths, not production's real
-  `/o/{orgSlug}/...` shape.
-- **P2-03** — C02's duplicate-suppression test proved a count cap, not a genuine identity
-  collision.
+**First round:**
+- **P1-01** — the quiet-day hero could render alongside a real Matchday action, contradicting it.
+- **P1-02** — "Today in order" never showed on a quiet-composition day.
+- **P1-03** — squad readiness and carry-forward could render twice.
+- **P2-01/P2-02/P2-03** — fixture clock, href scoping, and duplicate-suppression test rigor.
 - **G-01** — a pre-existing, unrelated Visual Authority Gate fingerprint-staleness defect
-  (issue #827), correctly left out of this PR's scope.
+  (issue #827), correctly left out of scope.
 
-**All six findings (P1-01 through P2-03) are now fixed.** Two production files received a
-narrow, justified, regression-tested correction (`today-surface.tsx`, `today-quiet-state.tsx`);
-every Gate C fixture was reworked to use a fixed deterministic clock, production's real
-same-day-match-selection pipeline, and production's real organisation-scoped href rules; C02's
-fixture now demonstrates a genuine identity collision. See `CURRENT_STATE_AUDIT.md`,
-`DATA_TRUTH_AND_FIXTURES.md`, and `INTERACTION_AND_STATE_AUDIT.md` for the full detail.
+**Second round found that the P1-03 fix itself introduced two new defects:**
+- **P1-04** — organisation-wide squad availability (`getOrgActivePlayerAvailability()`)
+  disappeared whenever a Matchday anchor existed, because P1-03's condition wrongly treated "a
+  Matchday anchor exists" as proof this fact was shown elsewhere. It wasn't — Matchday's own card
+  shows a different fact (match-specific selected-squad readiness).
+- **P1-05** — carry-forward items beyond the first were silently dropped on quiet days, because
+  P1-03's condition suppressed the context rail's entire collection instead of just the one item
+  the quiet-day hero already features inline.
 
-## A. Findings and corrections
+**All findings across both rounds are now fixed.** The corrected rule distinguishes "the same
+fact shown twice" (suppress) from "a related but different-scope fact, or a different item from
+the same collection" (keep both visible) — see `INFORMATION_OWNERSHIP_MATRIX.md` for the explicit
+classification.
 
-See the Summary above and the referenced documents for exact findings and corrections. In brief:
-P1-01/P1-02 are fixed by two small, additive conditions in `today-surface.tsx`'s own render
-logic (`showHero={!matchdayContext}`, `showOperationalTimeline = compositionState === "DECISION"
-|| Boolean(matchdayContext)`), never a new ranking engine. P1-03 is fixed by computing
-`squadStatusShownElsewhere`/`carryForwardShownElsewhere` from facts already resolved
-(`matchdayContext`, `compositionState`) and suppressing the context rail's own props accordingly.
+## A. Finding P1-04
 
-## B. Production changes
+**Correction:** `today-surface.tsx`'s `contextRailSquadStatus` is now suppressed only when
+`compositionState === "QUIET" && !matchdayContext` (the one case where the quiet-day hero is
+genuinely showing the identical org-wide fact inline) — not whenever any Matchday anchor exists.
+`today-context-rail.tsx` gained an optional `squadStatusTitle` prop (forwarded to the existing
+`SquadReadinessWidget`'s own `title` override, no new widget), set to `"All active players"`
+whenever a Matchday anchor exists, to disambiguate the two readiness views on the same page.
+**Affected files:** `today-surface.tsx`, `today-context-rail.tsx`. **Test evidence:** 6 new
+tests in `today-surface.matchday-quiet-composition.test.tsx` (all four quiet/decision ×
+with/without-Matchday combinations, a missing-data case, and a Live Now/Matchday-exclusivity
+regression), plus a new real-candidate test in C03 league/prepare and two new Playwright tests
+(desktop + mobile) in `e2e/ui-lab-gate-c.spec.ts`. All use deliberately different org-wide
+(28 available) vs. match-specific (e.g. 10 available · 1 doubtful) numbers.
 
-`today-surface.tsx` and `today-quiet-state.tsx` — see `CURRENT_STATE_AUDIT.md` for why fixture
-changes alone could not have corrected these: the defect was in production's own composition
-logic (what renders, and when), not in what data a fixture supplied.
+## B. Finding P1-05
 
-## C. Fixture integrity
+**Correction:** `today-surface.tsx`'s `contextRailCarryForwardItems` is now
+`carryForwardItems.slice(1)` whenever `compositionState === "QUIET"` (the complement of the one
+item `TodayQuietState`'s own unchanged `.slice(0, 1)` features), rather than an empty array. The
+underlying adapter (`buildTodayCarryForwardItems()`) and its ordering are unchanged. **Affected
+files:** `today-surface.tsx` only. **Test evidence:** 7 new tests covering zero/one/two/three
+items across quiet (with and without Matchday) and decision composition, using distinct item
+labels so a count-only assertion could not mask a dropped or duplicated item; C01's own fixture
+now carries three items (was one), with 2 new component-test assertions and 2 new Playwright
+tests (desktop + mobile).
 
-- **Controlled clock:** `GATE_C_NOW_ISO`, a fixed reference instant, replaces every real-clock
-  dependency; `TodaySurface` gained an explicit `nowIso?: string` prop for this (production
-  behavior unchanged when omitted).
-- **Real same-day match selection:** `gateCBuildBusyDay()` builds three real candidates and lets
-  the real `selectFeaturedTodayFootballMatch()` choose the featured one.
-- **Canonical URL construction:** every fixture href now follows the exact scoping rule its real
-  consuming component expects, verified field-by-field against source.
+## C. Regression results — prior remediation intact
 
-## D. Interaction coverage
+- Matchday consistency (P1-01): unchanged, still passing (6 tests from the first remediation
+  pass, re-run clean).
+- Same-day chronology (P1-02): unchanged, still passing.
+- Deterministic fixtures (`GATE_C_NOW_ISO`): unchanged.
+- Organisation-scoped navigation (P2-02): unchanged.
+- Identity-based decision suppression (C02, P2-03): unchanged — C02's fixture, tests, and
+  manifest entry are untouched by this pass (no Matchday anchor, no squad/carry-forward props).
+- Fixture safety: unchanged — `applyRecommendation` still always denies.
 
-See `INTERACTION_AND_STATE_AUDIT.md` for the complete list, including the 10 new production
-regression tests, the new fixture-builder determinism/phase tests, and the rewritten Playwright
-suite's real click-through navigation assertions.
+## D. Production changes
 
-## E. Visual evidence
+- `src/components/touchline/today/today-surface.tsx` — corrected the two P1-03 suppression
+  conditions (see A/B above).
+- `src/components/touchline/today/today-context-rail.tsx` — new optional `squadStatusTitle`
+  prop only; no behavior change when omitted.
 
-Real Chromium capture evidence for this remediated revision is produced by CI
-(`ui-lab-visual-review.yml`), against this branch's new head commit — **not** reusing the
-pre-remediation 80-capture attestation, per the independent review's explicit instruction.
-`capture-attestation.json` is regenerated once that run completes (two-commit attestation
-convention: this commit lands the remediation, the next commits the real evidence once CI has
-produced it).
+No other production file changed in this pass.
 
-## F. Governance
+## E. Fixture and browser evidence
 
-This PR's `Visual Authority Gate` check reports `AWAITING_APPROVAL` for Gate C's own eight
-scenarios (unchanged — this remediation does not fabricate an approval) and separately surfaces
-issue #827 (pre-existing, unrelated, Gate B's own stale B01-B04 approvals) when the gate
-re-evaluates the full registry. Neither state is conflated with a technical-check failure: all
-of `npm run validate`'s own checks (typecheck, lint, tests, build) pass independently of the
-Visual Authority Gate's human-approval state. No `/visual-approve`/`/visual-reject` is posted by
-this remediation.
+- `npm run typecheck` / `npm run lint` — clean.
+- `npm test` — 593+163 files, 6573+1039 tests, all passing.
+- `npx playwright test --project=ui-lab-gate-c` — 62/62 passing locally (58 prior + 4 new).
+- Full local run of `scripts/ui-lab-visual-review.mjs` across every gate — 0 errors.
+- Real CI capture run and regenerated `capture-attestation.json` — see the commit that adds it;
+  not fabricated ahead of that run, and the prior revision's evidence is not reused since
+  rendering genuinely changed again (C01 and all six C03 candidates).
 
-## G. Known limitations
+## F. Governance status
 
-- Tactics readiness is fixed at `UNKNOWN` in every C03 fixture (no canonical tactics data source
-  to invent from) — unchanged from the original wave, disclosed in `BLOCKERS.md`.
+A PR comment posted by this remediation (the completion report for the *first* round) triggered
+a Visual Authority Gate re-evaluation that failed with `INVALID: comment pagination incomplete,
+failed closed` — a transient GitHub API issue, not a structural one (the PR has only 6 comments,
+well within normal pagination limits, and the account's API rate limit had ample headroom at the
+time). This is a governance API problem, not a failed visual review, and is reported here
+separately rather than conflated with a technical-check failure. The next evaluation (triggered
+by this commit) is expected to succeed cleanly again, matching every evaluation before and after
+the one transient failure; its actual result is reported in the PR's own check status at review
+time, not asserted here in advance. No `/visual-approve`/`/visual-reject` is posted by this
+remediation. Issue #827 remains open and untouched.
+
+## G. Remaining limitations
+
+- Tactics readiness is fixed at `UNKNOWN` in every C03 fixture — unchanged, disclosed in
+  `BLOCKERS.md`.
 - C07, C04-C06, and C08 remain out of this wave's scope — unchanged, disclosed in `BLOCKERS.md`.
-- Issue #827 (Visual Authority Gate fingerprint staleness) remains open and tracked separately;
-  this remediation does not attempt to fix it, per that issue's own disposition.
+- Issue #827 remains open and tracked separately.
+- The transient comment-pagination failure noted in §F is not something this remediation can fix
+  (shared Visual Authority Gate infrastructure) — if it recurs persistently rather than
+  transiently, it would warrant its own separate governance investigation, not a fix bundled
+  into this candidate remediation.
 
 ## H. Disposition
 

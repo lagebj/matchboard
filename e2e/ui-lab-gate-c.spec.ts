@@ -57,6 +57,41 @@ test.describe("Gate C W1 — C01/C02 navigation", () => {
   });
 });
 
+test.describe("Gate C W1 — P1-04/P1-05: information preserved, not duplicated or dropped", () => {
+  test("C01 (desktop): all three carry-forward items remain reachable, each exactly once — none duplicated, none dropped", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c01-quiet-day`);
+    await expect(page.getByText("Report still open — Blå 3-1 Åsgård")).toHaveCount(1);
+    await expect(page.getByText("Noah's development review is ready to revisit")).toHaveCount(1);
+    await expect(page.getByText("Team focus review is ready to revisit")).toHaveCount(1);
+  });
+
+  test("C01 (mobile): all three carry-forward items remain reachable in the stacked reading order, each exactly once", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/c01-quiet-day`);
+    await expect(page.getByText("Report still open — Blå 3-1 Åsgård")).toHaveCount(1);
+    await expect(page.getByText("Noah's development review is ready to revisit")).toHaveCount(1);
+    await expect(page.getByText("Team focus review is ready to revisit")).toHaveCount(1);
+  });
+
+  test("C03 League · Prepare (desktop): organisation-wide availability and Matchday's own match-specific readiness are both visible, with distinct numbers and a scope label", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c03-matchday-prelive/league/prepare`);
+    await expect(page.getByText("8 of 11 planned")).toBeVisible();
+    await expect(page.getByText("All active players")).toBeVisible();
+    await expect(page.getByText("Available").first()).toBeVisible();
+    await expect(page.getByText("28")).toBeVisible();
+  });
+
+  test("C03 League · Prepare (mobile): organisation-wide availability remains reachable alongside Matchday's own readiness in the stacked reading order", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/c03-matchday-prelive/league/prepare`);
+    await expect(page.getByText("8 of 11 planned")).toBeVisible();
+    await expect(page.getByText("All active players")).toBeVisible();
+    await expect(page.getByText("28")).toBeVisible();
+  });
+});
+
 test.describe("Gate C W1 — C03 matchday readiness links preserve League/Event context", () => {
   test("League · Prepare's primary action has the real League org-scoped href and reaches the real auth boundary when clicked", async ({ page }) => {
     await page.goto(`${BASE}/c03-matchday-prelive/league/prepare`);

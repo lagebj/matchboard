@@ -11,7 +11,7 @@ vi.mock("@/components/assistant/due-decision-review-section", () => ({
 }));
 
 const { default: C01QuietDayPage } = await import("../page");
-const { upcomingMatches } = await import("../fixtures");
+const { upcomingMatches, carryForwardItems } = await import("../fixtures");
 const { GATE_C_NOW_ISO } = await import("../../shared/fixtures");
 
 function renderPage() {
@@ -37,12 +37,19 @@ describe("Gate C W1 — C01 Quiet day", () => {
     expect(screen.getByText("Vollen vs Blå")).toBeInTheDocument();
   });
 
-  it("P1-03: shows the one carry-forward item exactly once — never duplicated into the context rail", () => {
+  it("P1-05: features the first carry-forward item inline, exactly once", () => {
     renderPage();
-    expect(screen.getAllByText(/Report still open/).length).toBe(1);
+    expect(screen.getAllByText(carryForwardItems[0].label).length).toBe(1);
   });
 
-  it("P1-03: shows squad readiness exactly once — never duplicated into the context rail", () => {
+  it("P1-05: the remaining carry-forward items stay reachable (via the context rail), not silently dropped", () => {
+    renderPage();
+    expect(carryForwardItems.length).toBe(3);
+    expect(screen.getAllByText(carryForwardItems[1].label).length).toBe(1);
+    expect(screen.getAllByText(carryForwardItems[2].label).length).toBe(1);
+  });
+
+  it("P1-04: shows organisation-wide squad availability exactly once — never duplicated into the context rail", () => {
     renderPage();
     // SquadReadinessWidget renders each count as its own label; "Available" alone is specific
     // enough to this widget (not shared with any other quiet-day text) to prove it isn't

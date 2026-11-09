@@ -63,6 +63,22 @@ proves a genuinely different decision still renders — this is not merely "noth
 in," which the original W1 fixture's count-cap-only test could not distinguish from real
 suppression.
 
+## Organisation-wide availability, kept distinct from match-specific readiness (P1-04 remediation)
+
+`gateCBuildBusyDay()` now also returns `squadStatus` — a fixed organisation-wide snapshot
+(`GATE_C_ORG_WIDE_SQUAD_STATUS`: 28 available, 3 doubtful, 2 unavailable) deliberately different
+from every phase's own match-specific `selectedAvailability` numbers (e.g. VERIFY's 10
+available · 1 doubtful). All six C03 scenarios now pass this through to `TodaySurface`, so the
+real candidates — not only the production unit tests — demonstrate that organisation-wide
+availability remains visible (with a scope label) alongside Matchday's own distinct readiness,
+rather than disappearing whenever a Matchday anchor exists.
+
+## Carry-forward beyond the first item, kept reachable (P1-05 remediation)
+
+C01's fixture now carries three items (`carry-c01-1/2/3`, distinct labels and hrefs), not one —
+proving the quiet-day hero features only the first inline while the remaining two stay reachable
+via the context rail, rather than being silently dropped from the page.
+
 ## Correct player availability and plan-integrity signals
 
 C02's secondary planning-attention signal and C03's VERIFY-phase readiness use real `ruleCode`

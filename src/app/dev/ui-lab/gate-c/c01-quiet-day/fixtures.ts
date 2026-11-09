@@ -63,6 +63,13 @@ export const upcomingMatches: MatchPresentation[] = [
   },
 ];
 
+/**
+ * P1-05 remediation: three items, not one — proves the quiet-day hero features only the first
+ * inline while the remaining two stay reachable via the context rail, rather than being
+ * silently dropped from the page.
+ */
 export const carryForwardItems: TodayCarryForwardItem[] = [
   { id: "carry-c01-1", label: "Report still open — Blå 3-1 Åsgård", href: gateCOrgUrl("/matches/match-c01-past-1") },
+  { id: "carry-c01-2", label: "Noah's development review is ready to revisit", href: gateCOrgUrl("/players/player-noah") },
+  { id: "carry-c01-3", label: "Team focus review is ready to revisit", href: gateCOrgUrl("/team-focus") },
 ];

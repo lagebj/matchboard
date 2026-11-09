@@ -7,3 +7,4 @@ export const commandCentre = gateCBaseCommandCentre({ todayMatches: busyDay.toda
 export const liveNow = gateCNoLiveMatch();
 export const matchdayContext = busyDay.matchdayContext;
 export const nowIso = busyDay.nowIso;
+export const squadStatus = busyDay.squadStatus;

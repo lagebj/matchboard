@@ -6,7 +6,7 @@ mounts the real production `TodaySurface`/`TodayMatchday` components.
 ## Production regression coverage (new, independent review remediation)
 
 `src/components/touchline/today/__tests__/today-surface.matchday-quiet-composition.test.tsx` —
-10 tests, directly against `TodaySurface` (not through Gate C's own fixtures), proving:
+19 tests, directly against `TodaySurface` (not through Gate C's own fixtures), proving:
 
 - **P1-01:** no contradictory "Nothing needs your attention" hero alongside a genuine Matchday
   action; the calm hero still shows when there is genuinely no Matchday anchor.
@@ -14,21 +14,27 @@ mounts the real production `TodaySurface`/`TodayMatchday` components.
   featured match is never repeated as unresolved lower chronology; an unrelated genuine
   situational decision remains visible alongside Matchday; "Today in order" never shows on a
   genuinely quiet day with no Matchday anchor and no decision.
-- **P1-03:** squad readiness and carry-forward each appear exactly once across all four
-  quiet/decision × with/without-Matchday combinations — proving the context rail is the sole
-  owner exactly when it should be (decision day, no Matchday anchor) and suppressed exactly when
-  it should be (every other combination).
+- **P1-04 (6 tests):** organisation-wide squad availability remains visible across all four
+  quiet/decision × with/without-Matchday combinations — with a scope label ("All active players")
+  exactly when a Matchday anchor also exists, and with deliberately different organisation-wide
+  vs. match-specific numbers so neither value can mask the other; a missing canonical org-wide
+  result never fabricates an empty widget; Live Now/Matchday exclusivity is unaffected by the fix.
+- **P1-05 (7 tests):** zero/one/two/three carry-forward items, across quiet (with and without
+  Matchday) and decision composition — every item appears exactly once, using distinct labels so
+  a count-only assertion could not mask a dropped or duplicated item.
 
 ## Quiet day (C01)
 
 - Component test: the next football object's real href is asserted; the bounded "This week"
-  chronology shows both real upcoming matches; at most one carry-forward item renders exactly
-  once (P1-03); squad readiness renders exactly once (P1-03); no empty decision section renders;
-  `InstallPwaCard` never renders; every upcoming-match kickoff date falls within production's
-  real 7-day window, independent of the real clock (P2-01).
+  chronology shows both real upcoming matches; the first of three carry-forward items features
+  inline exactly once, and the remaining two stay reachable rather than being dropped (P1-05);
+  organisation-wide squad availability renders exactly once (P1-04); no empty decision section
+  renders; `InstallPwaCard` never renders; every upcoming-match kickoff date falls within
+  production's real 7-day window, independent of the real clock (P2-01).
 - Browser test: the upcoming-match row's real canonical org-scoped href is asserted, the link is
   actually clicked, and the real resulting destination (`/signin`, a genuine auth redirect for
-  this synthetic id) is verified (P2-02).
+  this synthetic id) is verified (P2-02); all three carry-forward items remain reachable on both
+  desktop and mobile viewports, each exactly once (P1-05).
 
 ## Decision day (C02)
 
@@ -54,7 +60,10 @@ mounts the real production `TodaySurface`/`TodayMatchday` components.
 - Browser tests: readiness links are asserted to have the correct canonical org-scoped shape,
   are actually clicked, and reach the real `/signin` auth boundary (P2-02); the phase/source nav
   can move between all six combinations as real client-side navigation; no horizontal overflow at
-  320/360/390/430/768/1440px for any of the eight Gate C routes.
+  320/360/390/430/768/1440px for any of the eight Gate C routes; league/prepare additionally
+  proves organisation-wide availability (28 available) and Matchday's own distinct match-specific
+  readiness (8 of 11 planned) both remain visible, on desktop and mobile, with a scope label
+  ("All active players") disambiguating them (P1-04).
 
 ## Fixture-builder unit tests (new, P2-01)
 

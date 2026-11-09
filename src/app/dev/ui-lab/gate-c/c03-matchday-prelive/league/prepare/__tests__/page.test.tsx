@@ -50,4 +50,16 @@ describe("Gate C W1 — C03 League · Prepare", () => {
     // repeated a second time as unresolved lower chronology.
     expect(screen.getAllByText(/Stoppen Juventus/).length).toBe(1);
   });
+
+  it("P1-04: organisation-wide squad availability remains visible (in the context rail, with a scope label) alongside Matchday's own distinct match-specific readiness", () => {
+    renderPage();
+    // Match-specific (8 of 11 planned, from the PREPARE-phase readiness fixture) and
+    // organisation-wide (28 available, from the shared busy-day fixture) are deliberately
+    // different numbers/facts — this fails if the org-wide widget were hidden, or if either
+    // value leaked into the other's presentation.
+    expect(screen.getByText("8 of 11 planned")).toBeInTheDocument();
+    expect(screen.getByText("All active players")).toBeInTheDocument();
+    expect(screen.getAllByText("Available").length).toBe(1);
+    expect(screen.getByText("28")).toBeInTheDocument();
+  });
 });

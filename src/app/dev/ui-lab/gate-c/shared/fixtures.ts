@@ -9,6 +9,7 @@ import {
   type TodayFootballMatchSource,
 } from "@/lib/touchline/presentation/today-football-match";
 import type { TodayMatchdayReadiness } from "@/lib/touchline/presentation/today-matchday-readiness";
+import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
 
 /**
  * Gate C W1 (Today) shared fixture builders — official register C01-C03
@@ -124,6 +125,21 @@ export type GateCBusyDayResult = {
    * in this timeline either (D12/ADR-0143 §4.7); not a Gate C limitation. */
   todayMatches: TodayMatch[];
   nowIso: string;
+  /** P1-04 remediation: organisation-wide active-player availability
+   * (`getOrgActivePlayerAvailability()`'s real scope) — deliberately different counts from the
+   * featured match's own `selectedAvailability` below, so a reviewer can tell at a glance that
+   * these are two different facts, not the same one shown twice. */
+  squadStatus: TodaySquadStatus;
+};
+
+/** Deliberately different from every phase's own match-specific selected-player numbers (see
+ * `readinessForPhase()` above) — a real club has far more active players than one match's
+ * selected squad. */
+const GATE_C_ORG_WIDE_SQUAD_STATUS: TodaySquadStatus = {
+  available: 28,
+  doubtful: 3,
+  unavailable: 2,
+  notAvailable: [],
 };
 
 /**
@@ -220,5 +236,6 @@ export function gateCBuildBusyDay(params: { source: TodayFootballMatchSource; ph
     matchdayContext: { featured, readiness: readinessForPhase(params.phase) },
     todayMatches,
     nowIso: GATE_C_NOW_ISO,
+    squadStatus: GATE_C_ORG_WIDE_SQUAD_STATUS,
   };
 }

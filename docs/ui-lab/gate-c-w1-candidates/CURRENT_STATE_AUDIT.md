@@ -2,9 +2,10 @@
 
 Audit of Today's actual production implementation, against the brief's required composition for
 quiet day / decision day / matchday pre-live / Live Now exclusivity, performed by direct source
-inspection. **Revised after an independent review of the first candidate pass (PR #826) found
-three genuine production defects this audit's first pass missed** — see "Findings from
-independent review" below. Classification values: `CONFIRMS_SHIPPED_BASELINE`,
+inspection. **Revised twice: once after an independent review of the first candidate pass found
+three genuine production defects (P1-01/P1-02/P1-03), and again after a second independent review
+found that the P1-03 fix itself introduced two new information-loss defects (P1-04/P1-05)** — see
+"Findings from independent review" below. Classification values: `CONFIRMS_SHIPPED_BASELINE`,
 `PROPOSED_REFINEMENT`, `MISSING_CAPABILITY`, `BLOCKED_BY_SOURCE_OR_AUTHORITY`.
 
 ## Architecture summary
@@ -37,27 +38,48 @@ consistent owner.
    Boolean(matchdayContext)` — the timeline (with its existing `timelineExcludedMatchId`
    exclusion, unchanged) now renders whenever there is a decision OR a same-day Matchday object,
    never a new ranking of which match matters. Regression-tested in the same file.
-3. **P1-03 — squad readiness and carry-forward could render twice (real defect, fixed).** The
-   context rail (`TodayContextRail`) always received the raw `squadStatus`/`carryForwardItems`
-   props regardless of whether the main composition (quiet-day hero/readiness, or Matchday's own
-   card) already showed the same fact — a real duplicate on desktop (two columns) and on mobile
-   (the same stacked reading order). The first candidate pass's own `INFORMATION_OWNERSHIP_MATRIX.md`
-   called this "intentional," which the independent review correctly disputed as insufficient
-   justification. **Fix:** `today-surface.tsx` now computes `squadStatusShownElsewhere =
-   Boolean(matchdayContext) || compositionState === "QUIET"` and `carryForwardShownElsewhere =
-   compositionState === "QUIET"`, and passes `null`/`[]` to the context rail accordingly — one
-   owner per fact, derived from composition/Matchday state already resolved, never a second
-   ranking. Regression-tested in the same file (4 new cases covering all four
-   quiet/decision × with/without-Matchday combinations).
+3. **P1-03 — squad readiness and carry-forward could render twice (real defect, fixed, then
+   over-corrected — see P1-04/P1-05).** The context rail (`TodayContextRail`) always received
+   the raw `squadStatus`/`carryForwardItems` props regardless of whether the main composition
+   already showed the same fact — a real duplicate on desktop and on mobile. The first candidate
+   pass's own `INFORMATION_OWNERSHIP_MATRIX.md` called this "intentional," which the first
+   independent review correctly disputed as insufficient justification.
+4. **P1-04 — organisation-wide squad availability disappeared whenever a Matchday anchor existed
+   (a defect introduced by the P1-03 fix itself, now corrected).** The P1-03 fix's condition —
+   `Boolean(matchdayContext) || compositionState === "QUIET"` — wrongly treated "a Matchday
+   anchor exists" as proof the org-wide fact (`TodaySquadStatus`, from
+   `getOrgActivePlayerAvailability()`) was shown elsewhere. It never was: Matchday's own card only
+   ever shows match-specific selected-squad readiness (`TodayMatchdayContext.readiness`), a
+   different scope. The org-wide fact simply vanished from the page whenever Matchday existed.
+   **Fix:** the rail now omits it only when the quiet-day hero is *actually* showing the
+   identical org-wide fact inline (`compositionState === "QUIET" && !matchdayContext`); whenever
+   a Matchday anchor exists, the rail keeps showing it, now with a scope label ("All active
+   players", `TodayContextRail`'s existing `SquadReadinessWidget`'s own `title` override — no new
+   widget) since Matchday's own card is also on the page.
+5. **P1-05 — carry-forward items beyond the first were silently discarded on quiet days (a
+   defect introduced by the P1-03 fix itself, now corrected).** The P1-03 fix's condition —
+   `compositionState === "QUIET"` suppressing the rail's entire `carryForwardItems` array — only
+   accounted for the ONE item the quiet-day hero features inline (`.slice(0, 1)`, unchanged); the
+   2nd and 3rd items (the adapter returns up to three) had nowhere left to render at all. **Fix:**
+   the rail now receives `carryForwardItems.slice(1)` whenever the day is quiet (the complement
+   of what the hero already features), rather than an empty array — the adapter's own maximum of
+   three and its own priority order are both unchanged.
+
+All five findings (P1-01 through P1-05) are regression-tested in
+`today-surface.matchday-quiet-composition.test.tsx` — 19 tests total, covering every
+quiet/decision × with/without-Matchday combination for both squad availability and carry-forward,
+using deliberately different organisation-wide and match-specific numbers (identical counts
+could otherwise mask an ownership error) and distinct carry-forward item identities (a count-only
+assertion could otherwise mask a dropped or duplicated item).
 
 ## Classification table (revised)
 
 | File / behavior | Classification | Justification |
 |---|---|---|
 | `today/page.tsx` | CONFIRMS_SHIPPED_BASELINE | Parallel loaders, deterministic providers only. |
-| `today-surface.tsx` | PROPOSED_REFINEMENT (implemented) | Composition-selection logic (QUIET vs DECISION) unchanged; P1-01/P1-02/P1-03 fixes above are narrow, additive, regression-tested corrections to what renders around that switch. |
+| `today-surface.tsx` | PROPOSED_REFINEMENT (implemented) | Composition-selection logic (QUIET vs DECISION) unchanged; P1-01/P1-02/P1-04/P1-05 fixes above are narrow, additive, regression-tested corrections to what renders around that switch. |
 | `today-quiet-state.tsx` | PROPOSED_REFINEMENT (implemented) | New `showHero` prop (P1-01); everything else unchanged. |
-| `today-context-rail.tsx` | CONFIRMS_SHIPPED_BASELINE | Component itself unchanged — the fix is entirely in what `today-surface.tsx` now passes it (P1-03). |
+| `today-context-rail.tsx` | PROPOSED_REFINEMENT (implemented) | New optional `squadStatusTitle` prop, forwarded to the existing `SquadReadinessWidget`'s own `title` override (P1-04) — no new widget, no behavior change when the prop is omitted. |
 | `today-next-action.tsx` | CONFIRMS_SHIPPED_BASELINE | Renders every `TodayPrimaryAction` kind; no invented fallback. |
 | `today-decision-why.tsx` | CONFIRMS_SHIPPED_BASELINE | Problem/why/consequence/caveats order, deterministic reason codes only. |
 | `today-selection-decisions.tsx` | CONFIRMS_SHIPPED_BASELINE | 3-zone row; `directlyActionable`/`dependsOnPrior` come straight from the planner, never guessed. |
@@ -88,10 +110,13 @@ consistent owner.
 - **League/Event parity?** Yes, structurally unified; now genuinely exercised by a real,
   multi-candidate same-day fixture (P1-02) rather than a single hand-picked featured match.
 - **Live Now/Matchday exclusivity?** Yes, unchanged, still regression-tested.
-- **Context rail information ownership?** No, until this remediation — see P1-03 above.
+- **Context rail information ownership?** Now yes — see P1-03/P1-04/P1-05 above. The first
+  attempt (P1-03) was itself wrong in two ways (P1-04, P1-05); the corrected version distinguishes
+  "same fact" (suppress) from "related, different-scope fact" (keep showing, both).
 
 ## No further production defect found
 
-Beyond P1-01/P1-02/P1-03 (fixed, narrowly scoped, regression-tested), the audit found nothing
-else requiring a production change. No ARR is warranted — these are ordinary defects in Today's
-own composition logic, not competing implementations or architectural residue.
+Beyond P1-01/P1-02/P1-03/P1-04/P1-05 (fixed, narrowly scoped, regression-tested), the audit
+found nothing else requiring a production change. No ARR is warranted — these are ordinary
+defects (and a defect introduced by a prior fix for one of them) in Today's own composition
+logic, not competing implementations or architectural residue.
