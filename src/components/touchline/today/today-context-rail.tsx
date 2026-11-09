@@ -16,12 +16,17 @@ export function TodayContextRail({
   sinceLastVisitScope,
   sinceLastVisitFacts,
   squadStatus,
+  squadStatusTitle,
   carryForwardItems,
   recentMatches,
 }: {
   sinceLastVisitScope?: string;
   sinceLastVisitFacts?: TodayVisitCurrentFacts;
   squadStatus?: TodaySquadStatus | null;
+  /** P1-04: an optional scope label (the widget's own existing `title` override, not a new
+   * widget) — the caller sets this when a same-day Matchday card already shows match-specific
+   * readiness above, so this organisation-wide count isn't misread as the same fact restated. */
+  squadStatusTitle?: string;
   carryForwardItems: TodayCarryForwardItem[];
   recentMatches?: MatchPresentation[];
 }) {
@@ -32,6 +37,7 @@ export function TodayContextRail({
       )}
       {squadStatus && (
         <SquadReadinessWidget
+          title={squadStatusTitle}
           available={squadStatus.available}
           doubtful={squadStatus.doubtful}
           unavailable={squadStatus.unavailable}
