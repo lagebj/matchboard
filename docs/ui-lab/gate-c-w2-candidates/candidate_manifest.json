@@ -6,7 +6,7 @@
   "candidates": [
     {
       "scenarioId": "GATE-C-W2-C04",
-      "sourcePr": 0,
+      "sourcePr": 829,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w2-c04-planning-open",
       "fixtureVersion": 1,
@@ -32,7 +32,7 @@
     },
     {
       "scenarioId": "GATE-C-W2-C05",
-      "sourcePr": 0,
+      "sourcePr": 829,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w2-c05-planning-closed",
       "fixtureVersion": 1,
@@ -56,7 +56,7 @@
     },
     {
       "scenarioId": "GATE-C-W2-C06",
-      "sourcePr": 0,
+      "sourcePr": 829,
       "status": "CANDIDATE",
       "fixtureId": "gate-c-w2-c06-dense-allocation",
       "fixtureVersion": 1,
