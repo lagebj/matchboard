@@ -11,19 +11,39 @@
  * `selectTodayComposition()` from the already-resolved primary action (never a second relevance
  * score):
  *
- * - **Quiet** (`TodayQuietState`): calm hero -> compact squad readiness (only when no same-day
- *   Matchday object already shows its own) -> bounded "This week" chronology -> at most one
- *   carry-forward item. No empty Next Action / Selection decisions / Planning attention / Other
- *   attention sections.
+ * - **Quiet** (`TodayQuietState`): calm hero (only when no same-day Matchday object already shows
+ *   a genuine operational action above it — P1-01 remediation: an unconditional "Nothing needs
+ *   your attention" message directly contradicts a real Matchday action on the same screen) ->
+ *   compact squad readiness (only when no same-day Matchday object already shows its own) ->
+ *   bounded "This week" chronology -> at most one carry-forward item. No empty Next Action /
+ *   Selection decisions / Planning attention / Other attention sections.
  * - **Decision**: Next Action -> inline Why? disclosure -> Selection decisions / Planning
  *   attention / Other attention, capped to at most 2 items combined across those three sources
- *   -> Today in order -> due peer/development reviews -> the embedded peer-review list.
+ *   -> due peer/development reviews -> the embedded peer-review list.
+ *
+ * "Today in order" (`TodayOperationalTimeline`) is orthogonal to the quiet/decision switch
+ * itself (P1-02 remediation): it renders whenever there is a decision OR a same-day Matchday
+ * object to show other same-day football alongside — never only on decision days, and never a
+ * second ranking of which match matters (the already-excluded `timelineExcludedMatchId` is
+ * unchanged either way).
  *
  * Live Now / Matchday render above this switch either way — they are their own "is a match live
  * or imminent right now" state, not part of the quiet/decision choice. `InstallPwaCard` no
  * longer renders here at all (ADR-0157 §6): it remains reachable via `/more` unchanged.
  * Context rail order (desktop-only extra column; same content stacks in-flow on mobile): Since
- * your last visit -> Squad today -> Carry forward -> Recent football.
+ * your last visit -> Squad today -> Carry forward -> Recent football. P1-03/P1-04/P1-05
+ * remediation: each fact is shown in exactly one place, never twice, and never silently dropped
+ * — deduplication must preserve meaning, not merely reduce how many widgets render.
+ * - **Squad today** (organisation-wide active-player availability, `getOrgActivePlayerAvailability()`)
+ *   is a different scope from Matchday's own match-specific readiness (who's selected for THIS
+ *   match) — both can be true and useful at once. The rail omits it only when the quiet-day
+ *   hero is already showing the identical org-wide fact inline (no Matchday anchor); whenever a
+ *   Matchday anchor exists, the rail keeps showing it (with a scope label, since Matchday's own
+ *   card is also on the page) rather than disappearing.
+ * - **Carry forward**: the quiet-day composition features at most one item inline (unchanged);
+ *   the rail owns the *rest* of the collection (2nd, 3rd item) whenever the day is quiet, rather
+ *   than discarding them — a prior pass suppressed the rail's whole collection instead of just
+ *   its first item, which silently dropped real information.
  *
  * No generic count-only round/decision summary renders here — `blocked_round`/`decision_required`
  * work-item categories are never rendered as their own card; their raw signals are shown via
@@ -117,6 +137,7 @@ export function TodaySurface({
   matchdayContext,
   upcomingMatches,
   children,
+  nowIso: nowIsoProp,
 }: {
   commandCentre: AssistantCommandCentre;
   projection?: CoachSituationProjection;
@@ -139,11 +160,17 @@ export function TodaySurface({
   /** Server-rendered trailing sections — the embedded peer-review list (ADR-0157 C8). Null-safe:
    * Today never renders empty sections. */
   children?: React.ReactNode;
+  /** P2-01 remediation: an explicit clock injection point so a caller that has already resolved
+   * "now" once (deterministic UI Lab fixtures; eventually the situational projection's own
+   * `nowIso`) can make this component's rendering reproducible, instead of this component
+   * independently calling `new Date()` a second time. Omitted in production today — preserves
+   * exact existing behavior. */
+  nowIso?: string;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
   const actionable = items.filter(isActionable);
-  const nowIso = new Date().toISOString();
+  const nowIso = nowIsoProp ?? new Date().toISOString();
 
   const matchdayPhase = matchdayContext
     ? resolveTodayMatchdayPhase({
@@ -215,14 +242,43 @@ export function TodaySurface({
     liveNow?.primary?.matchId ??
     (matchdayContext?.featured.source === "LEAGUE" ? matchdayContext.featured.id : null);
 
+  const compositionState = selectTodayComposition(primaryAction, commandCentre.dueDecisionReviews.length > 0);
+
+  // P1-03 remediation (narrowed by P1-04/P1-05 — a prior pass over-suppressed the context rail
+  // and lost real information; this is the corrected version):
+  //
+  // Squad readiness: `squadStatus` (`TodaySquadStatus`, from `getOrgActivePlayerAvailability()`)
+  // is an ORGANISATION-WIDE active-player snapshot — a different scope from
+  // `matchdayContext.readiness`'s own SELECTED-for-this-match readiness
+  // (`formatSquadPlannedLine()`/`formatSelectedAvailabilityLine()`, rendered inside
+  // `TodayMatchday`'s own card). The two are both true at once, not duplicates — "31 available
+  // org-wide" and "10 selected players available" answer different questions. The quiet-day
+  // composition's own inline `SquadReadinessWidget` (`showSquadReadiness` below) is the only
+  // place that genuinely repeats this exact org-wide fact, so the context rail suppresses only
+  // that one case, never whenever a Matchday anchor exists.
+  //
+  // Carry-forward: the quiet-day composition features at most one item inline
+  // (`TodayQuietState`'s own `.slice(0, 1)`, unchanged) — it does not own the rest of the
+  // collection. The context rail is the one place any further items (2nd, 3rd) are still
+  // reachable; suppressing the whole collection there (a prior pass's mistake) silently dropped
+  // them from the page instead of deduplicating anything.
+  const showSquadReadiness = !matchdayContext;
+  const squadStatusShownInline = compositionState === "QUIET" && showSquadReadiness;
+  const contextRailSquadStatus = squadStatusShownInline ? null : squadStatus ?? null;
+  const contextRailCarryForwardItems = compositionState === "QUIET" ? carryForwardItems.slice(1) : carryForwardItems;
+
   const hasContextRailContent = Boolean(
     (sinceLastVisitScope && sinceLastVisitFacts) ||
-      squadStatus ||
-      carryForwardItems.length > 0 ||
+      contextRailSquadStatus ||
+      contextRailCarryForwardItems.length > 0 ||
       (recentMatches && recentMatches.length > 0),
   );
-
-  const compositionState = selectTodayComposition(primaryAction, commandCentre.dueDecisionReviews.length > 0);
+  // P1-01/P1-02 remediation: Matchday owning the primary anchor is an orthogonal fact to the
+  // quiet/decision switch above (that switch is about situational decisions only, never
+  // re-derived here) — so "today's other football" stays visible whenever Matchday has a
+  // genuine same-day match to show, not only on decision days. Never a second ranking: the same
+  // already-excluded `timelineExcludedMatchId` applies either way.
+  const showOperationalTimeline = compositionState === "DECISION" || Boolean(matchdayContext);
   const cappedSecondary = capSecondaryItems(remainingSelectionDecisions, planningAttentionSignals, otherAttentionItems);
   const weekChronologyItems = selectTodayWeekChronologyItems({
     upcomingMatches: upcomingMatches ?? [],
@@ -276,7 +332,8 @@ export function TodaySurface({
               <TodayQuietState
                 heroTitle={quietHero.title}
                 heroDescription={quietHero.description}
-                showSquadReadiness={!matchdayContext}
+                showHero={!matchdayContext}
+                showSquadReadiness={showSquadReadiness}
                 squadStatus={squadStatus}
                 weekChronologyItems={weekChronologyItems}
                 carryForwardItems={carryForwardItems}
@@ -307,13 +364,19 @@ export function TodaySurface({
                 <TodayPlanningAttention signals={cappedSecondary.planning} orgUrl={orgUrl} />
 
                 <TodayOtherAttention items={cappedSecondary.other} />
+              </>
+            )}
 
-                <TodayOperationalTimeline
-                  matches={commandCentre.todayMatches}
-                  orgUrl={orgUrl}
-                  excludedMatchId={timelineExcludedMatchId}
-                />
+            {showOperationalTimeline && (
+              <TodayOperationalTimeline
+                matches={commandCentre.todayMatches}
+                orgUrl={orgUrl}
+                excludedMatchId={timelineExcludedMatchId}
+              />
+            )}
 
+            {compositionState === "DECISION" && (
+              <>
                 <DueDecisionReviewSection reviews={commandCentre.dueDecisionReviews} />
 
                 {/* ADR-0157 slice C8: the retired `/reviews` hub's job lives here now — the
@@ -330,8 +393,14 @@ export function TodaySurface({
               <TodayContextRail
                 sinceLastVisitScope={sinceLastVisitScope}
                 sinceLastVisitFacts={sinceLastVisitFacts}
-                squadStatus={squadStatus}
-                carryForwardItems={carryForwardItems}
+                squadStatus={contextRailSquadStatus}
+                // P1-04: when Matchday's own card already shows match-specific readiness above,
+                // an unlabelled "X available" here could read as the same fact restated — a
+                // concise scope label (the existing widget's own `title` override, no new
+                // widget) makes clear this is the organisation-wide count, not the featured
+                // match's selected squad.
+                squadStatusTitle={matchdayContext ? "All active players" : undefined}
+                carryForwardItems={contextRailCarryForwardItems}
                 recentMatches={recentMatches}
               />
             </div>

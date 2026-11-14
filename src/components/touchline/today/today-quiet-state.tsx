@@ -1,10 +1,13 @@
 /**
  * Today quiet-day composition (ADR-0157 §6, `04_TODAY_SURFACE.md` composition state A). Renders
- * only when `selectTodayComposition()` resolves `"QUIET"` — the calm hero, compact readiness
- * facts (only when no same-day Matchday object already shows its own), the bounded "This week"
- * chronology, and at most one carry-forward item. No empty Next Action / Selection decisions /
- * Planning attention / Other attention / review sections — those stay out of this composition
- * entirely rather than rendering and then happening to be empty.
+ * only when `selectTodayComposition()` resolves `"QUIET"` — the calm hero (only when no same-day
+ * Matchday object already shows a genuine operational action above it — P1-01 remediation: an
+ * unconditional "Nothing needs your attention" message directly contradicts a real Matchday
+ * action on the same screen), compact readiness facts (only when no same-day Matchday object
+ * already shows its own), the bounded "This week" chronology, and at most one carry-forward
+ * item. No empty Next Action / Selection decisions / Planning attention / Other attention /
+ * review sections — those stay out of this composition entirely rather than rendering and then
+ * happening to be empty.
  */
 
 import Link from "next/link";
@@ -37,6 +40,7 @@ function TodayWeekChronology({ items }: { items: TodayWeekChronologyItem[] }) {
 export function TodayQuietState({
   heroTitle,
   heroDescription,
+  showHero,
   showSquadReadiness,
   squadStatus,
   weekChronologyItems,
@@ -44,6 +48,11 @@ export function TodayQuietState({
 }: {
   heroTitle: string;
   heroDescription: string;
+  /** False when a same-day Matchday object already shows a genuine operational action above
+   * this composition (P1-01 remediation) — an unconditional "Nothing needs your attention"
+   * hero directly contradicts a real Matchday action on the same screen. The supporting
+   * chronology and context below remain shown either way. */
+  showHero: boolean;
   /** False when a same-day Matchday object already renders its own readiness above this
    * composition — avoids a duplicate readiness block for the same match. */
   showSquadReadiness: boolean;
@@ -53,10 +62,12 @@ export function TodayQuietState({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1 rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-strong)] p-4">
-        <h2 className="text-[20px] font-[620] leading-snug text-[var(--foreground)]">{heroTitle}</h2>
-        <p className="text-[13px] leading-snug text-[var(--text-soft)]">{heroDescription}</p>
-      </div>
+      {showHero && (
+        <div className="flex flex-col gap-1 rounded-[var(--tl-c-radius-feature)] border border-[var(--border-soft)] bg-[var(--tl-c-surface-strong)] p-4">
+          <h2 className="text-[20px] font-[620] leading-snug text-[var(--foreground)]">{heroTitle}</h2>
+          <p className="text-[13px] leading-snug text-[var(--text-soft)]">{heroDescription}</p>
+        </div>
+      )}
 
       {showSquadReadiness && squadStatus && (
         <SquadReadinessWidget available={squadStatus.available} doubtful={squadStatus.doubtful} unavailable={squadStatus.unavailable} exceptions={[]} />

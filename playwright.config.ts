@@ -79,6 +79,19 @@ export default defineConfig({
       },
       testMatch: /ui-lab-b08\.spec\.ts/,
     },
+    // Gate C W1 (C01-C03 Today) — same no-auth/no-org-context/no-database rationale and same
+    // local dev-server target as `ui-lab-b08` above; its own project (rather than widening
+    // `ui-lab-b08`'s own `testMatch`) so each wave's Playwright project stays named after and
+    // scoped to its own spec file, the same "no hidden coupling between waves" convention
+    // `scripts/ui-lab-visual-review.mjs` already uses for its own capture smoke-viewport sets.
+    {
+      name: "ui-lab-gate-c",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: process.env.UI_LAB_BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333",
+      },
+      testMatch: /ui-lab-gate-c\.spec\.ts/,
+    },
     {
       name: "chromium",
       use: {
@@ -90,7 +103,7 @@ export default defineConfig({
       // it under the full-access coach persona would make its "denied" assertions false. It runs
       // only under the "chromium-viewer" project below (ADR-0078). mobile-critical.spec.ts is a
       // compact-viewport-only contract — it runs under the two mobile-critical-* projects below.
-      testIgnore: [/authz-failure\.spec\.ts/, /mobile-critical\.spec\.ts/, /ui-lab-b08\.spec\.ts/],
+      testIgnore: [/authz-failure\.spec\.ts/, /mobile-critical\.spec\.ts/, /ui-lab-b08\.spec\.ts/, /ui-lab-gate-c\.spec\.ts/],
     },
     {
       name: "chromium-viewer",

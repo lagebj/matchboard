@@ -1,0 +1,75 @@
+import type { TodayCarryForwardItem } from "@/lib/touchline/presentation/today-carry-forward";
+import type { MatchPresentation } from "@/lib/matches/match-presentation";
+import type { TodaySquadStatus } from "@/lib/touchline/presentation/today-view-model";
+import { gateCBaseCommandCentre, gateCNoLiveMatch, gateCOrgUrl, GATE_C_NOW_ISO } from "../shared/fixtures";
+
+/**
+ * C01 — Quiet day (register: "One relevant football object", XR-T01/XR-S02/XR-V01). Empty
+ * projection decisions, no same-day Matchday, no due reviews -> `selectTodayComposition()`
+ * resolves `"QUIET"` for real, not by a hand-set flag. See
+ * `docs/ui-lab/gate-c-w1-candidates/CURRENT_STATE_AUDIT.md` for why this confirms the shipped
+ * baseline rather than proposing a change.
+ *
+ * P2-01 remediation: kickoff dates are relative to the shared fixed `GATE_C_NOW_ISO` (2026-11-10)
+ * rather than hardcoded absolute dates — the earlier hardcoded 2026-11-21 date silently fell
+ * outside production's real 7-day upcoming window once evaluated after 2026-11-14. +2/+5 days
+ * stays comfortably inside that window regardless of when this fixture is viewed.
+ */
+export const nowIso = GATE_C_NOW_ISO;
+export const commandCentre = gateCBaseCommandCentre();
+export const liveNow = gateCNoLiveMatch();
+
+export const squadStatus: TodaySquadStatus = {
+  available: 9,
+  doubtful: 1,
+  unavailable: 0,
+  notAvailable: [],
+};
+
+export const upcomingMatches: MatchPresentation[] = [
+  {
+    id: "match-c01-upcoming-1",
+    href: gateCOrgUrl("/matches/match-c01-upcoming-1"),
+    homeTeam: "Blå",
+    awayTeam: "Nordby IL",
+    ownTeamSide: "home",
+    kickoffDate: "2026-11-12",
+    kickoffTime: "17:00",
+    lifecycle: "planning_open",
+    score: null,
+    clockLabel: null,
+    resultOutcomeForOwnTeam: "unknown",
+    outcomeLabel: null,
+    planningAttention: null,
+    reportAttention: null,
+    cancelledReason: null,
+  },
+  {
+    id: "match-c01-upcoming-2",
+    href: gateCOrgUrl("/matches/match-c01-upcoming-2"),
+    homeTeam: "Vollen",
+    awayTeam: "Blå",
+    ownTeamSide: "away",
+    kickoffDate: "2026-11-15",
+    kickoffTime: "11:00",
+    lifecycle: "planning_open",
+    score: null,
+    clockLabel: null,
+    resultOutcomeForOwnTeam: "unknown",
+    outcomeLabel: null,
+    planningAttention: null,
+    reportAttention: null,
+    cancelledReason: null,
+  },
+];
+
+/**
+ * P1-05 remediation: three items, not one — proves the quiet-day hero features only the first
+ * inline while the remaining two stay reachable via the context rail, rather than being
+ * silently dropped from the page.
+ */
+export const carryForwardItems: TodayCarryForwardItem[] = [
+  { id: "carry-c01-1", label: "Report still open — Blå 3-1 Åsgård", href: gateCOrgUrl("/matches/match-c01-past-1") },
+  { id: "carry-c01-2", label: "Noah's development review is ready to revisit", href: gateCOrgUrl("/players/player-noah") },
+  { id: "carry-c01-3", label: "Team focus review is ready to revisit", href: gateCOrgUrl("/team-focus") },
+];
