@@ -13,9 +13,13 @@ export type PlayerAssignmentSheetProps = {
   context: RoundBoardPlayerAssignmentContext | null;
   onAssign: (suggestion: RoundBoardAssignmentSuggestion) => void;
   onClose: () => void;
+  /** See `PlayerAssignmentInspector`'s `closedNotice` — passed through unchanged. */
+  closedNotice?: string | null;
+  /** See `PlayerAssignmentInspector`'s `lineupHref` — passed through unchanged. */
+  lineupHref?: string | null;
 };
 
-export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose }: PlayerAssignmentSheetProps) {
+export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose, closedNotice, lineupHref }: PlayerAssignmentSheetProps) {
   const recommended = context?.suggestions.find((s) => s.isRecommended) ?? null;
 
   return (
@@ -37,7 +41,7 @@ export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose }: Pl
         ) : undefined
       }
     >
-      <PlayerAssignmentInspector context={context} onAssign={onAssign} />
+      <PlayerAssignmentInspector context={context} onAssign={onAssign} closedNotice={closedNotice} lineupHref={lineupHref} />
     </TouchlineBottomSheet>
   );
 }

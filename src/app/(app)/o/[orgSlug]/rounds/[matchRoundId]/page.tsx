@@ -593,6 +593,7 @@ export default async function RoundBoardPage({
           drops: totalDrops,
         }}
         fairnessMetrics={fairnessMetrics}
+        coverage={integrity.coverage}
         assistantCoach={roundBoardAdvisorViewModel}
         effectivePositionsByPlayerId={effectivePositionsByPlayerId}
         activeFocusByPlayerId={activeFocusByPlayerId}

@@ -122,6 +122,20 @@ type SignalSummary = {
   planningNote: number;
 };
 
+/**
+ * Narrow presentation/command boundary (Gate C W2) so UI Lab fixtures can inject safe,
+ * deterministic responses instead of this component's real server actions, without changing
+ * production behavior: every entry defaults to the real action below when omitted, so a
+ * production render (which never passes `commands`) is byte-for-byte unchanged.
+ */
+export type RoundBoardCommands = {
+  addPlayerToMatch?: typeof addPlayerToMatchAction;
+  removePlayerFromMatch?: typeof removePlayerFromMatchAction;
+  generateEmergencyRepairOptions?: typeof generateEmergencyRepairOptionsAction;
+  clearRoundDraft?: typeof clearRoundDraftAction;
+  regenerateRound?: typeof regenerateRoundAction;
+};
+
 type RoundBoardProps = {
   roundLabel: string;
   /** Live-derived (isMatchRoundPlanningEditable()), not the persisted MatchRound.status — a
@@ -157,6 +171,15 @@ type RoundBoardProps = {
    * never fetched per-player here. */
   effectivePositionsByPlayerId?: Record<string, RoundBoardEffectivePosition[]>;
   activeFocusByPlayerId?: Record<string, string[]>;
+  /** From `computeRoundPlanIntegrity()` — the canonical eligible-opportunity coverage (rule 3:
+   * never re-derived in the UI). `null`/absent renders the strip's coverage tile as 0/0. */
+  coverage?: {
+    eligibleAvailablePlayerCount: number;
+    assignedEligibleAvailablePlayerCount: number;
+    unassignedEligibleAvailablePlayerIds: string[];
+  } | null;
+  /** Gate C W2 command boundary — see `RoundBoardCommands`. Omitted in production. */
+  commands?: RoundBoardCommands;
 };
 
 const DISPLAY_ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
@@ -521,10 +544,21 @@ export function RoundBoard({
   assistantCoach = null,
   effectivePositionsByPlayerId = {},
   activeFocusByPlayerId = {},
+  coverage = null,
+  commands,
 }: RoundBoardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+
+  // Resolve once per render: a production caller never passes `commands`, so these are the same
+  // direct action references as before this boundary existed — zero production behavior change.
+  const addPlayerToMatch = commands?.addPlayerToMatch ?? addPlayerToMatchAction;
+  const removePlayerFromMatch = commands?.removePlayerFromMatch ?? removePlayerFromMatchAction;
+  const generateEmergencyRepairOptions =
+    commands?.generateEmergencyRepairOptions ?? generateEmergencyRepairOptionsAction;
+  const clearRoundDraft = commands?.clearRoundDraft ?? clearRoundDraftAction;
+  const regenerateRound = commands?.regenerateRound ?? regenerateRoundAction;
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
   const [overrideReason] = useState("");
 
@@ -582,14 +616,14 @@ export function RoundBoard({
     setRepairOptions(null);
     setRepairError(null);
     startTransition(async () => {
-      const result = await generateEmergencyRepairOptionsAction(matchId, playerId);
+      const result = await generateEmergencyRepairOptions(matchId, playerId);
       if (result.success) {
         setRepairOptions(result.options);
       } else {
         setRepairError(result.error);
       }
     });
-  }, [startTransition]);
+  }, [startTransition, generateEmergencyRepairOptions]);
 
   const handleApplyRepairOption = useCallback(
     (option: EmergencyRepairOption) => {
@@ -600,7 +634,7 @@ export function RoundBoard({
         rmFd.set("matchId", matchId);
         rmFd.set("playerId", playerId);
         rmFd.set("matchRoundId", matchRoundId);
-        await removePlayerFromMatchAction(rmFd);
+        await removePlayerFromMatch(rmFd);
 
         const addFd = new FormData();
         addFd.set("matchId", matchId);
@@ -609,14 +643,14 @@ export function RoundBoard({
         addFd.set("matchRoundId", matchRoundId);
         addFd.set("overrideReasonCategory", "availability_changed");
         addFd.set("overrideReasonDetail", `Emergency repair: replacing ${playerName} (generated option)`);
-        await addPlayerToMatchAction(addFd);
+        await addPlayerToMatch(addFd);
 
         setRepairTarget(null);
         setRepairOptions(null);
         router.refresh();
       });
     },
-    [repairTarget, matchRoundId, startTransition, router],
+    [repairTarget, matchRoundId, startTransition, router, removePlayerFromMatch, addPlayerToMatch],
   );
 
   const touchDragRef = useRef<{
@@ -693,17 +727,17 @@ export function RoundBoard({
             : `Manual placement on non-core team`);
       if (reason) addFd.set("overrideReason", reason);
 
-      const addResult = await addPlayerToMatchAction(addFd);
+      const addResult = await addPlayerToMatch(addFd);
 
       if (addResult?.success !== false && fromMatchId) {
         const rmFd = new FormData();
         rmFd.set("matchId", fromMatchId);
         rmFd.set("playerId", playerId);
         rmFd.set("matchRoundId", matchRoundId);
-        await removePlayerFromMatchAction(rmFd);
+        await removePlayerFromMatch(rmFd);
       }
     },
-    [matchRoundId, overrideReason, determineRole, initialAvailable, matches],
+    [matchRoundId, overrideReason, determineRole, initialAvailable, matches, addPlayerToMatch, removePlayerFromMatch],
   );
 
   const handleDropOnMatch = useCallback(
@@ -738,12 +772,12 @@ export function RoundBoard({
           fd.set("matchId", fromMatchId);
           fd.set("playerId", playerId);
           fd.set("matchRoundId", matchRoundId);
-          await removePlayerFromMatchAction(fd);
+          await removePlayerFromMatch(fd);
           router.refresh();
         });
       } catch {}
     },
-    [matchRoundId, startTransition, router],
+    [matchRoundId, startTransition, router, removePlayerFromMatch],
   );
 
   const handleRemovePlayer = useCallback(
@@ -753,11 +787,11 @@ export function RoundBoard({
         fd.set("matchId", matchId);
         fd.set("playerId", playerId);
         fd.set("matchRoundId", matchRoundId);
-        await removePlayerFromMatchAction(fd);
+        await removePlayerFromMatch(fd);
         router.refresh();
       });
     },
-    [matchRoundId, startTransition, router],
+    [matchRoundId, startTransition, router, removePlayerFromMatch],
   );
 
   const handleConfirmMove = useCallback(
@@ -774,10 +808,15 @@ export function RoundBoard({
   );
 
   // Primary interaction commit (contract §3/§5): a suggestion card's single explicit assignment
-  // action — the exact same movePlayerToMatch command drag/drop uses.
+  // action — the exact same movePlayerToMatch command drag/drop uses. Guards against a closed
+  // destination the same way `handleMatrixToggle` already does — `buildAssignmentContext`'s
+  // callers below already exclude finalized matches from `suggestions`, so this is defense in
+  // depth against a stale suggestion object, not the primary gate.
   const handleAssignSuggestion = useCallback(
     (suggestion: RoundBoardAssignmentSuggestion) => {
       if (!selectedPlayerId) return;
+      const target = matches.find((m) => m.matchId === suggestion.matchId);
+      if (!target || target.isFinalized) return;
       const fromMatchId =
         matches.find((m) => m.players.some((p) => p.id === selectedPlayerId))?.matchId ?? null;
       startTransition(async () => {
@@ -838,7 +877,7 @@ export function RoundBoard({
           fd.set("matchId", fromId);
           fd.set("playerId", dragData.playerId);
           fd.set("matchRoundId", matchRoundId);
-          await removePlayerFromMatchAction(fd);
+          await removePlayerFromMatch(fd);
           router.refresh();
         });
       }
@@ -846,7 +885,7 @@ export function RoundBoard({
       setTouchDragPlayerId(null);
       setTouchDropTarget(null);
     },
-    [matchRoundId, startTransition, movePlayerToMatch, router],
+    [matchRoundId, startTransition, movePlayerToMatch, router, removePlayerFromMatch],
   );
 
   const planningNotes = warnings.filter((w) => w.severity === "WARNING");
@@ -899,7 +938,10 @@ export function RoundBoard({
       severity: a.severity,
       playerId: a.playerId,
     })),
-    availablePlayerCount: unassignedPlayers.length,
+    eligibleCoverage: {
+      eligiblePlayerCount: coverage?.eligibleAvailablePlayerCount ?? 0,
+      assignedEligiblePlayerCount: coverage?.assignedEligibleAvailablePlayerCount ?? 0,
+    },
   });
 
   // --- Selected-player assignment context (the contract's separate contextual view model).
@@ -914,6 +956,14 @@ export function RoundBoard({
     ? (matches.find((m) => m.players.some((p) => p.id === selectedPlayerId))?.matchId ?? null)
     : null;
 
+  // Destinations with a closed planning boundary are never valid assignment targets (C05: the
+  // matrix's handleMatrixToggle already enforced this; the suggestion-card path did not, which
+  // let a closed match render as an assignable suggestion). Filtering here — not just guarding
+  // the commit in handleAssignSuggestion — means a closed destination never even appears as an
+  // option, rather than appearing and failing/being blocked after the tap.
+  const otherMatches = matches.filter((m) => m.matchId !== selectedPlayerMatchId);
+  const openDestinationMatches = otherMatches.filter((m) => !m.isFinalized);
+
   const assignmentContext = selectedPlayer
     ? buildAssignmentContext(
         {
@@ -927,27 +977,39 @@ export function RoundBoard({
               ? "This player is affected by unresolved plan signals."
               : null,
         },
-        matches
-          .filter((m) => m.matchId !== selectedPlayerMatchId)
-          .map((m) => {
-            const selectedCount = m.players.filter((p) =>
-              DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
-            ).length;
-            const paths = rotationPathMap[`${selectedPlayer.coreTeamId ?? ""}:${m.teamId}`] ?? [];
-            return {
-              matchId: m.matchId,
-              teamName: `${m.teamName} vs ${m.opponent}`,
-              teamKitColor: m.teamKitColor,
-              targetTeamId: m.teamId,
-              currentSquadCount: selectedCount,
-              targetCount: m.targetSquadSize,
-              derivedRole: determineAutomaticRoleFromPaths(selectedPlayer.coreTeamId, m.teamId, paths),
-              isCoreTeam: selectedPlayer.coreTeamId === m.teamId,
-              hasRotationPath: paths.length > 0,
-            };
-          }),
+        openDestinationMatches.map((m) => {
+          const selectedCount = m.players.filter((p) =>
+            DISPLAY_ROLE_ORDER.includes((p.role ?? "CORE") as SelectionRole),
+          ).length;
+          const paths = rotationPathMap[`${selectedPlayer.coreTeamId ?? ""}:${m.teamId}`] ?? [];
+          return {
+            matchId: m.matchId,
+            teamName: `${m.teamName} vs ${m.opponent}`,
+            teamKitColor: m.teamKitColor,
+            targetTeamId: m.teamId,
+            currentSquadCount: selectedCount,
+            targetCount: m.targetSquadSize,
+            derivedRole: determineAutomaticRoleFromPaths(selectedPlayer.coreTeamId, m.teamId, paths),
+            isCoreTeam: selectedPlayer.coreTeamId === m.teamId,
+            hasRotationPath: paths.length > 0,
+          };
+        }),
       )
     : null;
+
+  // A deterministic explanation for why nothing is assignable (C05), distinct from "this player
+  // has no other match to go to" (no notice — a different, unrelated reason): only shown when at
+  // least one other match exists in the round and every one of them has closed.
+  const assignmentClosedNotice =
+    selectedPlayer && otherMatches.length > 0 && openDestinationMatches.length === 0
+      ? "Planning is closed for every other match in this round. This is historical information only — no destination is available to assign this player."
+      : null;
+
+  // C06: Round Board's own assignment is player×match only — it has no exact tactical-position
+  // field (ADR-0154's 24-code vocabulary belongs to the separate Lineup/Formation editor, not
+  // this surface). Rather than fabricate a position here, link to the player's current match's
+  // real Lineup editor, the correct canonical context — only once a match assignment exists.
+  const selectedPlayerLineupHref = selectedPlayerMatchId ? `/matches/${selectedPlayerMatchId}` : null;
 
   // Rail "Insights" mode ordering (contract: "When a player is selected, prioritize insight rows
   // that involve that player...") and "Development" mode context — both derived here since
@@ -1000,7 +1062,7 @@ export function RoundBoard({
           fd.set("matchId", matchId);
           fd.set("playerId", playerId);
           fd.set("matchRoundId", matchRoundId);
-          await removePlayerFromMatchAction(fd);
+          await removePlayerFromMatch(fd);
           router.refresh();
         });
         return;
@@ -1011,7 +1073,7 @@ export function RoundBoard({
         router.refresh();
       });
     },
-    [matches, matchRoundId, movePlayerToMatch, startTransition, router],
+    [matches, matchRoundId, movePlayerToMatch, startTransition, router, removePlayerFromMatch],
   );
 
   const mobileMatch = mobileMatchId ? matches.find((m) => m.matchId === mobileMatchId) : null;
@@ -1058,7 +1120,7 @@ export function RoundBoard({
                 startTransition(async () => {
                   const fd = new FormData();
                   fd.set("matchRoundId", matchRoundId);
-                  await regenerateRoundAction({ error: "" }, fd);
+                  await regenerateRound({ error: "" }, fd);
                   router.refresh();
                 });
               }}
@@ -1280,6 +1342,8 @@ export function RoundBoard({
               context={assignmentContext}
               onAssign={handleAssignSuggestion}
               onClose={() => setSelectedPlayerId(null)}
+              closedNotice={assignmentClosedNotice}
+              lineupHref={selectedPlayerLineupHref}
             />
           </div>
         </div>
@@ -1471,6 +1535,8 @@ export function RoundBoard({
         context={assignmentContext}
         onAssign={handleAssignSuggestion}
         onClose={() => setSheetOpen(false)}
+        closedNotice={assignmentClosedNotice}
+        lineupHref={selectedPlayerLineupHref}
       />
 
       <Dialog
@@ -1493,7 +1559,7 @@ export function RoundBoard({
                 startTransition(async () => {
                   const formData = new FormData();
                   formData.set("matchRoundId", matchRoundId);
-                  await clearRoundDraftAction(formData);
+                  await clearRoundDraft(formData);
                   setShowClearRoundDialog(false);
                   router.refresh();
                 });

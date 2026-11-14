@@ -353,6 +353,114 @@ describe("RoundBoard — desktop multi-match workbench vs. compact match-first c
 // board no longer receives the persisted MatchRound.status at all -- only the live-derived
 // `planningBoundaryOpen` prop -- so this class of staleness can no longer leak into the editing
 // gate, whatever the persisted status says.
+// Gate C W2 (C04): `computeRoundPlanIntegrity()`'s `coverage` is the canonical eligible-opportunity
+// denominator (rule 3) — the board must surface it as given, not re-derive a second definition.
+describe("RoundBoard — eligible-player coverage (Gate C W2 / C04)", () => {
+  it("shows the coverage prop's distinct-player denominator, labeled separately from squad placements", () => {
+    const props = {
+      ...baseProps(),
+      coverage: {
+        eligibleAvailablePlayerCount: 5,
+        assignedEligibleAvailablePlayerCount: 3,
+        unassignedEligibleAvailablePlayerIds: ["p-x", "p-y"],
+      },
+    };
+    render(<RoundBoard {...props} />);
+    expect(screen.getByText("3 / 5")).toBeTruthy();
+    expect(screen.getByText(/eligible players with an opportunity/i)).toBeTruthy();
+  });
+
+  it("renders 0 / 0 without throwing when no coverage prop is supplied", () => {
+    render(<RoundBoard {...baseProps()} />);
+    expect(screen.getByText("0 / 0")).toBeTruthy();
+  });
+});
+
+// Gate C W2 (C05): a closed match must never appear as an assignable suggestion. Before this fix,
+// `buildAssignmentContext`'s caller offered every other match regardless of `isFinalized`, and
+// `handleAssignSuggestion` had no guard (unlike `handleMatrixToggle`, which already checked
+// `target.isFinalized`) — so a closed match could still accept an assignment from the
+// inspector/sheet suggestion-card path.
+describe("RoundBoard — closed destinations are never offered as assignable (Gate C W2 / C05 fix)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+  });
+
+  it("excludes a finalized match from the selected player's suggestions and explains why", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches[1]!.isFinalized = true; // White is Alice's only other match.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    expect(screen.queryByRole("button", { name: /assign player/i })).toBeNull();
+    expect(screen.queryByText(/suggested assignments/i)).toBeNull();
+    expect(screen.getByText(/planning is closed for every other match in this round/i)).toBeTruthy();
+  });
+
+  it("still offers a destination that remains open, with no closed notice, when only one of several is closed", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches.push({
+      matchId: "m-green",
+      teamId: "team-green",
+      teamName: "Green",
+      teamKitColor: "#00aa44",
+      opponent: "Hawks",
+      matchDate: new Date("2026-01-01"),
+      targetSquadSize: 11,
+      minSquadSize: 7,
+      isFinalized: false,
+      players: [],
+    });
+    props.matches[1]!.isFinalized = true; // White closed, Green stays open.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    // Exactly one destination (Green) survives the filter, so it is the suggestion rendered —
+    // proven below by the committed assignment's matchId, not by a fragile team-name text query
+    // (the closed match's own name, "White", is also the match lane's column header elsewhere
+    // on the page).
+    expect(screen.getByText(/suggested assignments/i)).toBeTruthy();
+    expect(screen.queryByText(/planning is closed for every other match in this round/i)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+    await waitFor(() => expect(addPlayerToMatchAction).toHaveBeenCalledOnce());
+    expect((addPlayerToMatchAction.mock.calls[0][0] as FormData).get("matchId")).toBe("m-green");
+  });
+});
+
+// Gate C W2: narrow command boundary so UI Lab fixtures can inject deterministic responses
+// without touching real server actions, while production (which never passes `commands`) is
+// unaffected — see `RoundBoardCommands`.
+describe("RoundBoard — command boundary (Gate C W2)", () => {
+  beforeEach(() => {
+    removePlayerFromMatchAction.mockClear();
+  });
+
+  it("calls an injected command instead of the real action when `commands` is supplied", async () => {
+    const user = userEvent.setup();
+    const fixtureRemove = vi.fn(async () => ({ success: true, errors: [], warnings: [] }));
+    render(<RoundBoard {...baseProps()} commands={{ removePlayerFromMatch: fixtureRemove }} />);
+
+    await user.click(screen.getByRole("button", { name: /remove alice/i }));
+
+    await waitFor(() => expect(fixtureRemove).toHaveBeenCalledOnce());
+    expect(removePlayerFromMatchAction).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the real action when `commands` is omitted (zero production behavior change)", async () => {
+    const user = userEvent.setup();
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /remove alice/i }));
+
+    await waitFor(() => expect(removePlayerFromMatchAction).toHaveBeenCalledOnce());
+  });
+});
+
 describe("RoundBoard — editing is gated by the live planning boundary, not a persisted status (production bug)", () => {
   it("does not show the 'Planning closed' banner when the boundary is still open", () => {
     const props = { ...baseProps(), planningBoundaryOpen: true };

@@ -110,6 +110,17 @@ export type RoundBoardSummary = {
   plannedOpportunities: number;
   targetOpportunities: number;
   coverageIssues: number;
+  /**
+   * Distinct-player eligible-opportunity coverage, sourced from
+   * `RoundPlanIntegrity.coverage` (`compute-plan-integrity.ts`) — the canonical owner of this
+   * measure. Never re-derive this in the UI layer (rule 3): `plannedOpportunities`/
+   * `targetOpportunities` above count squad *placements*, not distinct eligible players, and the
+   * two must never be shown as one ambiguous percentage.
+   */
+  eligibleCoverage: {
+    eligiblePlayerCount: number;
+    assignedEligiblePlayerCount: number;
+  };
 };
 
 export type RoundBoardViewModel = {

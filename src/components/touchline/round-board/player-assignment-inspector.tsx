@@ -14,6 +14,21 @@ export type PlayerAssignmentInspectorProps = {
   onAssign: (suggestion: RoundBoardAssignmentSuggestion) => void;
   onClose?: () => void;
   className?: string;
+  /**
+   * A deterministic explanation shown in place of the (empty) suggestions list when no
+   * destination is currently valid for this player — e.g. every other match in the round has
+   * closed (C05). `context.suggestions` already excludes closed destinations; this is purely
+   * the honest "why nothing is here" message, never a disabled-but-clickable action.
+   */
+  closedNotice?: string | null;
+  /**
+   * Link to the player's current match, where the real Lineup/Formation editor lives (Gate C W2
+   * / C06). Round Board's own assignment is player×match only — it has no tactical-position
+   * field (ADR-0154's 24-code vocabulary is owned by the Lineup editor, not this surface) — so
+   * this is navigation to the correct canonical context, never a fabricated position value here.
+   * `null`/absent when the player has no current match to link to.
+   */
+  lineupHref?: string | null;
 };
 
 function SuggestionCard({
@@ -71,7 +86,7 @@ function SuggestionCard({
   );
 }
 
-export function PlayerAssignmentInspector({ context, onAssign, onClose, className }: PlayerAssignmentInspectorProps) {
+export function PlayerAssignmentInspector({ context, onAssign, onClose, className, closedNotice, lineupHref }: PlayerAssignmentInspectorProps) {
   if (!context) {
     return (
       <TouchlineWidget className={className}>
@@ -89,6 +104,14 @@ export function PlayerAssignmentInspector({ context, onAssign, onClose, classNam
             <div>
               <p className="text-[14px] font-[700] text-[var(--foreground)]">{context.displayName}</p>
               <p className="text-[11px] text-[var(--text-muted)]">{context.positions.join(" · ") || "No position"}</p>
+              {lineupHref ? (
+                <a
+                  href={lineupHref}
+                  className="mt-0.5 inline-block text-[11px] font-medium text-[var(--accent-strong)] hover:underline"
+                >
+                  View exact position in Lineup →
+                </a>
+              ) : null}
             </div>
           </div>
           {onClose ? (
@@ -109,6 +132,10 @@ export function PlayerAssignmentInspector({ context, onAssign, onClose, classNam
             <SuggestionCard key={s.matchId} suggestion={s} onAssign={onAssign} />
           ))}
         </div>
+      ) : closedNotice ? (
+        <p className="rounded-lg border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-2 text-[12px] text-[var(--text-muted)]">
+          {closedNotice}
+        </p>
       ) : null}
     </div>
   );

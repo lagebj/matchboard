@@ -19,7 +19,14 @@ export const roundBoardViewModel: RoundBoardViewModel = {
   status: "NEEDS_DECISIONS",
   roundLabel: "Week 42",
   dateRangeLabel: "Mon 13 Oct – Sun 19 Oct",
-  summary: { decisions: 2, matches: 3, plannedOpportunities: 33, targetOpportunities: 36, coverageIssues: 0 },
+  summary: {
+    decisions: 2,
+    matches: 3,
+    plannedOpportunities: 33,
+    targetOpportunities: 36,
+    coverageIssues: 0,
+    eligibleCoverage: { eligiblePlayerCount: 34, assignedEligiblePlayerCount: 33 },
+  },
   matches: [
     {
       matchId: "rod", teamName: "Rød", teamKitColor: RED, opponent: "Asker SK", kickoffLabel: "Sat, 14 Oct · 13:00",

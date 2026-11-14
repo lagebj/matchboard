@@ -50,8 +50,16 @@ export type RoundBoardAdapterInput = {
   matches: BoardMatchInput[];
   /** From `computeRoundPlanIntegrity()` — Blocked and Decision required only, never planning notes. */
   attentionSignals: { id: string; summary: string; detail: string; severity: "BLOCKED" | "DECISION_REQUIRED"; playerId?: string | null; matchId?: string | null }[];
-  /** The count of available, currently-unassigned players (the Available column's population). */
-  availablePlayerCount: number;
+  /**
+   * From `computeRoundPlanIntegrity()`'s `coverage` — the canonical eligible-opportunity
+   * denominator (distinct players whose core team has a playable fixture this round), never
+   * re-derived here. Distinct from `plannedOpportunities`/`targetOpportunities` below, which
+   * count squad placements, not distinct players.
+   */
+  eligibleCoverage: {
+    eligiblePlayerCount: number;
+    assignedEligiblePlayerCount: number;
+  };
 };
 
 /** A player row within a lane — squad-repair (BACKFILL) and confidence-rebuild rows render as Support-group. */
@@ -108,6 +116,7 @@ export function buildRoundBoardViewModel(input: RoundBoardAdapterInput): RoundBo
     plannedOpportunities,
     targetOpportunities,
     coverageIssues: belowMinimum,
+    eligibleCoverage: input.eligibleCoverage,
   };
 
   return {
