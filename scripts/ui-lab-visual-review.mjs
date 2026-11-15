@@ -982,8 +982,20 @@ const scenarios = [
       // Remediation finding: the desktop Move picker offered every other match regardless of
       // its planning boundary. Markus is assigned to Hvit (open); Rød, the round's only other
       // match, is closed — the picker must show neither it nor a selectable option at all,
-      // only the accurate "closed" explanation.
-      { id: "move-picker-excludes-closed", perform: clickByName("Move Markus to...") },
+      // only the accurate "closed" explanation. The chip's own "Move to..." button only exists
+      // in the desktop workbench grid (`hidden medium:grid`, round-board.tsx) — below `medium`
+      // it's genuinely absent from the accessibility tree (not merely CSS-hidden-but-present, the
+      // jsdom-vs-real-browser distinction that bit this exact file before), so this is a
+      // deliberate no-op on mobile/narrow/gc captures, same precedent as the Allocation-toggle
+      // interaction above. A real CI run surfaced this (30s timeout on mobile), not just local
+      // reasoning — checked here rather than letting a doomed `.click()` abort the whole capture.
+      {
+        id: "move-picker-excludes-closed",
+        perform: async (page) => {
+          const moveButton = page.getByRole("button", { name: "Move Markus to...", exact: true });
+          if (await moveButton.isVisible().catch(() => false)) await moveButton.click();
+        },
+      },
     ],
   },
   // Remediation finding: match-specific Resolve had no effective desktop behavior (it only
