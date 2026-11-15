@@ -305,7 +305,8 @@ test.describe("Gate C W2 — C05: historical warning semantics, no false Resolve
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${BASE}/c05-planning-closed/open-match-warning`);
 
-    await expect(page.getByText("Squad (5)")).toBeVisible();
+    const desktopBoard = page.locator("[data-desktop-board]");
+    await expect(desktopBoard.getByText("Squad (5)")).toBeVisible();
 
     await page.getByRole("button", { name: "Resolve", exact: true }).click();
     await page.getByRole("button", { name: "Select Isak", exact: true }).click();
@@ -323,7 +324,11 @@ test.describe("Gate C W2 — C05: historical warning semantics, no false Resolve
     // integrity — see DATA_TRUTH_AND_FIXTURES.md) may still be present; this intentionally does
     // NOT assert that it has disappeared, since this UI Lab fixture harness does not — and must
     // not — implement a second plan-integrity engine to recompute it.
-    await expect(page.getByText("Squad (6)")).toBeVisible();
+    // Resolving also mounts a second, CSS-hidden-at-this-width copy of the same match lane in
+    // the compact composition (handleResolveMatch keeps its URL-backed mobile state in sync
+    // unconditionally) — getByText does not filter by visibility the way getByRole does, so
+    // this is scoped to the desktop board, same precedent as the focus-target assertions above.
+    await expect(desktopBoard.getByText("Squad (6)")).toBeVisible();
     await expect(page.getByRole("button", { name: "Remove Isak", exact: true })).toBeVisible();
     // Isak moved OUT of the Available column specifically (every assigned player's own lane chip
     // also carries a "Select" affordance for inspection, so the name doesn't vanish altogether).
@@ -343,7 +348,8 @@ test.describe("Gate C W2 — C05: historical warning semantics, no false Resolve
     // success, and the coach can still see which match this is about.
     await expect(page.getByText(/resolving:.*below minimum squad size/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /assign player/i })).toBeVisible();
-    await expect(page.getByText("Squad (5)")).toBeVisible(); // unchanged.
+    // Scoped to the desktop board — see the sibling "committing..." test's comment for why.
+    await expect(page.locator("[data-desktop-board]").getByText("Squad (5)")).toBeVisible(); // unchanged.
   });
 
   test("desktop: the Move picker excludes the closed match and explains why, for a player whose own match stays open", async ({ page }) => {
