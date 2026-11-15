@@ -38,9 +38,14 @@ vi.mock("@/app/(app)/matches/emergency-repair-actions", () => ({
  * suite only proves this scenario's own closed-state content and interaction rules.
  */
 describe("C05 — Round Board planning closed, mixed boundary", () => {
-  it("shows the closed banner and retains the historical BLOCKED warning, a signal the real plan-integrity engine can actually produce for a finalized match", () => {
+  it("shows the accurate mixed-boundary banner (never claims every match is closed) and retains the historical BLOCKED warning, a signal the real plan-integrity engine can actually produce for a finalized match", () => {
     render(<RoundBoardFixtureHarness initial={buildC05PlanningClosedFixture()} />);
-    expect(screen.getByText(/planning closed/i)).toBeTruthy();
+    // Rød is closed, Hvit is open — the banner must say so accurately, not "every match has
+    // closed" (Gate C W2 remediation: this fixture's own shape is exactly what the previous,
+    // factually wrong copy misdescribed).
+    expect(screen.getByText(/round-wide planning locked/i)).toBeTruthy();
+    expect(screen.getByText(/some matches have closed/i)).toBeTruthy();
+    expect(screen.queryByText(/every match's planning boundary has closed/i)).toBeNull();
     expect(screen.getByText(/rød is below minimum squad size/i)).toBeTruthy();
   });
 

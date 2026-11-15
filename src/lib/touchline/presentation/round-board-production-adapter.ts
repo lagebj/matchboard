@@ -108,9 +108,17 @@ export function buildRoundBoardViewModel(input: RoundBoardAdapterInput): RoundBo
     for (const p of m.players) matchIdByPlayerId.set(p.playerId, m.matchId);
   }
   const isMatchOpen = (matchId: string) => input.matches.find((m) => m.matchId === matchId)?.isFinalized === false;
+  // Re-opened finding (second remediation pass): the first fix only checked whether an open
+  // DESTINATION existed — it never checked whether the player's own SOURCE match had closed.
+  // The central `movePlayerToMatch` command rejects moving a player out of a closed match
+  // regardless of how open the destination is, so a player on a closed match was being offered
+  // a Resolve action that could never succeed. Round Board currently has exactly one action for
+  // a selected player — assign them into a destination — so once their own match is closed,
+  // nothing is resolvable for them, full stop, regardless of which rule produced the signal.
   function isResolvable(signal: RoundBoardAdapterInput["attentionSignals"][number]): boolean {
     if (signal.playerId) {
       const currentMatchId = matchIdByPlayerId.get(signal.playerId) ?? null;
+      if (currentMatchId && !isMatchOpen(currentMatchId)) return false;
       return input.matches.some((m) => m.matchId !== currentMatchId && !m.isFinalized);
     }
     if (signal.matchId) {

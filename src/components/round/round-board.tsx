@@ -107,7 +107,7 @@ type MatchColumn = {
   coachingIntentId?: string;
 };
 
-type SignalEntry = {
+export type SignalEntry = {
   code: string;
   message: string;
   severity?: WarningSeverity;
@@ -717,6 +717,16 @@ export function RoundBoard({
   const blockedCount = signalSummary?.blocked ?? 0;
   const decisionRequiredCount = signalSummary?.decisionRequired ?? 0;
 
+  // Gate C W2 remediation (mixed-boundary banner was factually wrong): `planningBoundaryOpen`
+  // false means round-wide operations (Regenerate/Clear) are unavailable — ADR-0109 requires
+  // EVERY match to still be open for that — but it does not mean every match has actually
+  // closed. The previous copy ("Every match's planning boundary has closed") was simply untrue
+  // for a mixed round (some closed, some still open), which is exactly C05's own fixture shape.
+  // Never assume an empty round is fully closed either — there is nothing to have closed yet.
+  const closedMatchCount = matches.filter((m) => m.isFinalized).length;
+  const allMatchesClosed = matches.length > 0 && closedMatchCount === matches.length;
+  const mixedPlanningBoundary = !planningBoundaryOpen && closedMatchCount > 0 && closedMatchCount < matches.length;
+
   const assignedPlayerIds = new Set<string>();
   for (const match of matches) {
     for (const p of match.players) assignedPlayerIds.add(p.id);
@@ -947,6 +957,35 @@ export function RoundBoard({
     if (isCompactViewport) setSheetOpen(true);
   }, [isCompactViewport]);
 
+  // Gate C W2 remediation (desktop match-specific Resolve had no effective behavior — clicking
+  // it only updated mobile-only state, which the desktop workbench never reads at all, so the
+  // control appeared actionable while doing nothing visible). Resolves a match-specific
+  // attention item (no single player to select) on BOTH compositions: mobile keeps its existing
+  // match-first drill-in; desktop scrolls the real match lane into view and moves keyboard focus
+  // to a genuinely useful control inside it (that match's first "Select {player}" button when
+  // one exists, else the lane itself) — the existing lane and assignment workflow, not a second
+  // match-selection engine or a new route.
+  const handleResolveMatch = useCallback((matchId: string) => {
+    setMobileMatchId(matchId);
+    setMobileMode("match");
+    setMobileMatchUrl(matchId);
+
+    requestAnimationFrame(() => {
+      const lane = Array.from(document.querySelectorAll<HTMLElement>("[data-drop-match]")).find(
+        (el) => el.dataset.dropMatch === matchId,
+      );
+      if (!lane) return;
+      lane.scrollIntoView({ behavior: "smooth", block: "center" });
+      const firstSelectButton = lane.querySelector<HTMLElement>('button[aria-label^="Select "]');
+      if (firstSelectButton) {
+        firstSelectButton.focus();
+        return;
+      }
+      if (!lane.hasAttribute("tabindex")) lane.setAttribute("tabindex", "-1");
+      lane.focus();
+    });
+  }, [setMobileMatchUrl]);
+
   // Touch drag helpers — preserved verbatim from previous implementation.
   const findDropTargetAt = (
     x: number,
@@ -1021,9 +1060,15 @@ export function RoundBoard({
 
   const [availableDragOver, setAvailableDragOver] = useState(false);
 
-  const moveDestinations = movePicker
+  // Gate C W2 remediation (P2 — desktop Move picker offered closed destinations): the picker
+  // must only ever offer the same destinations the central movePlayerToMatch command would
+  // actually accept — never a match whose planning boundary has closed. `otherMatchesForPicker`
+  // is kept separately so the empty state can distinguish "no other match exists at all" from
+  // "other matches exist, but their planning is closed" (never conflate the two messages).
+  const otherMatchesForPicker = movePicker
     ? matches.filter((m) => m.matchId !== movePicker.fromMatchId)
     : [];
+  const moveDestinations = otherMatchesForPicker.filter((m) => !m.isFinalized);
 
   // --- Gate D view model (Phase F9): the page's canonical data → the approved composition.
 
@@ -1328,7 +1373,19 @@ export function RoundBoard({
         </div>
       )}
 
-      {!planningBoundaryOpen && (
+      {!planningBoundaryOpen && mixedPlanningBoundary && (
+        <DecisionBanner
+          variant="finalized"
+          title={
+            <>
+              Round-wide planning locked · <span className="font-normal">{roundLabel}</span>
+            </>
+          }
+          description="Some matches have closed (kickoff passed or live reporting started), which locks round-wide actions like Regenerate and Clear. You can still edit the matches whose planning boundary remains open."
+        />
+      )}
+
+      {!planningBoundaryOpen && !mixedPlanningBoundary && (
         <DecisionBanner
           variant="finalized"
           title={
@@ -1336,7 +1393,11 @@ export function RoundBoard({
               Planning closed · <span className="font-normal">{roundLabel}</span>
             </>
           }
-          description="Every match's planning boundary has closed (kickoff passed or live reporting started). Reschedule a specific match to reopen its plan if it hasn't actually started."
+          description={
+            allMatchesClosed
+              ? "All matches have passed their planning boundary (kickoff passed or live reporting started). Assignments are now read-only. Reschedule a specific match to reopen its plan if it hasn't actually started."
+              : "This round's planning boundary is closed. Reschedule a specific match to reopen its plan if it hasn't actually started."
+          }
         />
       )}
 
@@ -1351,12 +1412,7 @@ export function RoundBoard({
           if (item.playerId) {
             handleSelectPlayer(item.playerId);
           } else if (item.matchId) {
-            // Match-specific, no single player to select: route into that match's own context
-            // (the compact match-first drill-in; a no-op on desktop, where every match's lane
-            // is already simultaneously visible).
-            setMobileMatchId(item.matchId);
-            setMobileMode("match");
-            setMobileMatchUrl(item.matchId);
+            handleResolveMatch(item.matchId);
           }
         }}
         assistantCoach={assistantCoach}
@@ -1879,6 +1935,7 @@ export function RoundBoard({
         >
           <MoveDestinationList
             destinations={moveDestinations}
+            otherMatchesExistButClosed={otherMatchesForPicker.length > 0 && moveDestinations.length === 0}
             isPending={isPending}
             onSelect={handleConfirmMove}
           />
@@ -1890,17 +1947,23 @@ export function RoundBoard({
 
 function MoveDestinationList({
   destinations,
+  otherMatchesExistButClosed,
   isPending,
   onSelect,
 }: {
   destinations: MatchColumn[];
+  /** Distinguishes "no other match exists at all" from "other matches exist, but their
+   * planning is closed" (Gate C W2 remediation, P2) — never the same message for both. */
+  otherMatchesExistButClosed: boolean;
   isPending: boolean;
   onSelect: (matchId: string) => void;
 }) {
   if (destinations.length === 0) {
     return (
       <p className="text-xs text-[var(--text-muted)]">
-        No other match in this round to move this player to.
+        {otherMatchesExistButClosed
+          ? "Other matches exist, but their planning is closed."
+          : "No other matches exist."}
       </p>
     );
   }

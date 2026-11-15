@@ -235,7 +235,11 @@ test.describe("Gate C W2 — C05: historical warning semantics, no false Resolve
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${BASE}/c05-planning-closed`);
 
-    await expect(page.getByText(/every match's planning boundary has closed/i)).toBeVisible();
+    // Mixed boundary (Rød closed, Hvit open): the banner must say so accurately, never claim
+    // every match has closed (Gate C W2 remediation — the previous copy was factually wrong
+    // for exactly this fixture shape).
+    await expect(page.getByText(/round-wide planning locked/i)).toBeVisible();
+    await expect(page.getByText(/some matches have closed/i)).toBeVisible();
     const closedWarningRow = page.getByText(/rød is below minimum squad size/i).locator("xpath=ancestor::li[1]");
     await expect(closedWarningRow.getByRole("button", { name: /resolve/i })).toHaveCount(0);
 
@@ -259,6 +263,28 @@ test.describe("Gate C W2 — C05: historical warning semantics, no false Resolve
     await page.getByRole("button", { name: /rød/i }).first().click();
     await expect(page.getByRole("button", { name: "Remove Oskar", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /move oskar to/i })).toHaveCount(0);
+  });
+
+  test("desktop: a match-specific Resolve on an OPEN match scrolls that lane into view and moves focus to a real control inside it", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed/open-match-warning`);
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+
+    // The match has real assigned players (below minimum, which is the warning) — focus lands
+    // on the first one's "Select" control, a genuinely useful destination, not a silent no-op.
+    await expect(page.getByRole("button", { name: "Select William", exact: true })).toBeFocused();
+  });
+
+  test("desktop: the Move picker excludes the closed match and explains why, for a player whose own match stays open", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed`);
+
+    // Markus is assigned to Hvit (open); the round's only other match, Rød, is closed.
+    await page.getByRole("button", { name: "Move Markus to...", exact: true }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("button", { name: /rød/i })).toHaveCount(0);
+    await expect(page.getByText(/other matches exist, but their planning is closed/i)).toBeVisible();
   });
 });
 
@@ -322,7 +348,7 @@ test.describe("Gate C W2 — C06: dense allocation matrix, mobile sheet, and tru
 });
 
 test.describe("Gate C W2 — responsive layout: no horizontal page overflow at any required width", () => {
-  const SCENARIOS = ["c04-planning-open", "c05-planning-closed", "c06-dense-allocation", "c06-dense-allocation/denied-assignment"];
+  const SCENARIOS = ["c04-planning-open", "c05-planning-closed", "c05-planning-closed/open-match-warning", "c06-dense-allocation", "c06-dense-allocation/denied-assignment"];
   // Neither 768px nor 900px is included: Round Board's desktop workbench grid needs ~1150-1200px
   // of minimum column width (three match lanes at minmax(220px,...) plus the available/inspector
   // columns, more again for the allocation matrix's own per-match-column width) once the
@@ -330,8 +356,9 @@ test.describe("Gate C W2 — responsive layout: no horizontal page overflow at a
   // wave by reproducing the identical overflow on the untouched, already-merged
   // `atlas-followup/round-board` prototype at 768px. There is consequently no safe width between
   // the compact breakpoint (839px) and ~1200px for Round Board's current desktop grid — a real,
-  // pre-existing gap recorded in `docs/ui-lab/gate-c-w2-candidates/BLOCKERS_AND_KNOWN_LIMITATIONS.md`,
-  // not introduced by and out of scope for this wave's bounded remediation.
+  // pre-existing gap tracked as https://github.com/lagebj/matchboard/issues/830 and recorded in
+  // `docs/ui-lab/gate-c-w2-candidates/BLOCKERS_AND_KNOWN_LIMITATIONS.md`, not introduced by and
+  // out of scope for this wave's bounded remediation.
   const WIDTHS = [320, 360, 390, 430, 1440];
 
   for (const scenario of SCENARIOS) {

@@ -52,8 +52,36 @@ function match(overrides: Partial<Parameters<typeof buildRoundBoardViewModel>[0]
 
 // Gate C W2 remediation (P1-01): `resolvable` must come from the canonical per-match boundary
 // (never the round-level boundary alone — a mixed round has both open and closed matches).
+// Re-opened in a second remediation pass: the first fix checked only the DESTINATION side —
+// a player assigned to a CLOSED match was still marked resolvable whenever any OTHER match
+// happened to be open, even though the central movePlayerToMatch command rejects moving them
+// out of that closed match regardless. The decision matrix below is the review's own required
+// table (player state x warning-owner match x other-match state -> resolvable).
 describe("round-board-production-adapter — buildRoundBoardViewModel attention resolvability (Gate C W2 / P1-01)", () => {
-  it("player-specific item: resolvable when an open destination other than their current match exists", () => {
+  it("unassigned player, open or unspecified warning owner, an open match exists: resolvable", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "open", isFinalized: false })],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p-unassigned" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 0 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(true);
+  });
+
+  it("player assigned to an OPEN match, another open match exists: resolvable", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [
+        match({ matchId: "open1", isFinalized: false, players: [{ playerId: "p1", displayName: "A", shirtNumber: null, kitColor: null, position: null, role: "CORE", attention: false }] }),
+        match({ matchId: "open2", isFinalized: false }),
+      ],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p1" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 1 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(true);
+  });
+
+  it("player assigned to a CLOSED match, another match is open: NOT resolvable (the source itself is closed)", () => {
     const vm = buildRoundBoardViewModel({
       roundLabel: "R", dateRangeLabel: "",
       matches: [
@@ -63,10 +91,10 @@ describe("round-board-production-adapter — buildRoundBoardViewModel attention 
       attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p1" }],
       eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 1 },
     });
-    expect(vm.attention[0]!.resolvable).toBe(true);
+    expect(vm.attention[0]!.resolvable).toBe(false);
   });
 
-  it("player-specific item: not resolvable when every other match is closed", () => {
+  it("player assigned to a CLOSED match, every other match is also closed: not resolvable", () => {
     const vm = buildRoundBoardViewModel({
       roundLabel: "R", dateRangeLabel: "",
       matches: [
@@ -75,6 +103,16 @@ describe("round-board-production-adapter — buildRoundBoardViewModel attention 
       ],
       attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p1" }],
       eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 1 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(false);
+  });
+
+  it("unassigned player, every match is closed: not resolvable", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "closed", isFinalized: true })],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p-unassigned" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 0 },
     });
     expect(vm.attention[0]!.resolvable).toBe(false);
   });

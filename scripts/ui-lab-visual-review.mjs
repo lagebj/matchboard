@@ -979,7 +979,22 @@ const scenarios = [
     interactions: [
       { id: "open-match-player-selected", perform: selectPlayerGateCW2("Erik", "Hvit") },
       { id: "closed-match-player-selected", perform: selectPlayerGateCW2("Oskar", "Rød") },
+      // Remediation finding: the desktop Move picker offered every other match regardless of
+      // its planning boundary. Markus is assigned to Hvit (open); Rød, the round's only other
+      // match, is closed — the picker must show neither it nor a selectable option at all,
+      // only the accurate "closed" explanation.
+      { id: "move-picker-excludes-closed", perform: clickByName("Move Markus to...") },
     ],
+  },
+  // Remediation finding: match-specific Resolve had no effective desktop behavior (it only
+  // updated mobile-only state). This sub-route's warning has no single player — it's the real,
+  // reachable case for proving the fix (scroll + focus on desktop, the existing match-first
+  // drill-in on mobile) in CI capture evidence, not only in component/Playwright tests.
+  {
+    slug: "gate-c-w2-c05-open-match-warning",
+    route: "gate-c/c05-planning-closed/open-match-warning",
+    extraViewports: gcW2ExtraSmokeViewports,
+    interactions: [{ id: "match-resolved", perform: clickByName("Resolve") }],
   },
   {
     slug: "gate-c-w2-c06-dense-allocation",

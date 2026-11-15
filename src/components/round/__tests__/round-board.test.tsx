@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { RoundBoard } from "../round-board";
+import { RoundBoard, type SignalEntry } from "../round-board";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
@@ -86,7 +86,7 @@ function baseProps() {
       },
     ],
     rotationPathMap: {},
-    warnings: [],
+    warnings: [] as SignalEntry[],
     movementSummary: {
       supportSent: 0,
       supportReceived: 0,
@@ -486,6 +486,124 @@ describe("RoundBoard — editing is gated by the live planning boundary, not a p
     render(<RoundBoard {...props} />);
     expect(screen.queryByRole("button", { name: /regenerate/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /clear/i })).toBeNull();
+  });
+});
+
+// Gate C W2 remediation (second pass, P2): the round-level `planningBoundaryOpen` banner
+// previously claimed "Every match's planning boundary has closed" unconditionally whenever it
+// was false — but that flag requires only that round-wide operations (Regenerate/Clear) are
+// unavailable, per ADR-0109's "every match must be open" rule. A single closed match in an
+// otherwise-open round made this literally untrue.
+describe("RoundBoard — the closed-boundary banner distinguishes mixed from fully-closed rounds (Gate C W2 remediation)", () => {
+  it("shows the mixed-boundary banner, never claiming every match is closed, when only one match has closed", () => {
+    const props = baseProps();
+    props.planningBoundaryOpen = false;
+    props.matches[0]!.isFinalized = true; // Blue closed, White stays open.
+    render(<RoundBoard {...props} />);
+
+    expect(screen.getByText(/round-wide planning locked/i)).toBeTruthy();
+    expect(screen.getByText(/some matches have closed/i)).toBeTruthy();
+    expect(screen.queryByText(/every match's planning boundary has closed/i)).toBeNull();
+  });
+
+  it("shows the fully-closed banner when every match has actually closed", () => {
+    const props = baseProps();
+    props.planningBoundaryOpen = false;
+    props.matches[0]!.isFinalized = true;
+    props.matches[1]!.isFinalized = true;
+    render(<RoundBoard {...props} />);
+
+    expect(screen.getByText(/^planning closed/i)).toBeTruthy();
+    expect(screen.getByText(/all matches have passed their planning boundary/i)).toBeTruthy();
+    expect(screen.queryByText(/round-wide planning locked/i)).toBeNull();
+  });
+
+  it("falls back to a neutral closed message without claiming every match closed when the round has no matches at all", () => {
+    const props = baseProps();
+    props.planningBoundaryOpen = false;
+    props.matches = [];
+    render(<RoundBoard {...props} />);
+
+    expect(screen.getByText(/^planning closed/i)).toBeTruthy();
+    expect(screen.queryByText(/all matches have passed their planning boundary/i)).toBeNull();
+    expect(screen.queryByText(/round-wide planning locked/i)).toBeNull();
+  });
+});
+
+// Gate C W2 remediation (second pass, P2): the desktop "Move to..." picker offered every other
+// match regardless of its planning boundary — the central movePlayerToMatch command already
+// rejects a closed destination, but the picker still invited the coach to pick one.
+describe("RoundBoard — the Move picker only offers genuinely open destinations (Gate C W2 remediation)", () => {
+  it("excludes a closed match from the Move picker's destination list", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches[1]!.isFinalized = true; // White is closed.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /move alice to/i }));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /white/i })).toBeNull();
+    expect(screen.getByText(/other matches exist, but their planning is closed/i)).toBeTruthy();
+  });
+
+  it("distinguishes 'no other matches exist' from 'other matches exist but are closed'", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches = [props.matches[0]!]; // Only Blue exists at all.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /move alice to/i }));
+    expect(await screen.findByText(/no other matches exist/i)).toBeTruthy();
+    expect(screen.queryByText(/their planning is closed/i)).toBeNull();
+  });
+
+  it("still offers a genuinely open destination", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /move alice to/i }));
+    expect(await screen.findByRole("button", { name: /white/i })).toBeTruthy();
+  });
+});
+
+// Gate C W2 remediation (second pass): a match-specific Resolve previously only updated
+// mobile-only state, which the desktop workbench never reads — clicking it did nothing visible
+// on desktop even though the control looked actionable.
+describe("RoundBoard — match-specific Resolve has a real effect on desktop (Gate C W2 remediation)", () => {
+  it("scrolls the real match lane into view and moves focus to a useful control inside it", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    const scrollSpy = vi.fn();
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+    const whiteLane = container.querySelector('[data-drop-match="m-white"]') as HTMLElement;
+    whiteLane.scrollIntoView = scrollSpy;
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+
+    await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+    // White's lane has no players, so there's no "Select {name}" button inside it — focus
+    // falls back to the lane itself, which is still a real, observable destination.
+    await waitFor(() => expect(document.activeElement).toBe(whiteLane));
+  });
+
+  it("focuses the first selectable player inside the resolved match when one exists", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "Blue is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-blue" }];
+    const { container } = render(<RoundBoard {...props} />);
+    const blueLane = container.querySelector('[data-drop-match="m-blue"]') as HTMLElement;
+    blueLane.scrollIntoView = vi.fn();
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+
+    // Resolving also sets the compact match-first state (for mobile), which mounts a SECOND
+    // "Select Alice" button in jsdom (CSS-hidden at this width in a real browser, but present
+    // regardless here) — scope to the one inside the desktop lane this test is actually about.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(within(blueLane).getByRole("button", { name: "Select Alice" }));
+    });
   });
 });
 

@@ -33,6 +33,15 @@ Independent review (P1-01, P1-03) found two things this pass missed:
 
 Selecting a player on a closed match still works exactly as before in one respect (opens the inspector, shows identity/position/attention summary) — the historical information is never hidden. What changed is that no action is ever offered when none could legitimately succeed, proactively rather than only after a rejected attempt.
 
+## What the first pass still got wrong, and a third pass's fix
+
+A second independent review found the Resolve control itself still had a gap the first pass's fix did not cover: `isResolvable` (the production adapter function backing `RoundBoardAttentionItem.resolvable`) checked only "does some other match remain open" — it never checked whether the *signal's own player* was currently assigned to a match that had itself closed. A player assigned to a CLOSED match was therefore marked `resolvable: true` purely because a different match happened to be open, even though attempting to move them anywhere would be rejected by the same source-boundary guard this file already documents. Fixed by having `isResolvable` resolve the player's current match first and return `false` immediately if that match is closed, before considering any other match at all. See `REVIEW_RECORD.md`'s "Second remediation pass findings" table for the full before/after and the decision-matrix test coverage.
+
+The same review also found two presentation-only gaps, fixed alongside the above:
+
+- **Match-specific Resolve had no effective desktop behavior.** The `onResolve` handler for a match-only (non-player) attention item only updated mobile-only state, so clicking it on desktop did nothing visible. A new `handleResolveMatch` callback now also scrolls the real match lane into view and focuses a real control inside it on desktop — exercised by the new `c05-planning-closed/open-match-warning` route, since the primary C05 fixture's own match-only warning sits on an already-closed match where no action should be offered at all.
+- **The mixed-boundary banner claimed every match was closed when only some were.** `isMatchRoundPlanningEditable()`'s all-or-nothing round-level gate (documented above) was being narrated with a single "Planning closed" message regardless of whether one match or every match had actually closed. The banner now distinguishes mixed (`"Round-wide planning locked"` / `"Some matches have closed..."`) from fully closed (`"Planning closed"` / `"All matches have passed..."`), with a safe fallback for the structurally-impossible-in-production empty-round case that avoids claiming anything closed. This is a wording/derived-state fix only — the underlying all-or-nothing round-level boundary semantics described above are unchanged.
+
 ## Verified test matrix (see each scenario's `page.test.tsx` for the assertions)
 
 1. Closed round, unresolved historical warning retained and explained — C05 primary fixture.
@@ -47,3 +56,7 @@ Every "forbidden action absent" assertion queries for the control and asserts it
 ## Historical warning provenance (P1-02)
 
 Item 1 above used a `SELECTED_PLAYER_UNAVAILABLE` warning in its first draft — a signal `compute-plan-integrity.ts` only ever generates for `DRAFT` selections, so it could never legitimately co-occur with a finalized/closed match in real production. Fixed by switching to `SQUAD_BELOW_MINIMUM`, which the engine evaluates for every non-cancelled match (draft or finalized selections alike) regardless of its planning boundary — a genuinely retainable historical fact. See `DATA_TRUTH_AND_FIXTURES.md` and `CURRENT_STATE_AUDIT.md` item 10.
+
+## Move picker closed-destination gap (second remediation pass)
+
+The desktop Move picker (`MoveDestinationList`, reached from the player-assignment inspector's "Move to..." control) had never had the suggestion-card path's `isFinalized` filter applied to its candidate list, so a closed match could still appear as a destination there even though the C05 fixture already correctly excluded it from the suggestion card itself. Fixed by filtering the picker's candidates to open matches only; a new `otherMatchesExistButClosed` flag distinguishes "no other matches exist" from "other matches exist, but their planning is closed" in the empty state. Covered by three new `round-board.test.tsx` tests and a real-Chromium `ui-lab-gate-c.spec.ts` test on C05 (Move Markus to..., asserting Rød is absent and the closed-explanation text renders).

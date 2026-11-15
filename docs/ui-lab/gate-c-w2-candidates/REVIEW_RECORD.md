@@ -4,7 +4,9 @@
 
 Three candidates (C04, C05, C06 — plus a dedicated denied-assignment route for C06) built against the real, unmodified `RoundBoard` production component tree, via a fixture command boundary that never touches a live database mutation. The initial implementation found and fixed two real production defects (eligible-coverage data never surfaced; a closed match could still accept an assignment from the inspector/sheet) and correctly disclosed C06's position-precision gap as `BLOCKED_BY_SOURCE_OR_AUTHORITY` rather than fabricating it.
 
-An independent review of that implementation found seven further findings (P1-01 through P1-07). All seven are fixed in this pass, verified with real browser tests in addition to component tests, and documented below finding-by-finding.
+An independent review of that implementation found seven further findings (P1-01 through P1-07). All seven were fixed in that pass, verified with real browser tests in addition to component tests, and documented below finding-by-finding.
+
+A second independent review (of HEAD `af686e3cd8cf0a0633f18d931bb47bf7a6eca590`) found that two of those fixes (P1-01, P1-03) were incomplete in a specific way neither pass's original tests exercised, plus two further defects. All four are fixed in this second remediation pass — see "Second remediation pass findings" below.
 
 ## Finding dispositions
 
@@ -20,17 +22,28 @@ An independent review of that implementation found seven further findings (P1-01
 
 No finding required deviating from the brief's hard constraints: no schema change, no new selection engine, no transaction redesign, no new position vocabulary, and the C06 position-precision disclosure (`BLOCKED_BY_SOURCE_OR_AUTHORITY`) stands unchanged — see `POSITION_VOCABULARY_AND_PRECISION.md`.
 
-## Local verification performed (this pass)
+## Second remediation pass findings (reviewed HEAD `af686e3cd8cf0a0633f18d931bb47bf7a6eca590`)
 
-- `npm run typecheck`, `npm run lint` — clean (the three pre-existing `compute-plan-integrity.ts` warnings are untouched by this diff).
-- `npm test` (both vitest configs) — 593 + 166 test files, 6579 + 1079 tests, all passed.
-- `npm run build` — succeeded; all four new routes (including `c06-dense-allocation/denied-assignment`) compiled and are listed in the route manifest.
+| Finding | Root cause | Fix | Tests |
+|---|---|---|---|
+| Resolve eligibility re-opened — a player-specific warning on a now-CLOSED match could still show Resolve | `isResolvable` in the production adapter checked only whether *some other* match was still open; it never checked whether the signal's own player was currently assigned to a match that had itself closed | `isResolvable` now resolves the player's current match via `matchIdByPlayerId`, and returns `false` immediately if that match exists and is not open, before considering any other match | `round-board-production-adapter.test.ts` — full decision matrix rewritten: unassigned+open-exists→true, assigned-to-open+another-open-exists→true, **assigned-to-closed+another-open-exists→false** (the flipped case), assigned-to-closed+all-closed→false, unassigned+all-closed→false, match-specific-open→true, match-specific-closed→false, identity-less→false |
+| Match-specific Resolve had no effective desktop behavior | `onResolve` for a match-only attention item only updated mobile-only state (`setMobileMatchId`/`setMobileMode`); on desktop, where that state renders nothing, clicking Resolve visibly did nothing | New `handleResolveMatch` callback also scrolls the real match lane (`[data-drop-match]`) into view and moves focus to a real interactive control inside it (the lane's first "Select" button, falling back to a focusable lane container only if the lane has no such button) | `round-board.test.tsx` — two new tests (scroll+focus-on-first-select-button; scroll+focus-on-lane fallback when no select button exists); `ui-lab-gate-c.spec.ts` — real-Chromium test against the new `c05-planning-closed/open-match-warning` route asserting the lane scrolls into view and a real "Select" button receives focus |
+| Mixed-boundary banner said every match was closed when only some were | The single "Planning closed" banner branch fired whenever `!planningBoundaryOpen`, regardless of how many matches had actually closed | New `closedMatchCount`/`allMatchesClosed`/`mixedPlanningBoundary` derived state splits the banner into three mutually exclusive branches: fully mixed ("Round-wide planning locked" / "Some matches have closed..."), fully closed ("Planning closed" / "All matches have passed..."), and the empty-round edge case (falls back to "This round's planning boundary is closed." rather than falsely claiming matches closed) | `round-board.test.tsx` — three new tests (mixed, fully-closed, empty-round fallback); `ui-lab-gate-c.spec.ts`'s existing C05 banner assertion corrected from the old single-branch wording to assert both the mixed-specific heading and body text, since C05's fixture is genuinely mixed (Rød closed, Hvit open), not fully closed |
+| Desktop Move picker still offered closed destinations | `MoveDestinationList`'s candidate list was every other match, with no `isFinalized` filter — unlike the suggestion-card path, which already excluded closed matches | `otherMatchesForPicker` (every other match) is now filtered to `moveDestinations` (`!isFinalized`) before rendering; a new `otherMatchesExistButClosed` flag distinguishes "no other matches exist" from "other matches exist, but their planning is closed" so the empty state is never misleading | `round-board.test.tsx` — three new tests (closed destination excluded, empty-vs-closed messaging distinguished, a genuinely open destination is still offered); `ui-lab-gate-c.spec.ts` — real-Chromium test on C05 asserting the closed match is absent from the Move picker and the closed-explanation text renders |
+
+No finding required deviating from the brief's hard constraints in this pass either: no schema change, no new selection engine, no server-authorization change, and Round Board was not redesigned — each fix is a local correction to already-existing derived state or an already-existing callback, not a new mechanism.
+
+## Local verification performed (second remediation pass)
+
+- `npm run typecheck`, `npm run lint` — clean.
+- `npm test` (both vitest configs) — 6582 + 1087 tests, all passed (up from 6579 + 1079 — 8 new `round-board.test.tsx` tests, 5 new `round-board-production-adapter.test.ts` tests).
+- `npm run build` — succeeded; the new `c05-planning-closed/open-match-warning` route compiled and is listed in the route manifest.
 - `npm run validate -- --fast` — all 13 steps passed.
-- **`npx playwright test --project=ui-lab-gate-c` against a local `next dev` server — 91/91 passed** (62 pre-existing Gate C W1 tests + 29 new Gate C W2 tests), including responsive-overflow, console-error, and network-isolation (`next-action` header) assertions. A prior assumption that this devcontainer cannot run real Chromium Playwright against `next dev` did not hold for this session — corrected in project memory rather than repeated.
-- A genuine pre-existing layout gap was found and disclosed, not fixed, while writing the new responsive-overflow tests: Round Board's desktop grid has no safe width between its compact breakpoint (~840px) and ~1200px, reproduced identically on the untouched `atlas-followup/round-board` prototype — see `BLOCKERS_AND_KNOWN_LIMITATIONS.md`.
+- **`npx playwright test --project=ui-lab-gate-c` against a local `next dev` server — 98/98 passed** (93 pre-existing Gate C W1+W2 tests + 2 new real-Chromium tests for this pass's Resolve and Move-picker fixes, plus the new route folded into the existing responsive-overflow and smoke-capture suites).
+- The pre-existing ~600-1200px Round Board desktop-grid layout gap (unrelated to this pass, disclosed since the first remediation pass) is now filed as a separately tracked defect: https://github.com/lagebj/matchboard/issues/830 (labeled `bug`) — see `BLOCKERS_AND_KNOWN_LIMITATIONS.md`.
 
 ## Disposition
 
 **READY_FOR_INDEPENDENT_REVIEW.**
 
-`capture-attestation.json` is intentionally not included in this commit — it must be generated by CI's `ui-lab-visual-review.yml` against this PR's real branch-tip commit (real Chromium, real SHA-256 hashes), per ADR-0159. It will be added once that workflow run completes. Local Playwright runs in this session prove the interactions and assertions are sound; they are not a substitute for CI's independently-produced evidence, by design.
+`capture-attestation.json` is generated from this PR's real CI run (`ui-lab-visual-review.yml`) against this pass's actual branch-tip commit — real Chromium, real SHA-256 hashes, per ADR-0159. The stale evidence from the prior commit (before this pass's rendering changes) is not reused.
