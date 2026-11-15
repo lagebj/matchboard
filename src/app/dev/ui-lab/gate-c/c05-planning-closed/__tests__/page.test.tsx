@@ -6,6 +6,8 @@ import {
   buildC05PlanningClosedFixture,
   buildC05ClosedNoWarningFixture,
   buildC05FullyOpenControlFixture,
+  buildC05OpenMatchWarningFixture,
+  buildC05InsufficientIdentityFixture,
 } from "../fixtures";
 
 vi.mock("next/navigation", () => ({
@@ -36,10 +38,39 @@ vi.mock("@/app/(app)/matches/emergency-repair-actions", () => ({
  * suite only proves this scenario's own closed-state content and interaction rules.
  */
 describe("C05 — Round Board planning closed, mixed boundary", () => {
-  it("shows the closed banner and retains the historical BLOCKED warning", () => {
+  it("shows the closed banner and retains the historical BLOCKED warning, a signal the real plan-integrity engine can actually produce for a finalized match", () => {
     render(<RoundBoardFixtureHarness initial={buildC05PlanningClosedFixture()} />);
     expect(screen.getByText(/planning closed/i)).toBeTruthy();
-    expect(screen.getByText(/oskar was marked unavailable but was included in the finalised squad/i)).toBeTruthy();
+    expect(screen.getByText(/rød is below minimum squad size/i)).toBeTruthy();
+  });
+
+  // Gate C W2 remediation (P1-01): the rail must never render Resolve for this item — it has no
+  // player, and its match is closed. Scoped to the rail's own list item, not just the broader
+  // "no mutation available" chip-level assertions below.
+  it("renders no Resolve control for the match-only historical warning on the closed match", () => {
+    render(<RoundBoardFixtureHarness initial={buildC05PlanningClosedFixture()} />);
+    const warningRow = screen.getByText(/rød is below minimum squad size/i).closest("li") as HTMLElement;
+    expect(within(warningRow).queryByRole("button", { name: /resolve/i })).toBeNull();
+  });
+
+  it("renders a Resolve control that routes into context for a match-only warning on an OPEN match", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<RoundBoardFixtureHarness initial={buildC05OpenMatchWarningFixture()} />);
+    const warningRow = screen.getByText(/rød is below minimum squad size/i).closest("li") as HTMLElement;
+    const resolveButton = within(warningRow).getByRole("button", { name: /resolve/i });
+
+    await user.click(resolveButton);
+
+    // Routes into the compact match-first drill-in for that exact match (no single player to
+    // select instead).
+    const compactSection = container.querySelector('[class*="medium:hidden"]') as HTMLElement;
+    expect(compactSection.querySelector('[data-drop-match="w2-c05-rod-open-warning"]')).toBeTruthy();
+  });
+
+  it("fails safe to read-only when a warning has neither a player nor a match identity", () => {
+    render(<RoundBoardFixtureHarness initial={buildC05InsufficientIdentityFixture()} />);
+    const warningRow = screen.getByText(/a round-level policy condition was flagged/i).closest("li") as HTMLElement;
+    expect(within(warningRow).queryByRole("button", { name: /resolve/i })).toBeNull();
   });
 
   it("shows no closed banner and no retained warning when the round has neither (closed+no-warning)", () => {

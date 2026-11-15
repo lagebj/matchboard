@@ -71,8 +71,8 @@ export const roundBoardViewModel: RoundBoardViewModel = {
     },
   ],
   attention: [
-    { id: "a1", playerId: "p2", matchId: null, summary: "Henrik", detail: "No opportunity yet this round", severity: "DECISION_REQUIRED" },
-    { id: "a2", playerId: null, matchId: "bla", summary: "Blå vs Drøbak-Frogn", detail: "Needs 2 players", severity: "DECISION_REQUIRED" },
+    { id: "a1", playerId: "p2", matchId: null, summary: "Henrik", detail: "No opportunity yet this round", severity: "DECISION_REQUIRED", resolvable: true },
+    { id: "a2", playerId: null, matchId: "bla", summary: "Blå vs Drøbak-Frogn", detail: "Needs 2 players", severity: "DECISION_REQUIRED", resolvable: true },
   ],
 };
 
@@ -108,8 +108,8 @@ export const allocationRows: AllocationMatrixRow[] = [
  * attention/fairness/movement/development context — factual counts only, no composite score, no
  * Assistant Coach synthesis (the rail renders that only when a persisted, fresh review exists). */
 export const railAttention: RoundBoardAttentionItem[] = [
-  { id: "att-1", playerId: null, matchId: "rod", summary: "Rød has no goalkeeper in the squad", detail: "No goalkeeper is planned for Rød vs Asker SK.", severity: "BLOCKED" },
-  { id: "att-2", playerId: "p2", matchId: null, summary: "Henrik has no assignment this round", detail: "One player with a target of one match is currently unassigned.", severity: "DECISION_REQUIRED" },
+  { id: "att-1", playerId: null, matchId: "rod", summary: "Rød has no goalkeeper in the squad", detail: "No goalkeeper is planned for Rød vs Asker SK.", severity: "BLOCKED", resolvable: true },
+  { id: "att-2", playerId: "p2", matchId: null, summary: "Henrik has no assignment this round", detail: "One player with a target of one match is currently unassigned.", severity: "DECISION_REQUIRED", resolvable: true },
 ];
 
 export const railFairnessMetrics: { label: string; value: string | number; detail?: string; trend?: "up" | "down" | "neutral" }[] = [

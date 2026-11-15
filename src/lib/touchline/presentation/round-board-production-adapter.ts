@@ -99,6 +99,26 @@ export function buildRoundBoardViewModel(input: RoundBoardAdapterInput): RoundBo
   const decisions = input.attentionSignals.filter((s) => s.severity === "DECISION_REQUIRED").length;
   const blocked = input.attentionSignals.filter((s) => s.severity === "BLOCKED").length;
 
+  // Gate C W2 remediation (P1-01): a legitimate resolution path exists only when the canonical
+  // per-match boundary allows one — never the round-level boundary alone (a mixed round can have
+  // both open and closed matches). Built from the same `input.matches` this function already
+  // receives, not a second derivation.
+  const matchIdByPlayerId = new Map<string, string>();
+  for (const m of input.matches) {
+    for (const p of m.players) matchIdByPlayerId.set(p.playerId, m.matchId);
+  }
+  const isMatchOpen = (matchId: string) => input.matches.find((m) => m.matchId === matchId)?.isFinalized === false;
+  function isResolvable(signal: RoundBoardAdapterInput["attentionSignals"][number]): boolean {
+    if (signal.playerId) {
+      const currentMatchId = matchIdByPlayerId.get(signal.playerId) ?? null;
+      return input.matches.some((m) => m.matchId !== currentMatchId && !m.isFinalized);
+    }
+    if (signal.matchId) {
+      return isMatchOpen(signal.matchId);
+    }
+    return false;
+  }
+
   const attention: RoundBoardAttentionItem[] = input.attentionSignals.map((s) => ({
     id: s.id,
     playerId: s.playerId ?? null,
@@ -106,6 +126,7 @@ export function buildRoundBoardViewModel(input: RoundBoardAdapterInput): RoundBo
     summary: s.summary,
     detail: s.detail,
     severity: s.severity,
+    resolvable: isResolvable(s),
   }));
 
   const status: RoundStatus = blocked > 0 ? "BLOCKED" : decisions > 0 ? "NEEDS_DECISIONS" : "READY";

@@ -10,7 +10,7 @@ All three candidates reuse the Touchline Design Atlas composition Round Board al
 ## C05 — Planning closed, historical warnings
 
 - **Baseline confirmation**: closed banner, per-match `isFinalized` gating of remove/move/repair/add on player chips, live-boundary-not-persisted-status gating (pre-existing, separately regression-tested).
-- **Real production change demonstrated**: closed destinations are now excluded from the suggestion list (previously they were offered and could be committed to); a new `closedNotice` explains why nothing is assignable when that's the case; mixed-boundary behavior (one match closed, another genuinely open) is now proven end-to-end rather than only separately true in theory.
+- **Real production change demonstrated**: closed destinations are now excluded from the suggestion list (previously they were offered and could be committed to); a new `closedNotice` explains why nothing is assignable when that's the case, including proactively when the SELECTED player's own match (not just every other one) is closed; mixed-boundary behavior (one match closed, another genuinely open) is now proven end-to-end rather than only separately true in theory. Independent review added two further real changes: the Resolve control in the contextual rail is now gated on a computed `resolvable` flag (so it never renders for an unactionable historical item at all, not merely before an unproductive click), and the retained historical warning itself was corrected to one the real plan-integrity engine can actually produce for a finalized match (`SQUAD_BELOW_MINIMUM`, not `SELECTED_PLAYER_UNAVAILABLE`).
 
 ## C06 — Dense allocation, position-precision disclosure
 

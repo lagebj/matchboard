@@ -11,6 +11,17 @@ import type { RoundBoardFixtureInitial } from "../w2-shared/round-board-fixture-
  * `planningBoundaryOpen` is false (every match must be open for the round-level gate — ADR-0109),
  * but Hvit's own per-match boundary remains open, so a valid action must still be reachable for it
  * (brief §4: "Do not disable valid open-match actions merely because another match is closed.").
+ *
+ * Historical warning provenance (remediation of a review finding): Rød's retained warning is
+ * `SQUAD_BELOW_MINIMUM` — only 6 of 11 eligible Rød players were ever selected, below the
+ * minimum accepted squad size of 7. `computeRoundPlanIntegrity()` evaluates this rule across
+ * BOTH draft and finalized selections, for every non-cancelled match regardless of its planning
+ * boundary (`compute-plan-integrity.ts` lines ~186-222) — so this is a warning the real engine
+ * could actually still produce for a closed match, unlike an earlier draft of this fixture's
+ * `SELECTED_PLAYER_UNAVAILABLE`, which the engine only ever generates for DRAFT selections
+ * (lines ~224-253) and therefore can never legitimately co-occur with a finalized/closed match.
+ * This rule is also match-scoped, not player-scoped — no `playerId` is set, matching the real
+ * signal's own shape.
  */
 
 function toAssigned(seed: FixturePlayerSeed, role: "CORE" | "SUPPORT" | "BACKFILL" | "DEVELOPMENT" = "CORE") {
@@ -44,7 +55,11 @@ export function buildC05PlanningClosedFixture(): RoundBoardFixtureInitial {
   const hvitRoster = buildRoster(HVIT, 11, 21);
   const erikHvit = hvitRoster.find((p) => p.name === "Erik")!;
   const hvitAssigned = hvitRoster.filter((p) => p.id !== erikHvit.id);
-  const oskar = rodRoster.find((p) => p.name === "Oskar")!;
+  // Only 6 of Rød's 11 eligible players were ever selected for this match — genuinely below the
+  // minimum accepted squad size of 7, a fact that remains true forever now that the match is
+  // closed. The other 5 are simply never assigned here (a real, if unfortunate, planning
+  // outcome) — they are not individually "missing an opportunity" signals in this fixture.
+  const rodAssigned = rodRoster.slice(0, 6);
 
   return {
     roundLabel: "Week 45",
@@ -61,7 +76,7 @@ export function buildC05PlanningClosedFixture(): RoundBoardFixtureInitial {
         targetSquadSize: 12,
         minSquadSize: 7,
         isFinalized: true,
-        players: rodRoster.map((p) => toAssigned(p)),
+        players: rodAssigned.map((p) => toAssigned(p)),
       },
       {
         matchId: "w2-c05-hvit",
@@ -80,11 +95,10 @@ export function buildC05PlanningClosedFixture(): RoundBoardFixtureInitial {
     rotationPathMap: {},
     warnings: [
       {
-        code: "SELECTED_PLAYER_UNAVAILABLE",
-        message: `${oskar.name} was marked unavailable but was included in the finalised squad for this match.`,
+        code: "SQUAD_BELOW_MINIMUM",
+        message: `${ROD.teamName} is below minimum squad size. 6 players selected. Minimum accepted squad size is 7.`,
         severity: WarningSeverity.HARD_BLOCK,
-        playerId: oskar.id,
-        playerName: oskar.name,
+        matchId: "w2-c05-rod",
         teamName: ROD.teamName,
       },
       {
@@ -99,10 +113,10 @@ export function buildC05PlanningClosedFixture(): RoundBoardFixtureInitial {
     signalSummary: { blocked: 1, decisionRequired: 1, planningNote: 0 },
     movementSummary: { supportSent: 0, supportReceived: 0, developmentSent: 0, developmentReceived: 0, squadRepairReceived: 0, drops: 0 },
     fairnessMetrics: [
-      { label: "Players selected", value: 21 },
+      { label: "Players selected", value: 16 },
       { label: "Matches this round", value: 2 },
       { label: "Cross-team movers", value: 0 },
-      { label: "Squad fill rate", value: "88%" },
+      { label: "Squad fill rate", value: "67%" },
     ],
     eligiblePlayerIds: [...rodRoster, ...hvitRoster].map((p) => p.id),
   };
@@ -133,6 +147,91 @@ export function buildC05ClosedNoWarningFixture(): RoundBoardFixtureInitial {
     rotationPathMap: {},
     warnings: [],
     signalSummary: { blocked: 0, decisionRequired: 0, planningNote: 0 },
+    movementSummary: { supportSent: 0, supportReceived: 0, developmentSent: 0, developmentReceived: 0, squadRepairReceived: 0, drops: 0 },
+    fairnessMetrics: [],
+    eligiblePlayerIds: rodRoster.map((p) => p.id),
+  };
+}
+
+/** Edge case: a match-specific warning (no player) on a match that is still OPEN — Resolve must
+ * route into that match's own context, distinct from the player-specific case above. */
+export function buildC05OpenMatchWarningFixture(): RoundBoardFixtureInitial {
+  const rodRoster = buildRoster(ROD, 11, 1);
+  const rodAssigned = rodRoster.slice(0, 5); // below minimum (7), but the match is still open.
+
+  return {
+    roundLabel: "Week 47",
+    planningBoundaryOpen: true,
+    matchRoundId: "w2-c05-open-match-warning",
+    matches: [
+      {
+        matchId: "w2-c05-rod-open-warning",
+        teamId: ROD.teamId,
+        teamName: ROD.teamName,
+        teamKitColor: ROD.kitColor,
+        opponent: "Asker SK",
+        matchDate: KICKOFF_SATURDAY,
+        targetSquadSize: 12,
+        minSquadSize: 7,
+        isFinalized: false,
+        players: rodAssigned.map((p) => toAssigned(p)),
+      },
+    ],
+    availablePlayers: rodRoster.map(toAvailable),
+    rotationPathMap: {},
+    warnings: [
+      {
+        code: "SQUAD_BELOW_MINIMUM",
+        message: `${ROD.teamName} is below minimum squad size. 5 players selected. Minimum accepted squad size is 7.`,
+        severity: WarningSeverity.HARD_BLOCK,
+        matchId: "w2-c05-rod-open-warning",
+        teamName: ROD.teamName,
+      },
+    ],
+    signalSummary: { blocked: 1, decisionRequired: 0, planningNote: 0 },
+    movementSummary: { supportSent: 0, supportReceived: 0, developmentSent: 0, developmentReceived: 0, squadRepairReceived: 0, drops: 0 },
+    fairnessMetrics: [],
+    eligiblePlayerIds: rodRoster.map((p) => p.id),
+  };
+}
+
+/** Edge case: a warning with neither a player nor a match identity — must fail safe to
+ * read-only, never guess which match or player to route a Resolve action into. */
+export function buildC05InsufficientIdentityFixture(): RoundBoardFixtureInitial {
+  const rodRoster = buildRoster(ROD, 11, 1);
+
+  return {
+    roundLabel: "Week 47",
+    planningBoundaryOpen: true,
+    matchRoundId: "w2-c05-insufficient-identity",
+    matches: [
+      {
+        matchId: "w2-c05-rod-insufficient",
+        teamId: ROD.teamId,
+        teamName: ROD.teamName,
+        teamKitColor: ROD.kitColor,
+        opponent: "Asker SK",
+        matchDate: KICKOFF_SATURDAY,
+        targetSquadSize: 11,
+        minSquadSize: 7,
+        isFinalized: false,
+        players: rodRoster.map((p) => toAssigned(p)),
+      },
+    ],
+    availablePlayers: rodRoster.map(toAvailable),
+    rotationPathMap: {},
+    warnings: [
+      {
+        // A policy-derived signal that, in this fixture, carries neither a playerId nor a
+        // matchId — the fail-safe case the brief's §2 requires: "Do not guess which match or
+        // player to modify. Fail safe to read-only presentation."
+        code: "ROUND_LEVEL_POLICY_NOTE",
+        message: "A round-level policy condition was flagged without a specific player or match.",
+        severity: WarningSeverity.HARD_BLOCK,
+        teamName: ROD.teamName,
+      },
+    ],
+    signalSummary: { blocked: 1, decisionRequired: 0, planningNote: 0 },
     movementSummary: { supportSent: 0, supportReceived: 0, developmentSent: 0, developmentReceived: 0, squadRepairReceived: 0, drops: 0 },
     fairnessMetrics: [],
     eligiblePlayerIds: rodRoster.map((p) => p.id),

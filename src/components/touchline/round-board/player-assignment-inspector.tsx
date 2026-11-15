@@ -29,6 +29,13 @@ export type PlayerAssignmentInspectorProps = {
    * `null`/absent when the player has no current match to link to.
    */
   lineupHref?: string | null;
+  /**
+   * The real reason a just-attempted assignment was rejected or errored (P1-05) — shown above
+   * the suggestions, never a silent close that would let a rejection look like success. The
+   * caller keeps the inspector/sheet open and the selection unchanged while this is set, so the
+   * coach can pick a different destination or cancel.
+   */
+  errorNotice?: string | null;
 };
 
 function SuggestionCard({
@@ -86,7 +93,7 @@ function SuggestionCard({
   );
 }
 
-export function PlayerAssignmentInspector({ context, onAssign, onClose, className, closedNotice, lineupHref }: PlayerAssignmentInspectorProps) {
+export function PlayerAssignmentInspector({ context, onAssign, onClose, className, closedNotice, lineupHref, errorNotice }: PlayerAssignmentInspectorProps) {
   if (!context) {
     return (
       <TouchlineWidget className={className}>
@@ -124,6 +131,15 @@ export function PlayerAssignmentInspector({ context, onAssign, onClose, classNam
           <p className="mt-3 rounded-lg bg-[var(--warning-subtle)] px-3 py-2 text-[12px] text-[var(--warning)]">{context.attentionSummary}</p>
         ) : null}
       </TouchlineWidget>
+
+      {errorNotice ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-[var(--danger)]/35 bg-[var(--danger-subtle)] px-3 py-2 text-[12px] text-[var(--danger)]"
+        >
+          {errorNotice}
+        </p>
+      ) : null}
 
       {context.suggestions.length > 0 ? (
         <div className="flex flex-col gap-2">

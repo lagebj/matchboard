@@ -455,11 +455,24 @@ export default async function RoundBoardPage({
   const totalSquadRepairReceived = Array.from(squadRepairReceivedByTeamId.values()).reduce((a, b) => a + b, 0);
   const totalDrops = Array.from(dropsCountByTeamId.values()).reduce((a, b) => a + b, 0);
 
+  // Gate C W2 remediation (P1-04): `playerId`/`matchId`/`idempotencyKey` were previously dropped
+  // here, which silently broke match-specific Resolve routing and per-match-boundary
+  // resolvability for every production warning (only hand-authored UI Lab fixtures carried
+  // these fields, masking the gap). `playerNameById` is built from data already fetched above —
+  // no new query.
+  const playerNameById = new Map<string, string>();
+  for (const p of eligiblePlayers) playerNameById.set(p.id, formatPlayerName(p));
+  for (const p of allPlayers) if (!playerNameById.has(p.id)) playerNameById.set(p.id, formatPlayerName(p));
+
   const warnings = unresolvedSignals.map((s) => ({
     code: s.ruleCode,
     message: s.title,
     severity: warningSeverityMap[s.ruleCode] ?? (s.kind === "BLOCKED" ? WarningSeverity.HARD_BLOCK : s.kind === "DECISION_REQUIRED" ? WarningSeverity.REQUIRES_OVERRIDE : WarningSeverity.WARNING),
     teamName: matchRound.matches.find((m) => m.teamId === s.teamId)?.team.name,
+    playerId: s.playerId,
+    playerName: s.playerId ? playerNameById.get(s.playerId) : undefined,
+    matchId: s.matchId,
+    idempotencyKey: s.idempotencyKey,
   }));
 
   const signalSummary = {

@@ -26,6 +26,7 @@ import {
   COACHING_INTENT_LABELS,
   type MatchdayResponsibilityType,
   type ReadinessSignalType,
+  type CoachingIntentScopeType,
   READINESS_SIGNAL_LABELS,
 } from "@/lib/coaching/types";
 import { CoachingIntentSelector } from "@/components/matches/coaching-intent-selector";
@@ -47,7 +48,6 @@ import { PlayerAssignmentInspector } from "@/components/touchline/round-board/pl
 import { PlayerAssignmentSheet } from "@/components/touchline/round-board/player-assignment-sheet";
 import { AllocationMatrix } from "@/components/touchline/round-board/allocation-matrix";
 import type {
-  RoundBoardAttentionItem,
   RoundBoardAssignmentSuggestion,
   RoundBoardEffectivePosition,
 } from "@/lib/touchline/presentation/round-board-view-model";
@@ -114,6 +114,13 @@ type SignalEntry = {
   playerId?: string;
   playerName?: string;
   teamName?: string;
+  /** Gate C W2 remediation (P1-04): previously dropped by `page.tsx`'s mapping from
+   * `PlanIntegritySignal`, which silently broke match-specific Resolve routing and per-match
+   * boundary resolvability for any warning the fixtures didn't hand-author with it directly. */
+  matchId?: string;
+  /** The signal's own stable `idempotencyKey` (`compute-plan-integrity.ts`) — preferred over an
+   * array-index-derived id, which is not stable across re-renders when the signal list reorders. */
+  idempotencyKey?: string;
 };
 
 type SignalSummary = {
@@ -134,7 +141,19 @@ export type RoundBoardCommands = {
   generateEmergencyRepairOptions?: typeof generateEmergencyRepairOptionsAction;
   clearRoundDraft?: typeof clearRoundDraftAction;
   regenerateRound?: typeof regenerateRoundAction;
+  /** Gate C W2 remediation (P1-06): `CoachingIntentSelector` dynamically imports its own real
+   * server actions, outside the five above — this is the narrow seam for it. Defaults to the
+   * real actions when omitted, so production is unaffected. */
+  setCoachingIntent?: (scopeType: CoachingIntentScopeType, scopeId: string, category: string, note: string | null) => Promise<{ success: boolean; error?: string }>;
+  removeCoachingIntent?: (intentId: string) => Promise<{ success: boolean; error?: string }>;
 };
+
+/** The truthful result of a single move/assignment attempt (P1-03/P1-05) — never a bare
+ * void that lets a caller assume success. */
+type MoveOutcome =
+  | { status: "success" }
+  | { status: "rejected"; reason: string }
+  | { status: "error"; reason: string };
 
 type RoundBoardProps = {
   roundLabel: string;
@@ -180,6 +199,15 @@ type RoundBoardProps = {
   } | null;
   /** Gate C W2 command boundary — see `RoundBoardCommands`. Omitted in production. */
   commands?: RoundBoardCommands;
+  /**
+   * Gate C W2 remediation (P1-06): Clear/Regenerate have no deterministic fixture-local
+   * behavior (unlike the five `RoundBoardCommands` entries) — implementing one truthfully would
+   * mean simulating which selections are "draft" at the Selection-status level, well beyond this
+   * wave's fixtures. Rather than a no-op that *looks* like it worked, this disables both actions
+   * outright with an explanatory label. `false`/omitted in production (and whenever `commands`
+   * is omitted) — this never changes real behavior.
+   */
+  disableClearAndRegenerate?: boolean;
 };
 
 const DISPLAY_ROLE_ORDER: SelectionRole[] = ["CORE", "SUPPORT", "BACKFILL", "DEVELOPMENT"];
@@ -328,6 +356,7 @@ function MatchLane({
   isTouchHighlight,
   touchDragPlayerId,
   fullWidth = false,
+  coachingIntentCommands,
 }: {
   match: MatchColumn;
   isPending: boolean;
@@ -350,6 +379,9 @@ function MatchLane({
   onTouchStartPlayer?: (playerId: string, fromMatchId: string, currentRole?: SelectionRole) => void;
   isTouchHighlight?: boolean;
   touchDragPlayerId?: string | null;
+  /** Gate C W2 remediation (P1-06) — the narrow command seam for `CoachingIntentSelector`,
+   * which otherwise dynamically imports its own real server actions regardless of `commands`. */
+  coachingIntentCommands?: Pick<RoundBoardCommands, "setCoachingIntent" | "removeCoachingIntent">;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const dateStr = formatKickoffDate(match.matchDate);
@@ -426,6 +458,8 @@ function MatchLane({
                 scopeId={match.matchId}
                 currentIntent={match.coachingIntentCategory}
                 currentIntentId={match.coachingIntentId}
+                setCoachingIntentCommand={coachingIntentCommands?.setCoachingIntent}
+                removeCoachingIntentCommand={coachingIntentCommands?.removeCoachingIntent}
               />
             )}
             {match.isFinalized && match.coachingIntentCategory && (
@@ -546,6 +580,7 @@ export function RoundBoard({
   activeFocusByPlayerId = {},
   coverage = null,
   commands,
+  disableClearAndRegenerate = false,
 }: RoundBoardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -561,6 +596,9 @@ export function RoundBoard({
   const regenerateRound = commands?.regenerateRound ?? regenerateRoundAction;
   const [showClearRoundDialog, setShowClearRoundDialog] = useState(false);
   const [overrideReason] = useState("");
+  // Gate C W2 remediation (P1-05): the one shared, truthful feedback surface for a rejected or
+  // errored move attempt — shown in the assignment inspector/sheet, never a silent no-op.
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
 
   // Primary interaction state (contract §3): select player → choose destination.
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -706,12 +744,33 @@ export function RoundBoard({
   // cards, and the allocation matrix below. Never duplicate this sequence
   // (PROGRAMME.md §50's non-drag alternative must produce the identical result as
   // drag/drop, not a parallel implementation) — the contract's §3/§6 one-command rule.
+  //
+  // Gate C W2 remediation (P1-03/P1-05): enforces BOTH boundaries centrally — a player can be
+  // moved neither into nor out of a closed match, from any entry point, without each caller
+  // re-implementing the check (callers previously only guarded the destination). Returns a
+  // structured outcome instead of void so callers can show the real result truthfully: a
+  // rejection must never look like a silent no-op or a success.
   const movePlayerToMatch = useCallback(
-    async (playerId: string, fromMatchId: string | null, targetMatchId: string) => {
+    async (
+      playerId: string,
+      fromMatchId: string | null,
+      targetMatchId: string,
+    ): Promise<MoveOutcome> => {
+      const target = matches.find((m) => m.matchId === targetMatchId);
+      if (!target) return { status: "rejected", reason: "That match could not be found." };
+      if (target.isFinalized) {
+        return { status: "rejected", reason: "Planning is closed for the destination match." };
+      }
+      if (fromMatchId) {
+        const source = matches.find((m) => m.matchId === fromMatchId);
+        if (source?.isFinalized) {
+          return { status: "rejected", reason: "Planning is closed for the player's current match." };
+        }
+      }
+
       const role = determineRole(playerId, targetMatchId);
       const isCoreMove =
-        initialAvailable.find((p) => p.id === playerId)?.coreTeamId ===
-        matches.find((m) => m.matchId === targetMatchId)?.teamId;
+        initialAvailable.find((p) => p.id === playerId)?.coreTeamId === target.teamId;
 
       const addFd = new FormData();
       addFd.set("matchId", targetMatchId);
@@ -728,14 +787,29 @@ export function RoundBoard({
       if (reason) addFd.set("overrideReason", reason);
 
       const addResult = await addPlayerToMatch(addFd);
+      if (addResult?.success === false) {
+        return { status: "rejected", reason: addResult.errors?.[0] ?? "The assignment was rejected." };
+      }
 
-      if (addResult?.success !== false && fromMatchId) {
+      if (fromMatchId) {
         const rmFd = new FormData();
         rmFd.set("matchId", fromMatchId);
         rmFd.set("playerId", playerId);
         rmFd.set("matchRoundId", matchRoundId);
-        await removePlayerFromMatch(rmFd);
+        const removeResult = await removePlayerFromMatch(rmFd);
+        if (removeResult?.success === false) {
+          // The add already succeeded — this is a genuine partial-completion risk the review
+          // flagged, not something to hide behind a redesigned transaction (out of this wave's
+          // scope). Surface it as an error so the coach knows to check manually, never as a
+          // silent success.
+          return {
+            status: "error",
+            reason: "The player was added to the new match but could not be removed from the previous one. Please review this player's assignments.",
+          };
+        }
       }
+
+      return { status: "success" };
     },
     [matchRoundId, overrideReason, determineRole, initialAvailable, matches, addPlayerToMatch, removePlayerFromMatch],
   );
@@ -750,8 +824,13 @@ export function RoundBoard({
         if (fromMatchId === matchId) return;
 
         startTransition(async () => {
-          await movePlayerToMatch(playerId, fromMatchId, matchId);
-          router.refresh();
+          const outcome = await movePlayerToMatch(playerId, fromMatchId, matchId);
+          if (outcome.status === "success") {
+            setAssignmentError(null);
+            router.refresh();
+          } else {
+            setAssignmentError(outcome.reason);
+          }
         });
       } catch {}
     },
@@ -766,32 +845,52 @@ export function RoundBoard({
         const { playerId, fromMatchId } = data as { playerId: string; fromMatchId: string | null };
 
         if (!fromMatchId) return;
+        const source = matches.find((m) => m.matchId === fromMatchId);
+        if (source?.isFinalized) {
+          setAssignmentError("Planning is closed for this player's current match.");
+          return;
+        }
 
         startTransition(async () => {
           const fd = new FormData();
           fd.set("matchId", fromMatchId);
           fd.set("playerId", playerId);
           fd.set("matchRoundId", matchRoundId);
-          await removePlayerFromMatch(fd);
-          router.refresh();
+          const result = await removePlayerFromMatch(fd);
+          if (result?.success === false) {
+            setAssignmentError(result.errors?.[0] ?? "The removal was rejected.");
+          } else {
+            setAssignmentError(null);
+            router.refresh();
+          }
         });
       } catch {}
     },
-    [matchRoundId, startTransition, router, removePlayerFromMatch],
+    [matchRoundId, startTransition, router, removePlayerFromMatch, matches],
   );
 
   const handleRemovePlayer = useCallback(
     (matchId: string, playerId: string) => {
+      const source = matches.find((m) => m.matchId === matchId);
+      if (source?.isFinalized) {
+        setAssignmentError("Planning is closed for this match.");
+        return;
+      }
       startTransition(async () => {
         const fd = new FormData();
         fd.set("matchId", matchId);
         fd.set("playerId", playerId);
         fd.set("matchRoundId", matchRoundId);
-        await removePlayerFromMatch(fd);
-        router.refresh();
+        const result = await removePlayerFromMatch(fd);
+        if (result?.success === false) {
+          setAssignmentError(result.errors?.[0] ?? "The removal was rejected.");
+        } else {
+          setAssignmentError(null);
+          router.refresh();
+        }
       });
     },
-    [matchRoundId, startTransition, router, removePlayerFromMatch],
+    [matchRoundId, startTransition, router, removePlayerFromMatch, matches],
   );
 
   const handleConfirmMove = useCallback(
@@ -799,8 +898,13 @@ export function RoundBoard({
       if (!movePicker) return;
       const { playerId, fromMatchId } = movePicker;
       startTransition(async () => {
-        await movePlayerToMatch(playerId, fromMatchId, targetMatchId);
-        router.refresh();
+        const outcome = await movePlayerToMatch(playerId, fromMatchId, targetMatchId);
+        if (outcome.status === "success") {
+          setAssignmentError(null);
+          router.refresh();
+        } else {
+          setAssignmentError(outcome.reason);
+        }
       });
       setMovePicker(null);
     },
@@ -811,7 +915,10 @@ export function RoundBoard({
   // action — the exact same movePlayerToMatch command drag/drop uses. Guards against a closed
   // destination the same way `handleMatrixToggle` already does — `buildAssignmentContext`'s
   // callers below already exclude finalized matches from `suggestions`, so this is defense in
-  // depth against a stale suggestion object, not the primary gate.
+  // depth against a stale suggestion object, not the primary gate. `movePlayerToMatch` itself now
+  // also guards the SOURCE boundary and returns a real outcome (P1-03/P1-05) — on rejection or
+  // error, the sheet/inspector stay open, the selection is preserved, and the real reason is
+  // shown, never a silent close that implies success.
   const handleAssignSuggestion = useCallback(
     (suggestion: RoundBoardAssignmentSuggestion) => {
       if (!selectedPlayerId) return;
@@ -819,17 +926,24 @@ export function RoundBoard({
       if (!target || target.isFinalized) return;
       const fromMatchId =
         matches.find((m) => m.players.some((p) => p.id === selectedPlayerId))?.matchId ?? null;
+      setAssignmentError(null);
       startTransition(async () => {
-        await movePlayerToMatch(selectedPlayerId, fromMatchId, suggestion.matchId);
-        router.refresh();
+        const outcome = await movePlayerToMatch(selectedPlayerId, fromMatchId, suggestion.matchId);
+        if (outcome.status === "success") {
+          setAssignmentError(null);
+          setSheetOpen(false);
+          router.refresh();
+        } else {
+          setAssignmentError(outcome.reason);
+        }
       });
-      setSheetOpen(false);
     },
     [selectedPlayerId, matches, movePlayerToMatch, startTransition, router],
   );
 
   const handleSelectPlayer = useCallback((playerId: string) => {
     setSelectedPlayerId(playerId);
+    setAssignmentError(null);
     if (isCompactViewport) setSheetOpen(true);
   }, [isCompactViewport]);
 
@@ -861,8 +975,13 @@ export function RoundBoard({
           return;
         }
         startTransition(async () => {
-          await movePlayerToMatch(dragData.playerId, dragData.fromMatchId, matchId);
-          router.refresh();
+          const outcome = await movePlayerToMatch(dragData.playerId, dragData.fromMatchId, matchId);
+          if (outcome.status === "success") {
+            setAssignmentError(null);
+            router.refresh();
+          } else {
+            setAssignmentError(outcome.reason);
+          }
         });
       } else {
         if (!dragData.fromMatchId) {
@@ -872,20 +991,30 @@ export function RoundBoard({
           return;
         }
         const fromId = dragData.fromMatchId;
-        startTransition(async () => {
-          const fd = new FormData();
-          fd.set("matchId", fromId);
-          fd.set("playerId", dragData.playerId);
-          fd.set("matchRoundId", matchRoundId);
-          await removePlayerFromMatch(fd);
-          router.refresh();
-        });
+        const source = matches.find((m) => m.matchId === fromId);
+        if (source?.isFinalized) {
+          setAssignmentError("Planning is closed for this player's current match.");
+        } else {
+          startTransition(async () => {
+            const fd = new FormData();
+            fd.set("matchId", fromId);
+            fd.set("playerId", dragData.playerId);
+            fd.set("matchRoundId", matchRoundId);
+            const result = await removePlayerFromMatch(fd);
+            if (result?.success === false) {
+              setAssignmentError(result.errors?.[0] ?? "The removal was rejected.");
+            } else {
+              setAssignmentError(null);
+              router.refresh();
+            }
+          });
+        }
       }
       touchDragRef.current = null;
       setTouchDragPlayerId(null);
       setTouchDropTarget(null);
     },
-    [matchRoundId, startTransition, movePlayerToMatch, router, removePlayerFromMatch],
+    [matchRoundId, startTransition, movePlayerToMatch, router, removePlayerFromMatch, matches],
   );
 
   const planningNotes = warnings.filter((w) => w.severity === "WARNING");
@@ -898,12 +1027,17 @@ export function RoundBoard({
 
   // --- Gate D view model (Phase F9): the page's canonical data → the approved composition.
 
-  const attentionItems: RoundBoardAttentionItem[] = warnings
+  // Intermediate shape feeding `buildRoundBoardViewModel`'s `attentionSignals` input — not the
+  // final `RoundBoardAttentionItem` (that type's `resolvable` field is computed by the adapter
+  // from canonical per-match boundary data, not available here). Gate C W2 remediation (P1-04):
+  // `matchId` is no longer dropped, and `id` prefers the signal's own stable `idempotencyKey`
+  // over a re-render-unstable array-index-derived string.
+  const attentionItems = warnings
     .filter((w) => w.severity === "HARD_BLOCK" || w.severity === "REQUIRES_OVERRIDE")
     .map((w, i) => ({
-      id: `${w.code}-${i}`,
+      id: w.idempotencyKey ?? `${w.code}-${i}`,
       playerId: w.playerId ?? null,
-      matchId: null,
+      matchId: w.matchId ?? null,
       summary: w.playerName ?? w.teamName ?? w.code,
       detail: w.message,
       severity: w.severity === "HARD_BLOCK" ? ("BLOCKED" as const) : ("DECISION_REQUIRED" as const),
@@ -937,6 +1071,7 @@ export function RoundBoard({
       detail: a.detail,
       severity: a.severity,
       playerId: a.playerId,
+      matchId: a.matchId,
     })),
     eligibleCoverage: {
       eligiblePlayerCount: coverage?.eligibleAvailablePlayerCount ?? 0,
@@ -955,14 +1090,26 @@ export function RoundBoard({
   const selectedPlayerMatchId = selectedPlayerId
     ? (matches.find((m) => m.players.some((p) => p.id === selectedPlayerId))?.matchId ?? null)
     : null;
+  const selectedPlayerSourceClosed = selectedPlayerMatchId
+    ? (matches.find((m) => m.matchId === selectedPlayerMatchId)?.isFinalized ?? false)
+    : false;
 
   // Destinations with a closed planning boundary are never valid assignment targets (C05: the
   // matrix's handleMatrixToggle already enforced this; the suggestion-card path did not, which
   // let a closed match render as an assignable suggestion). Filtering here — not just guarding
   // the commit in handleAssignSuggestion — means a closed destination never even appears as an
   // option, rather than appearing and failing/being blocked after the tap.
+  //
+  // Gate C W2 remediation (P1-03 follow-up): the SOURCE side needs the same treatment. Before
+  // this fix, a player currently on a CLOSED match still saw every open match offered as a
+  // suggestion — `movePlayerToMatch` would correctly reject any attempt to move them (its own
+  // source-boundary guard), but showing a destination that is guaranteed to fail the moment it's
+  // tapped is itself a misleading action, exactly the class of defect P1-01/P1-05 targets. When
+  // the player's own current match is closed, there is no legitimate destination at all — every
+  // move touches the closed source — so the suggestion list is empty and `closedNotice` explains
+  // why, the same as when every OTHER match happens to be closed.
   const otherMatches = matches.filter((m) => m.matchId !== selectedPlayerMatchId);
-  const openDestinationMatches = otherMatches.filter((m) => !m.isFinalized);
+  const openDestinationMatches = selectedPlayerSourceClosed ? [] : otherMatches.filter((m) => !m.isFinalized);
 
   const assignmentContext = selectedPlayer
     ? buildAssignmentContext(
@@ -999,10 +1146,14 @@ export function RoundBoard({
 
   // A deterministic explanation for why nothing is assignable (C05), distinct from "this player
   // has no other match to go to" (no notice — a different, unrelated reason): only shown when at
-  // least one other match exists in the round and every one of them has closed.
+  // least one other match exists in the round and nothing is reachable from here, with the
+  // correct reason — the player's OWN match being closed is a different fact from every OTHER
+  // match happening to be closed, even though both end in the same empty suggestion list.
   const assignmentClosedNotice =
     selectedPlayer && otherMatches.length > 0 && openDestinationMatches.length === 0
-      ? "Planning is closed for every other match in this round. This is historical information only — no destination is available to assign this player."
+      ? selectedPlayerSourceClosed
+        ? "Planning is closed for this player's current match. This is historical information only — no destination is available to move them to."
+        : "Planning is closed for every other match in this round. This is historical information only — no destination is available to assign this player."
       : null;
 
   // C06: Round Board's own assignment is player×match only — it has no exact tactical-position
@@ -1056,21 +1207,35 @@ export function RoundBoard({
       if (!target || target.isFinalized) return;
 
       if (currentMatchId === matchId) {
-        // Toggle off = remove from the match (drop back to available).
+        // Toggle off = remove from the match (drop back to available). `target` above is
+        // guaranteed open (we returned early otherwise), so this is always a valid removal.
         startTransition(async () => {
           const fd = new FormData();
           fd.set("matchId", matchId);
           fd.set("playerId", playerId);
           fd.set("matchRoundId", matchRoundId);
-          await removePlayerFromMatch(fd);
-          router.refresh();
+          const result = await removePlayerFromMatch(fd);
+          if (result?.success === false) {
+            setAssignmentError(result.errors?.[0] ?? "The removal was rejected.");
+          } else {
+            setAssignmentError(null);
+            router.refresh();
+          }
         });
         return;
       }
 
+      // movePlayerToMatch itself now also guards the SOURCE boundary (P1-03) — previously this
+      // only checked the destination (`target` above), so toggling a different, open match's
+      // cell for a player currently on a CLOSED match would silently remove them from it.
       startTransition(async () => {
-        await movePlayerToMatch(playerId, currentMatchId, matchId);
-        router.refresh();
+        const outcome = await movePlayerToMatch(playerId, currentMatchId, matchId);
+        if (outcome.status === "success") {
+          setAssignmentError(null);
+          router.refresh();
+        } else {
+          setAssignmentError(outcome.reason);
+        }
       });
     },
     [matches, matchRoundId, movePlayerToMatch, startTransition, router, removePlayerFromMatch],
@@ -1086,6 +1251,28 @@ export function RoundBoard({
       {/* Exception-first status strip (Atlas Follow-up Phase F9, contract §4/§6) — decisions
           needing attention is the visually dominant tile, before any routine allocation. */}
       <RoundStatusStrip summary={vm.summary} />
+
+      {/* Gate C W2 remediation (P1-05): the shared, truthful feedback surface for a rejected or
+          errored move attempted via drag/drop, touch-drag, the allocation matrix, or the
+          non-drag Move picker — paths with no persistent panel of their own to show the reason
+          inline. Suppressed whenever a player is selected: the inspector/sheet already show the
+          identical message inline there (`errorNotice` below) — never the same reason twice. */}
+      {assignmentError && !selectedPlayerId && (
+        <div
+          role="alert"
+          className="flex items-start justify-between gap-3 rounded-[var(--tl-c-radius-object)] border border-[var(--danger)]/35 bg-[var(--danger-subtle)] px-4 py-3 text-sm text-[var(--danger)]"
+        >
+          <span>{assignmentError}</span>
+          <button
+            type="button"
+            onClick={() => setAssignmentError(null)}
+            aria-label="Dismiss"
+            className="shrink-0 text-[var(--danger)] hover:opacity-70"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {planningBoundaryOpen && (
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1114,7 +1301,8 @@ export function RoundBoard({
           <div className="flex items-center gap-2">
             <TouchlineButton
               variant="secondary"
-              disabled={isPending}
+              disabled={isPending || disableClearAndRegenerate}
+              title={disableClearAndRegenerate ? "Not available in this preview — no deterministic fixture behavior exists for Regenerate." : undefined}
               leadingIcon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
               onClick={() => {
                 startTransition(async () => {
@@ -1129,7 +1317,8 @@ export function RoundBoard({
             </TouchlineButton>
             <TouchlineButton
               variant="danger"
-              disabled={isPending}
+              disabled={isPending || disableClearAndRegenerate}
+              title={disableClearAndRegenerate ? "Not available in this preview — no deterministic fixture behavior exists for Clear." : undefined}
               leadingIcon={<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
               onClick={() => setShowClearRoundDialog(true)}
             >
@@ -1157,7 +1346,18 @@ export function RoundBoard({
       <RoundBoardRail
         attention={sortedAttention}
         onResolve={(item) => {
-          if (item.playerId) handleSelectPlayer(item.playerId);
+          // Rail already gates on item.resolvable (P1-01) — this only decides HOW to route,
+          // never whether to.
+          if (item.playerId) {
+            handleSelectPlayer(item.playerId);
+          } else if (item.matchId) {
+            // Match-specific, no single player to select: route into that match's own context
+            // (the compact match-first drill-in; a no-op on desktop, where every match's lane
+            // is already simultaneously visible).
+            setMobileMatchId(item.matchId);
+            setMobileMode("match");
+            setMobileMatchUrl(item.matchId);
+          }
         }}
         assistantCoach={assistantCoach}
         fairnessMetrics={fairnessMetrics}
@@ -1321,6 +1521,7 @@ export function RoundBoard({
                 handleOpenRepair(matchId, playerId, playerName)
               }
               onSelectPlayer={handleSelectPlayer}
+              coachingIntentCommands={commands}
               onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
                 touchDragRef.current = {
                   playerId,
@@ -1341,9 +1542,13 @@ export function RoundBoard({
             <PlayerAssignmentInspector
               context={assignmentContext}
               onAssign={handleAssignSuggestion}
-              onClose={() => setSelectedPlayerId(null)}
+              onClose={() => {
+                setSelectedPlayerId(null);
+                setAssignmentError(null);
+              }}
               closedNotice={assignmentClosedNotice}
               lineupHref={selectedPlayerLineupHref}
+              errorNotice={assignmentError}
             />
           </div>
         </div>
@@ -1472,6 +1677,7 @@ export function RoundBoard({
                 handleOpenRepair(matchId, playerId, playerName)
               }
               onSelectPlayer={handleSelectPlayer}
+              coachingIntentCommands={commands}
               onTouchStartPlayer={(playerId, fromMatchId, currentRole) => {
                 touchDragRef.current = {
                   playerId,
@@ -1534,9 +1740,13 @@ export function RoundBoard({
         isOpen={sheetOpen}
         context={assignmentContext}
         onAssign={handleAssignSuggestion}
-        onClose={() => setSheetOpen(false)}
+        onClose={() => {
+          setSheetOpen(false);
+          setAssignmentError(null);
+        }}
         closedNotice={assignmentClosedNotice}
         lineupHref={selectedPlayerLineupHref}
+        errorNotice={assignmentError}
       />
 
       <Dialog

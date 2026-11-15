@@ -42,8 +42,70 @@ describe("round-board-production-adapter — buildRoundBoardViewModel eligibleCo
   });
 });
 
+function match(overrides: Partial<Parameters<typeof buildRoundBoardViewModel>[0]["matches"][number]> & { matchId: string }) {
+  return {
+    teamName: "", teamKitColor: null, opponent: "", matchDate: new Date("2026-01-01"),
+    targetSquadSize: 11, minSquadSize: 7, isFinalized: false, players: [],
+    ...overrides,
+  };
+}
+
+// Gate C W2 remediation (P1-01): `resolvable` must come from the canonical per-match boundary
+// (never the round-level boundary alone — a mixed round has both open and closed matches).
+describe("round-board-production-adapter — buildRoundBoardViewModel attention resolvability (Gate C W2 / P1-01)", () => {
+  it("player-specific item: resolvable when an open destination other than their current match exists", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [
+        match({ matchId: "closed", isFinalized: true, players: [{ playerId: "p1", displayName: "A", shirtNumber: null, kitColor: null, position: null, role: "CORE", attention: false }] }),
+        match({ matchId: "open", isFinalized: false }),
+      ],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p1" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 1 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(true);
+  });
+
+  it("player-specific item: not resolvable when every other match is closed", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [
+        match({ matchId: "closed1", isFinalized: true, players: [{ playerId: "p1", displayName: "A", shirtNumber: null, kitColor: null, position: null, role: "CORE", attention: false }] }),
+        match({ matchId: "closed2", isFinalized: true }),
+      ],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p1" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 1 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(false);
+  });
+
+  it("match-specific item (no player): resolvable only when that exact match is open", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "m-open", isFinalized: false }), match({ matchId: "m-closed", isFinalized: true })],
+      attentionSignals: [
+        { id: "s1", summary: "", detail: "", severity: "BLOCKED", matchId: "m-open" },
+        { id: "s2", summary: "", detail: "", severity: "BLOCKED", matchId: "m-closed" },
+      ],
+      eligibleCoverage: { eligiblePlayerCount: 0, assignedEligiblePlayerCount: 0 },
+    });
+    expect(vm.attention.find((a) => a.id === "s1")!.resolvable).toBe(true);
+    expect(vm.attention.find((a) => a.id === "s2")!.resolvable).toBe(false);
+  });
+
+  it("fail-safe: an item with neither playerId nor matchId is never resolvable", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "m1", isFinalized: false })],
+      attentionSignals: [{ id: "s1", summary: "", detail: "", severity: "BLOCKED" }],
+      eligibleCoverage: { eligiblePlayerCount: 0, assignedEligiblePlayerCount: 0 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(false);
+  });
+});
+
 function item(overrides: Partial<RoundBoardAttentionItem> & Pick<RoundBoardAttentionItem, "id" | "severity">): RoundBoardAttentionItem {
-  return { playerId: null, matchId: null, summary: "", detail: "", ...overrides };
+  return { playerId: null, matchId: null, summary: "", detail: "", resolvable: false, ...overrides };
 }
 
 describe("round-board-production-adapter — sortAttentionForSelection", () => {

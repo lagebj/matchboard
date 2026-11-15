@@ -102,6 +102,16 @@ export type RoundBoardAttentionItem = {
   summary: string;
   detail: string;
   severity: "BLOCKED" | "DECISION_REQUIRED";
+  /**
+   * Whether a legitimate, currently available resolution path exists for this item, derived
+   * from the canonical per-match planning boundary (never the round-level boundary alone — a
+   * mixed round can have both closed and open matches). `true` only when: (a) the item names a
+   * player and at least one open destination match exists for them, or (b) the item names a
+   * match with no specific player and that match itself is open. A historical warning on a
+   * closed match, or a warning with no player/match identity at all, is always `false` — a
+   * Resolve action must never render for it (Gate C W2 remediation, P1-01).
+   */
+  resolvable: boolean;
 };
 
 export type RoundBoardSummary = {

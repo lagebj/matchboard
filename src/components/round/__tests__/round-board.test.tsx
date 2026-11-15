@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RoundBoard } from "../round-board";
@@ -486,5 +486,195 @@ describe("RoundBoard — editing is gated by the live planning boundary, not a p
     render(<RoundBoard {...props} />);
     expect(screen.queryByRole("button", { name: /regenerate/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /clear/i })).toBeNull();
+  });
+});
+
+// Gate C W2 remediation (P1-03): movePlayerToMatch previously only guarded the DESTINATION
+// boundary. A player currently on a CLOSED match could still be removed from it, as a side
+// effect of toggling a *different*, open match's cell for them (matrix), or of a suggestion-card
+// assignment into a genuinely open destination (handleAssignSuggestion only checked the target).
+describe("RoundBoard — movePlayerToMatch guards the SOURCE match's boundary too (Gate C W2 remediation P1-03)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+  });
+
+  it("matrix: does not remove a player from a closed source match when toggling a different, open match's cell", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches[0]!.isFinalized = true; // Alice's current match (Blue) is closed; White stays open.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /^allocation$/i }));
+    await user.click(screen.getByRole("button", { name: "Alice in White, not assigned" }));
+
+    expect(addPlayerToMatchAction).not.toHaveBeenCalled();
+    expect(removePlayerFromMatchAction).not.toHaveBeenCalled();
+    // Alice remains assigned to Blue — the cell state is unchanged.
+    expect(screen.getByRole("button", { name: "Alice in Blue" })).toBeTruthy();
+    expect(screen.getByRole("alert")).toHaveTextContent(/planning is closed for the player's current match/i);
+  });
+
+  it("suggestion-card path: proactively shows no destination at all for a player whose own current match is closed, rather than offering one that would only fail when tapped", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches[0]!.isFinalized = true; // Alice's current match (Blue) is closed.
+    props.matches.push({
+      matchId: "m-green",
+      teamId: "team-green",
+      teamName: "Green",
+      teamKitColor: "#00aa44",
+      opponent: "Hawks",
+      matchDate: new Date("2026-01-01"),
+      targetSquadSize: 11,
+      minSquadSize: 7,
+      isFinalized: false,
+      players: [],
+    });
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    // White and Green are both genuinely open, but Alice's own match (Blue) is closed — every
+    // possible move touches that closed source, so nothing is offered at all, immediately on
+    // selection (not only after a doomed attempt).
+    expect(screen.queryByRole("button", { name: /assign player/i })).toBeNull();
+    expect(screen.getByText(/planning is closed for this player's current match/i)).toBeTruthy();
+    expect(addPlayerToMatchAction).not.toHaveBeenCalled();
+  });
+
+  // Unlike the suggestion-card path above, the matrix shows every player row regardless of
+  // their current match's boundary (it is not a per-player "selected" view), so it still relies
+  // on `movePlayerToMatch`'s own reactive guard — see the dedicated matrix test earlier in this
+  // describe block ("matrix: does not remove a player from a closed source match...").
+});
+
+// Gate C W2 remediation (P1-05): a rejected or errored move must never look like a silent no-op
+// or a success — the sheet/inspector stay open, the selection is preserved, and the real reason
+// is shown.
+describe("RoundBoard — truthful feedback on a rejected or errored assignment (Gate C W2 remediation P1-05)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+  });
+
+  it("keeps the inspector open and preserves the selection when the server rejects the assignment", async () => {
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: false, errors: ["No eligible slot remains."], warnings: [] });
+    const props = baseProps();
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+
+    // Rejected — the suggestion list (and Alice's selection) remains, with the real reason shown.
+    await screen.findByText("No eligible slot remains.");
+    expect(screen.getByRole("button", { name: /assign player/i })).toBeTruthy();
+    expect(removePlayerFromMatchAction).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a partial-completion error truthfully when add succeeds but remove fails, rather than claiming success", async () => {
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: true, errors: [], warnings: [] });
+    removePlayerFromMatchAction.mockResolvedValueOnce({ success: false, errors: ["Conflict."], warnings: [] });
+    const props = baseProps();
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+
+    expect(await screen.findByText(/added to the new match but could not be removed from the previous one/i)).toBeTruthy();
+  });
+
+  it("shows no error banner or false rejection message after a genuine success", async () => {
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: true, errors: [], warnings: [] });
+    const props = baseProps();
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+
+    await waitFor(() => expect(removePlayerFromMatchAction).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/was rejected|could not be removed/i)).toBeNull();
+  });
+});
+
+/** `useMediaQuery("(max-width: 839px)")` drives `isCompactViewport` — see
+ * `src/app/dev/ui-lab/gate-a/a01-sports-first/__tests__/a01-fixture.test.tsx` for this pattern. */
+let restoreMatchMedia: (() => void) | undefined;
+function mockCompactViewport() {
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) => {
+    if (query === "(max-width: 839px)") {
+      return {
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      } as MediaQueryList;
+    }
+    return original(query);
+  }) as typeof window.matchMedia;
+  restoreMatchMedia = () => {
+    window.matchMedia = original;
+  };
+}
+
+describe("RoundBoard — mobile assignment sheet retains context on rejection (Gate C W2 remediation P1-05)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+  });
+  afterEach(() => {
+    restoreMatchMedia?.();
+    restoreMatchMedia = undefined;
+  });
+
+  it("stays open and shows the real reason when the server rejects the assignment", async () => {
+    mockCompactViewport();
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: false, errors: ["No eligible slot remains."], warnings: [] });
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    const sheet = await screen.findByRole("dialog", { name: /assign player/i });
+    await user.click(within(sheet).getByRole("button", { name: /assign to white/i }));
+
+    // The desktop inspector column is CSS-hidden but still present in jsdom — scope to the
+    // sheet itself, which is the thing actually visible at this (compact) viewport.
+    expect(await within(sheet).findByText("No eligible slot remains.")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: /assign player/i })).toBeTruthy(); // still open.
+  });
+
+  it("closes on a genuine success", async () => {
+    mockCompactViewport();
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: true, errors: [], warnings: [] });
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    const sheet = await screen.findByRole("dialog", { name: /assign player/i });
+    await user.click(within(sheet).getByRole("button", { name: /assign to white/i }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: /assign player/i })).toBeNull());
+  });
+
+  it("cancel closes the sheet without calling any assignment action", async () => {
+    mockCompactViewport();
+    const user = userEvent.setup();
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    await screen.findByRole("dialog", { name: /assign player/i });
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog", { name: /assign player/i })).toBeNull();
+    expect(addPlayerToMatchAction).not.toHaveBeenCalled();
   });
 });

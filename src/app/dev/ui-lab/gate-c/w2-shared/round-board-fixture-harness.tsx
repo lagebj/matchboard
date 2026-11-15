@@ -106,13 +106,28 @@ export function RoundBoardFixtureHarness({ initial }: { initial: RoundBoardFixtu
       vacatedRole: "CORE",
       options: [],
     }),
-    // Stands in for `clearRoundDraftAction`. Fixture-only no-op — Clear/Regenerate are rendered
-    // whenever planning is open (as production does) but are not this wave's acceptance
-    // question, so they intentionally do nothing rather than mutate fixture state.
+    // Stands in for `clearRoundDraftAction`/`regenerateRoundAction`. Both buttons are disabled
+    // outright via `disableClearAndRegenerate` below (P1-06) — no deterministic fixture
+    // behavior exists for either, and a no-op that returns success would look like it worked
+    // when nothing happened. These no-ops remain only as defense in depth (never rely solely on
+    // a disabled attribute client-side); they are not reachable through the UI.
     clearRoundDraft: async () => {},
-    // Stands in for `regenerateRoundAction`. Its return value is ignored by the real caller too.
     regenerateRound: async () => ({ error: "" }),
+    // Stands in for the two coaching-intent server actions `CoachingIntentSelector` otherwise
+    // dynamically imports on its own, outside this commands object entirely (P1-06). Optimistic,
+    // in-memory, never a network/persistence call — coaching intent isn't any C04-C06 acceptance
+    // question, so a simple always-succeeds stand-in is the honest, safe default.
+    setCoachingIntent: async () => ({ success: true }),
+    removeCoachingIntent: async () => ({ success: true }),
   };
 
-  return <RoundBoard {...initialBoardProps} matches={matches} coverage={coverage} commands={commands} />;
+  return (
+    <RoundBoard
+      {...initialBoardProps}
+      matches={matches}
+      coverage={coverage}
+      commands={commands}
+      disableClearAndRegenerate
+    />
+  );
 }

@@ -73,7 +73,11 @@ export function RoundBoardRail({ attention, onResolve, assistantCoach, fairnessM
                       <p className="truncate text-[13px] font-[600] text-[var(--foreground)]">{item.summary}</p>
                       <p className="truncate text-[11px] text-[var(--text-muted)]">{item.detail}</p>
                     </div>
-                    {onResolve ? (
+                    {/* Gate C W2 (P1-01): render the control only when a legitimate resolution
+                        path actually exists (per-match boundary, not merely `onResolve` being
+                        provided) — a historical warning on a closed match must never offer an
+                        executable Resolve action, not just a visually different one. */}
+                    {onResolve && item.resolvable ? (
                       <button
                         type="button"
                         onClick={() => onResolve(item)}

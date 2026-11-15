@@ -17,9 +17,13 @@ export type PlayerAssignmentSheetProps = {
   closedNotice?: string | null;
   /** See `PlayerAssignmentInspector`'s `lineupHref` — passed through unchanged. */
   lineupHref?: string | null;
+  /** See `PlayerAssignmentInspector`'s `errorNotice` — passed through unchanged. The sheet's own
+   * `isOpen` is controlled by the caller, which only closes it on a real success (P1-05) — this
+   * component does not need to decide that itself. */
+  errorNotice?: string | null;
 };
 
-export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose, closedNotice, lineupHref }: PlayerAssignmentSheetProps) {
+export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose, closedNotice, lineupHref, errorNotice }: PlayerAssignmentSheetProps) {
   const recommended = context?.suggestions.find((s) => s.isRecommended) ?? null;
 
   return (
@@ -41,7 +45,7 @@ export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose, clos
         ) : undefined
       }
     >
-      <PlayerAssignmentInspector context={context} onAssign={onAssign} closedNotice={closedNotice} lineupHref={lineupHref} />
+      <PlayerAssignmentInspector context={context} onAssign={onAssign} closedNotice={closedNotice} lineupHref={lineupHref} errorNotice={errorNotice} />
     </TouchlineBottomSheet>
   );
 }
