@@ -265,15 +265,85 @@ test.describe("Gate C W2 — C05: historical warning semantics, no false Resolve
     await expect(page.getByRole("button", { name: /move oskar to/i })).toHaveCount(0);
   });
 
-  test("desktop: a match-specific Resolve on an OPEN match scrolls that lane into view and moves focus to a real control inside it", async ({ page }) => {
+  test("desktop: a match-specific Resolve on an OPEN match reaches a genuine correction workflow, not just navigation", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${BASE}/c05-planning-closed/open-match-warning`);
 
     await page.getByRole("button", { name: "Resolve", exact: true }).click();
 
-    // The match has real assigned players (below minimum, which is the warning) — focus lands
-    // on the first one's "Select" control, a genuinely useful destination, not a silent no-op.
-    await expect(page.getByRole("button", { name: "Select William", exact: true })).toBeFocused();
+    // Third remediation pass: a second independent review found the previous fix focused the
+    // first ASSIGNED player's own "Select" control — but that player's own current match is
+    // always excluded as a destination for themselves, so the resulting workflow could never
+    // add anyone to a squad that is short. Rød's roster has 11 players, 5 assigned (William,
+    // Oskar, Lucas, Noah, Emil) and 6 genuinely unassigned (Isak is the first, in roster order)
+    // — focus must land on Isak, in the Available column, not on any assigned player's control.
+    const availableColumn = page.locator('[data-drop-available]');
+    await expect(availableColumn.getByRole("button", { name: "Select Isak", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Select William", exact: true })).not.toBeFocused();
+  });
+
+  test("mobile: a match-specific Resolve navigates to the match, URL-backs the identity, and focuses the real visible candidate (never a hidden desktop control)", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/c05-planning-closed/open-match-warning`);
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+
+    // URL-backed mobile match identity (ADR-0124 §12) — survives refresh/back.
+    await expect(page).toHaveURL(/match=w2-c05-rod-open-warning/);
+    // The real, visible mobile composition's own Available sub-list — never the desktop one,
+    // which is genuinely CSS-hidden (not merely overlapped) at this width.
+    const mobileBoard = page.locator("[data-mobile-board]");
+    await expect(mobileBoard.getByRole("button", { name: "Select Isak", exact: true })).toBeFocused();
+    await expect(page.locator("[data-desktop-board]")).toBeHidden();
+
+    // Back navigation remains functional.
+    await mobileBoard.getByRole("button", { name: /all matches/i }).click();
+    await expect(page).not.toHaveURL(/match=/);
+  });
+
+  test("desktop: committing the resolved candidate's assignment into the actual short match updates squad state truthfully", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed/open-match-warning`);
+
+    await expect(page.getByText("Squad (5)")).toBeVisible();
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+    await page.getByRole("button", { name: "Select Isak", exact: true }).click();
+
+    // The target match's own warning text survives through candidate inspection, and its
+    // suggestion is the dominant, recommended one (Rød is the round's only match, so there is
+    // only one possible destination here — the override is exercised more decisively in the
+    // component-test suite's multi-match fixture; this proves the real browser wiring end to
+    // end on the genuinely reachable single-match case).
+    await expect(page.getByText(/resolving:.*below minimum squad size/i)).toBeVisible();
+    await page.getByRole("button", { name: /assign player/i }).click();
+
+    // A real, truthful update: the squad count increases, and Isak moves from Available to the
+    // match roster. The ORIGINAL warning text (a frozen fixture snapshot, not recomputed plan
+    // integrity — see DATA_TRUTH_AND_FIXTURES.md) may still be present; this intentionally does
+    // NOT assert that it has disappeared, since this UI Lab fixture harness does not — and must
+    // not — implement a second plan-integrity engine to recompute it.
+    await expect(page.getByText("Squad (6)")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove Isak", exact: true })).toBeVisible();
+    // Isak moved OUT of the Available column specifically (every assigned player's own lane chip
+    // also carries a "Select" affordance for inspection, so the name doesn't vanish altogether).
+    await expect(page.locator("[data-drop-available]").getByRole("button", { name: "Select Isak", exact: true })).toHaveCount(0);
+  });
+
+  test("desktop: a rejected resolution leaves the target and candidate intact and shows the real reason", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed/open-match-warning/denied`);
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+    await page.getByRole("button", { name: "Select Isak", exact: true }).click();
+    await page.getByRole("button", { name: /assign player/i }).click();
+
+    await expect(page.getByText(/rød's squad is already at its accepted cap/i)).toBeVisible();
+    // The selection and target survive the rejection — never a silent close that would imply
+    // success, and the coach can still see which match this is about.
+    await expect(page.getByText(/resolving:.*below minimum squad size/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /assign player/i })).toBeVisible();
+    await expect(page.getByText("Squad (5)")).toBeVisible(); // unchanged.
   });
 
   test("desktop: the Move picker excludes the closed match and explains why, for a player whose own match stays open", async ({ page }) => {
@@ -348,7 +418,14 @@ test.describe("Gate C W2 — C06: dense allocation matrix, mobile sheet, and tru
 });
 
 test.describe("Gate C W2 — responsive layout: no horizontal page overflow at any required width", () => {
-  const SCENARIOS = ["c04-planning-open", "c05-planning-closed", "c05-planning-closed/open-match-warning", "c06-dense-allocation", "c06-dense-allocation/denied-assignment"];
+  const SCENARIOS = [
+    "c04-planning-open",
+    "c05-planning-closed",
+    "c05-planning-closed/open-match-warning",
+    "c05-planning-closed/open-match-warning/denied",
+    "c06-dense-allocation",
+    "c06-dense-allocation/denied-assignment",
+  ];
   // Neither 768px nor 900px is included: Round Board's desktop workbench grid needs ~1150-1200px
   // of minimum column width (three match lanes at minmax(220px,...) plus the available/inspector
   // columns, more again for the allocation matrix's own per-match-column width) once the

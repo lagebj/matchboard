@@ -36,6 +36,19 @@ export type PlayerAssignmentInspectorProps = {
    * coach can pick a different destination or cancel.
    */
   errorNotice?: string | null;
+  /**
+   * Gate C W2 (third remediation pass — match-targeted Resolve): names the squad-shortage
+   * warning this player selection is trying to correct, shown above the suggestions so the
+   * intended destination stays clear through candidate inspection. `null`/absent outside that
+   * flow, or once the target is no longer a reachable destination for the selected player.
+   */
+  resolvingNotice?: string | null;
+  /**
+   * Shown in place of the generic "Select a player" placeholder when no player is selected AND
+   * there is no eligible candidate at all to resolve a pending match-targeted Resolve — the
+   * honest "why nothing is here" message, never a fabricated or auto-chosen assignment.
+   */
+  noCandidateNotice?: string | null;
 };
 
 function SuggestionCard({
@@ -93,11 +106,23 @@ function SuggestionCard({
   );
 }
 
-export function PlayerAssignmentInspector({ context, onAssign, onClose, className, closedNotice, lineupHref, errorNotice }: PlayerAssignmentInspectorProps) {
+export function PlayerAssignmentInspector({
+  context,
+  onAssign,
+  onClose,
+  className,
+  closedNotice,
+  lineupHref,
+  errorNotice,
+  resolvingNotice,
+  noCandidateNotice,
+}: PlayerAssignmentInspectorProps) {
   if (!context) {
     return (
       <TouchlineWidget className={className}>
-        <p className="text-[13px] text-[var(--text-muted)]">Select a player to see suggested assignments.</p>
+        <p className="text-[13px] text-[var(--text-muted)]">
+          {noCandidateNotice ?? "Select a player to see suggested assignments."}
+        </p>
       </TouchlineWidget>
     );
   }
@@ -129,6 +154,9 @@ export function PlayerAssignmentInspector({ context, onAssign, onClose, classNam
         </div>
         {context.attentionSummary ? (
           <p className="mt-3 rounded-lg bg-[var(--warning-subtle)] px-3 py-2 text-[12px] text-[var(--warning)]">{context.attentionSummary}</p>
+        ) : null}
+        {resolvingNotice ? (
+          <p className="mt-3 rounded-lg bg-[var(--accent-subtle)] px-3 py-2 text-[12px] text-[var(--accent-strong)]">{resolvingNotice}</p>
         ) : null}
       </TouchlineWidget>
 

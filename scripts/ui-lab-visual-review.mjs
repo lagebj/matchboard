@@ -1002,11 +1002,34 @@ const scenarios = [
   // updated mobile-only state). This sub-route's warning has no single player — it's the real,
   // reachable case for proving the fix (scroll + focus on desktop, the existing match-first
   // drill-in on mobile) in CI capture evidence, not only in component/Playwright tests.
+  //
+  // Third remediation pass: Resolve no longer focuses an already-assigned lane player (who can
+  // never fill a shortage by being assigned to the match they're already on) — it directs the
+  // coach at "Select Isak", the round's first genuinely unassigned candidate, in both
+  // compositions. The two further interactions below capture the actual correction workflow
+  // (candidate selection, then a committed assignment), not just the Resolve click itself.
   {
     slug: "gate-c-w2-c05-open-match-warning",
     route: "gate-c/c05-planning-closed/open-match-warning",
     extraViewports: gcW2ExtraSmokeViewports,
-    interactions: [{ id: "match-resolved", perform: clickByName("Resolve") }],
+    interactions: [
+      { id: "match-resolved", perform: clickByName("Resolve") },
+      { id: "candidate-selected", perform: clickByName("Select Isak") },
+      { id: "assignment-committed", perform: clickByName("Assign player") },
+    ],
+  },
+  // Same fixture, plus one deliberately rejected destination for Isak — proves the UI never
+  // shows a successful result before a real accepted one for a match-targeted Resolve's commit,
+  // not just the happy path above.
+  {
+    slug: "gate-c-w2-c05-open-match-warning-denied",
+    route: "gate-c/c05-planning-closed/open-match-warning/denied",
+    extraViewports: gcW2ExtraSmokeViewports,
+    interactions: [
+      { id: "match-resolved", perform: clickByName("Resolve") },
+      { id: "candidate-selected", perform: clickByName("Select Isak") },
+      { id: "assignment-denied", perform: clickByName("Assign player") },
+    ],
   },
   {
     slug: "gate-c-w2-c06-dense-allocation",

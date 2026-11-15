@@ -195,6 +195,30 @@ export function buildC05OpenMatchWarningFixture(): RoundBoardFixtureInitial {
   };
 }
 
+/**
+ * Same round as `buildC05OpenMatchWarningFixture`, plus one deliberately denied destination for
+ * the first genuinely unassigned candidate (Isak) into the short match itself — third
+ * remediation pass §5 "Rejection scenario": a match-targeted Resolve's commit must show the real
+ * reason and leave the target/candidate/assignment unchanged on a server rejection, not just on
+ * the happy path. Same fixture-safe `deniedAssignments` mechanism C06 already established.
+ */
+export function buildC05OpenMatchWarningDeniedFixture(): RoundBoardFixtureInitial {
+  const base = buildC05OpenMatchWarningFixture();
+  const candidate = base.availablePlayers.find(
+    (p) => !base.matches.some((m) => m.players.some((mp) => mp.id === p.id)),
+  )!;
+  return {
+    ...base,
+    deniedAssignments: [
+      {
+        playerId: candidate.id,
+        matchId: "w2-c05-rod-open-warning",
+        reason: "Fixture: Rød's squad is already at its accepted cap for a cross-team placement without an override.",
+      },
+    ],
+  };
+}
+
 /** Edge case: a warning with neither a player nor a match identity — must fail safe to
  * read-only, never guess which match or player to route a Resolve action into. */
 export function buildC05InsufficientIdentityFixture(): RoundBoardFixtureInitial {

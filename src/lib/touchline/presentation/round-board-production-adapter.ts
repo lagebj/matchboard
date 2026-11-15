@@ -116,6 +116,15 @@ export function buildRoundBoardViewModel(input: RoundBoardAdapterInput): RoundBo
   // a selected player — assign them into a destination — so once their own match is closed,
   // nothing is resolvable for them, full stop, regardless of which rule produced the signal.
   function isResolvable(signal: RoundBoardAdapterInput["attentionSignals"][number]): boolean {
+    // Re-opened finding (third remediation pass): a warning's OWNING match (signal.matchId) and
+    // the player's CURRENT match (matchIdByPlayerId) are two independent facts — neither implies
+    // the other, and conflating them let a player-specific warning that names a CLOSED match be
+    // marked resolvable purely because some unrelated match happened to be open (e.g. the player
+    // was unassigned, or assigned to a different, open match). No supported action can correct a
+    // warning whose own owning match has closed, regardless of what else is open, so this check
+    // runs first and is decisive on its own.
+    if (signal.matchId && !isMatchOpen(signal.matchId)) return false;
+
     if (signal.playerId) {
       const currentMatchId = matchIdByPlayerId.get(signal.playerId) ?? null;
       if (currentMatchId && !isMatchOpen(currentMatchId)) return false;

@@ -570,40 +570,107 @@ describe("RoundBoard — the Move picker only offers genuinely open destinations
 // Gate C W2 remediation (second pass): a match-specific Resolve previously only updated
 // mobile-only state, which the desktop workbench never reads — clicking it did nothing visible
 // on desktop even though the control looked actionable.
-describe("RoundBoard — match-specific Resolve has a real effect on desktop (Gate C W2 remediation)", () => {
-  it("scrolls the real match lane into view and moves focus to a useful control inside it", async () => {
+// Gate C W2 remediation (third pass — P1): a second independent review found that scrolling to
+// and focusing an already-ASSIGNED player's own lane control (the previous pass's fix) is
+// navigation, not resolution — that player's own current match is always excluded as a
+// destination for themselves, so the resulting workflow could never add a player to a squad
+// that is short. The genuine correction is picking an UNASSIGNED candidate from the existing
+// "Available" list, which already feeds the real select → suggest → assign workflow.
+describe("RoundBoard — match-specific Resolve reaches a genuine correction workflow, not just navigation (Gate C W2 remediation, third pass)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+  });
+
+  it("no eligible candidate exists: scrolls the match into view but explains the condition instead of focusing a misleading control", async () => {
     const user = userEvent.setup();
     const props = baseProps();
     const scrollSpy = vi.fn();
+    // baseProps()'s only "available" player (Alice) is already assigned to Blue — genuinely zero
+    // unassigned candidates exist round-wide.
     props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
     const { container } = render(<RoundBoard {...props} />);
-    const whiteLane = container.querySelector('[data-drop-match="m-white"]') as HTMLElement;
+    const whiteLane = container.querySelector('[data-desktop-board] [data-drop-match="m-white"]') as HTMLElement;
     whiteLane.scrollIntoView = scrollSpy;
 
     await user.click(screen.getByRole("button", { name: /resolve/i }));
 
     await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
-    // White's lane has no players, so there's no "Select {name}" button inside it — focus
-    // falls back to the lane itself, which is still a real, observable destination.
-    await waitFor(() => expect(document.activeElement).toBe(whiteLane));
+    // Never a misleading focus target — focus is never moved onto a Select/Assign control that
+    // doesn't actually exist (it naturally stays on the Resolve button itself, which the click
+    // already focused — the absence of any *additional* focus-move is exactly the point).
+    expect(document.activeElement?.getAttribute("aria-label") ?? "").not.toMatch(/select |assign/i);
+    expect(
+      within(container.querySelector('[data-desktop-board] [data-drop-available]') as HTMLElement).getByText(
+        /no players are currently available to assign to white/i,
+      ),
+    ).toBeTruthy();
   });
 
-  it("focuses the first selectable player inside the resolved match when one exists", async () => {
+  it("an unassigned candidate exists: focuses it in the Available column, not an already-assigned lane player", async () => {
     const user = userEvent.setup();
     const props = baseProps();
-    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "Blue is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-blue" }];
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
     const { container } = render(<RoundBoard {...props} />);
-    const blueLane = container.querySelector('[data-drop-match="m-blue"]') as HTMLElement;
-    blueLane.scrollIntoView = vi.fn();
+    const desktopBoard = container.querySelector("[data-desktop-board]") as HTMLElement;
 
     await user.click(screen.getByRole("button", { name: /resolve/i }));
 
-    // Resolving also sets the compact match-first state (for mobile), which mounts a SECOND
-    // "Select Alice" button in jsdom (CSS-hidden at this width in a real browser, but present
-    // regardless here) — scope to the one inside the desktop lane this test is actually about.
+    // Scoped to the desktop Available column — resolving also mounts a second, CSS-hidden-in-
+    // jsdom "Select Zara" inside the mobile composition's own Available sub-list.
     await waitFor(() => {
-      expect(document.activeElement).toBe(within(blueLane).getByRole("button", { name: "Select Alice" }));
+      expect(document.activeElement).toBe(within(desktopBoard).getByRole("button", { name: "Select Zara" }));
     });
+  });
+
+  it("selecting the resolved candidate directs the coach at the actual short match, not the generic recommendation", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    // Blue's target is deliberately raised far above White's, so the generic "most under
+    // target" recommendation heuristic would pick BLUE by default — proving the override is
+    // what directs the coach at White (the match this Resolve flow is actually about), not a
+    // coincidence of both matches needing a similar number of players.
+    props.matches[0]!.targetSquadSize = 25;
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+    // Resolving also mounts a second, CSS-hidden-in-jsdom "Select Zara" inside the mobile
+    // composition's own Available sub-list — scope to the desktop one this test is about.
+    const desktopBoard = container.querySelector("[data-desktop-board]") as HTMLElement;
+    await user.click(within(desktopBoard).getByRole("button", { name: "Select Zara" }));
+
+    // The target match's own warning text survives through candidate inspection.
+    expect(screen.getByText(/resolving: white is below minimum squad size/i)).toBeTruthy();
+    // White — the actual shortage — is the dominant, recommended suggestion, overriding what the
+    // generic heuristic would otherwise have picked (Blue, per its inflated target above).
+    const assignButton = screen.getByRole("button", { name: /assign player/i });
+    expect(within(assignButton.parentElement as HTMLElement).getByText(/white/i)).toBeTruthy();
+  });
+
+  it("committing the assignment into the target match clears the pending target and succeeds truthfully", async () => {
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: true, errors: [], warnings: [] });
+    const props = baseProps();
+    props.matches[0]!.targetSquadSize = 25;
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+    const desktopBoard = container.querySelector("[data-desktop-board]") as HTMLElement;
+    await user.click(within(desktopBoard).getByRole("button", { name: "Select Zara" }));
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+
+    await waitFor(() => expect(addPlayerToMatchAction).toHaveBeenCalledOnce());
+    const fd = addPlayerToMatchAction.mock.calls[0]![0] as FormData;
+    expect(fd.get("matchId")).toBe("m-white");
+    expect(fd.get("playerId")).toBe("p-zara");
+    // Resolving a second time afterwards starts a fresh flow rather than reusing stale state —
+    // confirmed by the "Resolving: ..." note no longer being shown for an unrelated selection.
+    expect(screen.queryByText(/resolving: white is below minimum/i)).toBeNull();
   });
 });
 
@@ -743,6 +810,83 @@ function mockCompactViewport() {
     window.matchMedia = original;
   };
 }
+
+/** `useMediaQuery("(max-width: 599px)")` drives `isMobileCompositionVisible` — the literal CSS
+ * breakpoint boundary (`--breakpoint-medium: 600px`) between the desktop grid and the compact
+ * composition, deliberately distinct from `isCompactViewport` (839px) above. A real narrow phone
+ * viewport makes both true simultaneously, which is what this mocks. */
+function mockMobileCompositionVisible() {
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) => {
+    if (query === "(max-width: 599px)" || query === "(max-width: 839px)") {
+      return {
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      } as MediaQueryList;
+    }
+    return original(query);
+  }) as typeof window.matchMedia;
+  restoreMatchMedia = () => {
+    window.matchMedia = original;
+  };
+}
+
+describe("RoundBoard — match-specific Resolve on a real mobile viewport targets the visible composition, never a CSS-hidden desktop control (Gate C W2 remediation, third pass P3)", () => {
+  afterEach(() => {
+    restoreMatchMedia?.();
+    restoreMatchMedia = undefined;
+  });
+
+  it("focuses the candidate inside the mobile Available sub-list, not the CSS-hidden desktop one", async () => {
+    mockMobileCompositionVisible();
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+
+    const mobileBoard = await waitFor(() => {
+      const board = container.querySelector("[data-mobile-board]");
+      if (!board) throw new Error("mobile board not mounted yet");
+      return board as HTMLElement;
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(within(mobileBoard).getByRole("button", { name: "Select Zara" }));
+    });
+    // The URL-backed mobile match identity is correct, and it is the real mobile composition
+    // (not the desktop one) that is now showing — confirmed by the "All matches" back control
+    // existing, which only renders in the compact match-first view.
+    expect(within(mobileBoard).getByText(/all matches/i)).toBeTruthy();
+  });
+
+  it("no eligible candidate on mobile: explains the condition within the mobile Available sub-list, never focuses a misleading control", async () => {
+    mockMobileCompositionVisible();
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+
+    const mobileBoard = await waitFor(() => {
+      const board = container.querySelector("[data-mobile-board]");
+      if (!board) throw new Error("mobile board not mounted yet");
+      return board as HTMLElement;
+    });
+    await waitFor(() => {
+      expect(within(mobileBoard).getByText(/no players are currently available to assign to white/i)).toBeTruthy();
+    });
+    expect(document.activeElement?.getAttribute("aria-label") ?? "").not.toMatch(/select |assign/i);
+  });
+});
 
 describe("RoundBoard — mobile assignment sheet retains context on rejection (Gate C W2 remediation P1-05)", () => {
   beforeEach(() => {

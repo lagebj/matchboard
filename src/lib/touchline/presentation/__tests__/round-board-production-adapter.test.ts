@@ -142,6 +142,84 @@ describe("round-board-production-adapter — buildRoundBoardViewModel attention 
   });
 });
 
+describe("round-board-production-adapter — resolvability respects the warning's OWNING match, independently of the player's current match (third remediation pass)", () => {
+  it("unassigned player, warning owned by a CLOSED match, another match is open: NOT resolvable", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "closed", isFinalized: true }), match({ matchId: "open", isFinalized: false })],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p-unassigned", matchId: "closed" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 0 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(false);
+  });
+
+  it("player assigned elsewhere (open), warning owned by a CLOSED match: NOT resolvable — ownership alone is decisive", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [
+        match({ matchId: "closed", isFinalized: true }),
+        match({ matchId: "open-source", isFinalized: false, players: [{ playerId: "p1", displayName: "A", shirtNumber: null, kitColor: null, position: null, role: "CORE", attention: false }] }),
+      ],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p1", matchId: "closed" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 1 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(false);
+  });
+
+  it("player assigned to a CLOSED source match, warning owned by an OPEN match: NOT resolvable — the player's own source boundary is still decisive", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [
+        match({ matchId: "closed-source", isFinalized: true, players: [{ playerId: "p1", displayName: "A", shirtNumber: null, kitColor: null, position: null, role: "CORE", attention: false }] }),
+        match({ matchId: "open-owner", isFinalized: false }),
+      ],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p1", matchId: "open-owner" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 1 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(false);
+  });
+
+  it("unassigned player, warning owned by an OPEN match, a valid destination exists: resolvable", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "open-owner", isFinalized: false })],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p-unassigned", matchId: "open-owner" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 0 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(true);
+  });
+
+  it("missing warning ownership (no matchId), unassigned player, a valid destination exists: still resolvable", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "open", isFinalized: false })],
+      attentionSignals: [{ id: "s1", summary: "A", detail: "", severity: "DECISION_REQUIRED", playerId: "p-unassigned" }],
+      eligibleCoverage: { eligiblePlayerCount: 1, assignedEligiblePlayerCount: 0 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(true);
+  });
+
+  it("match-only warning (no playerId) on a CLOSED owning match: not resolvable — unchanged by this pass", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "closed", isFinalized: true })],
+      attentionSignals: [{ id: "s1", summary: "", detail: "", severity: "BLOCKED", matchId: "closed" }],
+      eligibleCoverage: { eligiblePlayerCount: 0, assignedEligiblePlayerCount: 0 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(false);
+  });
+
+  it("match-only warning (no playerId) on an OPEN owning match: resolvable — unchanged by this pass", () => {
+    const vm = buildRoundBoardViewModel({
+      roundLabel: "R", dateRangeLabel: "",
+      matches: [match({ matchId: "open", isFinalized: false })],
+      attentionSignals: [{ id: "s1", summary: "", detail: "", severity: "BLOCKED", matchId: "open" }],
+      eligibleCoverage: { eligiblePlayerCount: 0, assignedEligiblePlayerCount: 0 },
+    });
+    expect(vm.attention[0]!.resolvable).toBe(true);
+  });
+});
+
 function item(overrides: Partial<RoundBoardAttentionItem> & Pick<RoundBoardAttentionItem, "id" | "severity">): RoundBoardAttentionItem {
   return { playerId: null, matchId: null, summary: "", detail: "", resolvable: false, ...overrides };
 }

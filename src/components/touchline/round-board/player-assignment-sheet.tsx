@@ -21,9 +21,23 @@ export type PlayerAssignmentSheetProps = {
    * `isOpen` is controlled by the caller, which only closes it on a real success (P1-05) — this
    * component does not need to decide that itself. */
   errorNotice?: string | null;
+  /** See `PlayerAssignmentInspector`'s `resolvingNotice` — passed through unchanged. */
+  resolvingNotice?: string | null;
+  /** See `PlayerAssignmentInspector`'s `noCandidateNotice` — passed through unchanged. */
+  noCandidateNotice?: string | null;
 };
 
-export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose, closedNotice, lineupHref, errorNotice }: PlayerAssignmentSheetProps) {
+export function PlayerAssignmentSheet({
+  isOpen,
+  context,
+  onAssign,
+  onClose,
+  closedNotice,
+  lineupHref,
+  errorNotice,
+  resolvingNotice,
+  noCandidateNotice,
+}: PlayerAssignmentSheetProps) {
   const recommended = context?.suggestions.find((s) => s.isRecommended) ?? null;
 
   return (
@@ -45,7 +59,15 @@ export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose, clos
         ) : undefined
       }
     >
-      <PlayerAssignmentInspector context={context} onAssign={onAssign} closedNotice={closedNotice} lineupHref={lineupHref} errorNotice={errorNotice} />
+      <PlayerAssignmentInspector
+        context={context}
+        onAssign={onAssign}
+        closedNotice={closedNotice}
+        lineupHref={lineupHref}
+        errorNotice={errorNotice}
+        resolvingNotice={resolvingNotice}
+        noCandidateNotice={noCandidateNotice}
+      />
     </TouchlineBottomSheet>
   );
 }

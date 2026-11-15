@@ -638,6 +638,29 @@ export function RoundBoard({
     fromMatchId: string | null;
   } | null>(null);
   const isCompactViewport = useMediaQuery("(max-width: 839px)");
+  // Distinct from `isCompactViewport` (839px) above, which only chooses which DIALOG style to use
+  // (sheet vs. inspector). This instead matches the literal CSS breakpoint that decides which
+  // composition is actually in the DOM/accessibility tree (`--breakpoint-medium: 600px`,
+  // `src/app/globals.css` — the desktop grid is `hidden medium:grid`, the compact composition is
+  // `medium:hidden`, an exact complementary pair with no gap or overlap). Using `isCompactViewport`
+  // here would be wrong in the 600-839px range — e.g. at 700px, isCompactViewport is true, but
+  // the CSS-visible composition is still the desktop one (this exact range is also why issue
+  // #830's layout gap exists). Third remediation pass: `handleResolveMatch`'s focus target must
+  // only ever query the composition that is genuinely visible, never rely on DOM traversal order
+  // to pick between two same-match-id elements where one is CSS-hidden-but-present in the DOM.
+  const isMobileCompositionVisible = useMediaQuery("(max-width: 599px)");
+
+  // Gate C W2 remediation (third pass — match-targeted Resolve): the squad-shortage match a
+  // "Resolve" click is currently trying to correct, retained through player selection so the
+  // coach's eventual destination choice can be clearly directed at it. Presentation-only — never
+  // a second eligibility/selection engine; it only prioritizes which of the EXISTING, already
+  // correctly-filtered suggestions is shown as the dominant action, via the same `isRecommended`
+  // flag the inspector/sheet already render. Cleared on a successful assignment or when the
+  // coach explicitly leaves the flow (closing the inspector/sheet, or backing out on mobile).
+  const [pendingAssignmentTarget, setPendingAssignmentTarget] = useState<{
+    matchId: string;
+    signalId: string;
+  } | null>(null);
 
   // Emergency repair (Phase 9, DECISIONS.md "Emergency repair"): generates ranked alternatives for
   // a specific player without changing anything until the coach picks one.
@@ -942,6 +965,12 @@ export function RoundBoard({
         if (outcome.status === "success") {
           setAssignmentError(null);
           setSheetOpen(false);
+          // The committed assignment either resolved the pending squad-shortage target or the
+          // coach chose a different destination entirely — either way, this flow has concluded.
+          // The server refresh below recomputes the real warning state; this is purely the
+          // presentation-level "which destination is the coach being directed to" state, cleared
+          // so a stale target never survives into an unrelated future selection.
+          setPendingAssignmentTarget(null);
           router.refresh();
         } else {
           setAssignmentError(outcome.reason);
@@ -957,34 +986,87 @@ export function RoundBoard({
     if (isCompactViewport) setSheetOpen(true);
   }, [isCompactViewport]);
 
-  // Gate C W2 remediation (desktop match-specific Resolve had no effective behavior — clicking
-  // it only updated mobile-only state, which the desktop workbench never reads at all, so the
-  // control appeared actionable while doing nothing visible). Resolves a match-specific
-  // attention item (no single player to select) on BOTH compositions: mobile keeps its existing
-  // match-first drill-in; desktop scrolls the real match lane into view and moves keyboard focus
-  // to a genuinely useful control inside it (that match's first "Select {player}" button when
-  // one exists, else the lane itself) — the existing lane and assignment workflow, not a second
-  // match-selection engine or a new route.
-  const handleResolveMatch = useCallback((matchId: string) => {
-    setMobileMatchId(matchId);
-    setMobileMode("match");
-    setMobileMatchUrl(matchId);
+  // Gate C W2 remediation (third pass — P1 and P3).
+  //
+  // P1: the first fix made match-specific Resolve visibly DO something on desktop (scroll +
+  // focus), but focusing an already-ASSIGNED player's lane control is navigation, not
+  // resolution — that player's own current match is always excluded as a destination for
+  // themselves (the closed/open-boundary filtering above), so the resulting workflow could
+  // never add a player to a match that is short. The genuine correction for a squad-shortage
+  // signal is picking an UNASSIGNED candidate from the existing "Available" list — the same
+  // list that already feeds the existing select → suggest → assign workflow — so this now
+  // targets that list instead of the lane, and records `pendingAssignmentTarget` so the eventual
+  // destination choice is clearly directed at the match actually short a player (see the
+  // `targetedAssignmentContext`/`resolvingNotice` derivation above).
+  //
+  // P3: the first fix's DOM query (`document.querySelectorAll("[data-drop-match]")`) selected
+  // the first element with the matching id regardless of which composition's CSS currently hides
+  // it — both the desktop grid and the compact composition render a `[data-drop-match]` lane for
+  // every match simultaneously, so on a real mobile viewport this could focus the CSS-hidden
+  // DESKTOP lane while the visible mobile one got nothing. Scoped here to the one composition
+  // `isMobileCompositionVisible` says is actually rendered (`[data-desktop-board]` /
+  // `[data-mobile-board]`, two explicit, stable, component-owned containers — never DOM order).
+  const handleResolveMatch = useCallback(
+    (matchId: string, signalId: string) => {
+      setPendingAssignmentTarget({ matchId, signalId });
+      setSelectedPlayerId(null);
+      setAssignmentError(null);
+      setDesktopView("board"); // the Available column/lane only exist in this view.
+      // Always keep the compact composition's own drilled-in match state in sync (URL-backed,
+      // ADR-0124 §12) — harmless when that composition is CSS-hidden (preserved from the
+      // previous pass's own behavior), and correct the moment the coach is actually on it or
+      // resizes into it. Only the FOCUS target below needs to be viewport-scoped — focusing an
+      // element inside a composition that isn't visible is the actual defect this pass fixes.
+      setMobileMatchId(matchId);
+      setMobileMode("match");
+      setMobileMatchUrl(matchId);
 
-    requestAnimationFrame(() => {
-      const lane = Array.from(document.querySelectorAll<HTMLElement>("[data-drop-match]")).find(
-        (el) => el.dataset.dropMatch === matchId,
-      );
-      if (!lane) return;
-      lane.scrollIntoView({ behavior: "smooth", block: "center" });
-      const firstSelectButton = lane.querySelector<HTMLElement>('button[aria-label^="Select "]');
-      if (firstSelectButton) {
-        firstSelectButton.focus();
+      if (isMobileCompositionVisible) {
+        // The match-first view's own "Available" sub-list mounts on the next paint once
+        // `mobileMode` flips to "match".
+        requestAnimationFrame(() => {
+          const board = document.querySelector<HTMLElement>("[data-mobile-board]");
+          const availableSelect = board?.querySelector<HTMLElement>(
+            '[data-mobile-available] button[aria-label^="Select "]',
+          );
+          if (availableSelect) {
+            availableSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+            availableSelect.focus();
+            return;
+          }
+          // No eligible candidate exists — the Available sub-list's own notice (driven by
+          // `pendingAssignmentNoCandidateNotice`) explains why; just bring the match into view,
+          // never focus a misleading control.
+          const lane = board
+            ? Array.from(board.querySelectorAll<HTMLElement>("[data-drop-match]")).find(
+                (el) => el.dataset.dropMatch === matchId,
+              )
+            : null;
+          lane?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
         return;
       }
-      if (!lane.hasAttribute("tabindex")) lane.setAttribute("tabindex", "-1");
-      lane.focus();
-    });
-  }, [setMobileMatchUrl]);
+
+      requestAnimationFrame(() => {
+        const board = document.querySelector<HTMLElement>("[data-desktop-board]");
+        const availableSelect = board?.querySelector<HTMLElement>(
+          '[data-drop-available] button[aria-label^="Select "]',
+        );
+        if (availableSelect) {
+          availableSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+          availableSelect.focus();
+          return;
+        }
+        const lane = board
+          ? Array.from(board.querySelectorAll<HTMLElement>("[data-drop-match]")).find(
+              (el) => el.dataset.dropMatch === matchId,
+            )
+          : null;
+        lane?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    },
+    [isMobileCompositionVisible, setMobileMatchUrl],
+  );
 
   // Touch drag helpers — preserved verbatim from previous implementation.
   const findDropTargetAt = (
@@ -1207,6 +1289,43 @@ export function RoundBoard({
   // real Lineup editor, the correct canonical context — only once a match assignment exists.
   const selectedPlayerLineupHref = selectedPlayerMatchId ? `/matches/${selectedPlayerMatchId}` : null;
 
+  // Gate C W2 remediation (third pass — P1: match-targeted Resolve). When a squad-shortage
+  // signal is being resolved, the target match must stay clearly identified through candidate
+  // selection, and the EXISTING suggestion that targets it (if any) — never a fabricated one —
+  // should be the one the coach is directed to via the same `isRecommended` flag the
+  // inspector/sheet already render. A target whose own match has since closed, or that the
+  // currently-selected player simply cannot reach, will not appear in `suggestions` at all (the
+  // closed-boundary filtering above still applies unchanged), so there is nothing to override in
+  // that case — the generic recommendation (or none) stands.
+  const resolvingMatch = pendingAssignmentTarget
+    ? matches.find((m) => m.matchId === pendingAssignmentTarget.matchId) ?? null
+    : null;
+  const resolvingSignal = pendingAssignmentTarget
+    ? vm.attention.find((a) => a.id === pendingAssignmentTarget.signalId) ?? null
+    : null;
+  const resolvingTargetReachable =
+    !!resolvingMatch && !!assignmentContext?.suggestions.some((s) => s.matchId === resolvingMatch.matchId);
+  const targetedAssignmentContext =
+    assignmentContext && resolvingTargetReachable
+      ? {
+          ...assignmentContext,
+          suggestions: assignmentContext.suggestions.map((s) => ({
+            ...s,
+            isRecommended: s.matchId === resolvingMatch!.matchId,
+          })),
+        }
+      : assignmentContext;
+  const resolvingNotice =
+    selectedPlayer && resolvingSignal && resolvingTargetReachable ? `Resolving: ${resolvingSignal.detail}` : null;
+  // No eligible candidate exists at all to fill the shortage — explain the condition rather than
+  // leaving the generic "Select a player" placeholder up, and never fabricate a path that
+  // doesn't exist (the contract explicitly forbids implying every warning can be solved by
+  // adding a player).
+  const pendingAssignmentNoCandidateNotice =
+    pendingAssignmentTarget && !selectedPlayer && unassignedPlayers.length === 0
+      ? `No players are currently available to assign to ${resolvingMatch?.teamName ?? "this match"}. This warning will remain until a player becomes available.`
+      : null;
+
   // Rail "Insights" mode ordering (contract: "When a player is selected, prioritize insight rows
   // that involve that player...") and "Development" mode context — both derived here since
   // `selectedPlayerId` is this component's own interaction state, not page-render-time data.
@@ -1412,7 +1531,7 @@ export function RoundBoard({
           if (item.playerId) {
             handleSelectPlayer(item.playerId);
           } else if (item.matchId) {
-            handleResolveMatch(item.matchId);
+            handleResolveMatch(item.matchId, item.id);
           }
         }}
         assistantCoach={assistantCoach}
@@ -1447,6 +1566,7 @@ export function RoundBoard({
       {/* --- Desktop workbench (medium+): lanes + inspector, or the allocation matrix. --- */}
       {desktopView === "board" ? (
         <div
+          data-desktop-board
           className="hidden medium:grid medium:gap-4"
           style={{
             gridTemplateColumns: `minmax(200px, 1fr) repeat(${Math.min(matches.length, 3)}, minmax(220px, 1.4fr)) minmax(260px, 1.3fr)`,
@@ -1514,7 +1634,7 @@ export function RoundBoard({
             <div className="flex-1 px-3 py-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
               {unassignedPlayers.length === 0 ? (
                 <p className="text-[11px] text-[var(--text-muted)] text-center py-4">
-                  All players assigned
+                  {pendingAssignmentNoCandidateNotice ?? "All players assigned"}
                 </p>
               ) : (
                 <div className="flex flex-col gap-1">
@@ -1596,15 +1716,18 @@ export function RoundBoard({
               action per suggestion, the same command as drag. */}
           <div className="flex flex-col gap-3">
             <PlayerAssignmentInspector
-              context={assignmentContext}
+              context={targetedAssignmentContext}
               onAssign={handleAssignSuggestion}
               onClose={() => {
                 setSelectedPlayerId(null);
                 setAssignmentError(null);
+                setPendingAssignmentTarget(null);
               }}
               closedNotice={assignmentClosedNotice}
               lineupHref={selectedPlayerLineupHref}
               errorNotice={assignmentError}
+              resolvingNotice={resolvingNotice}
+              noCandidateNotice={pendingAssignmentNoCandidateNotice}
             />
           </div>
         </div>
@@ -1618,7 +1741,7 @@ export function RoundBoard({
       )}
 
       {/* --- Compact: match-first composition (contract §7) — never a compressed kanban. --- */}
-      <div className="flex flex-col gap-4 medium:hidden">
+      <div data-mobile-board className="flex flex-col gap-4 medium:hidden">
         <div className="flex gap-1 border-b border-[var(--border-soft)]" role="tablist" aria-label="Round board views">
           {(["overview", "matches"] as const).map((mode) => (
             <button
@@ -1711,6 +1834,7 @@ export function RoundBoard({
                 setMobileMatchId(null);
                 setMobileMode("matches");
                 setMobileMatchUrl(null);
+                setPendingAssignmentTarget(null);
               }}
               className="mb-2 text-[12px] text-[var(--text-muted)] hover:underline"
             >
@@ -1745,12 +1869,14 @@ export function RoundBoard({
               isTouchHighlight={touchDropTarget === mobileMatch.matchId}
               touchDragPlayerId={touchDragPlayerId}
             />
-            <div className="mt-3">
+            <div data-mobile-available className="mt-3">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
                 Available
               </p>
               {unassignedPlayers.length === 0 ? (
-                <p className="text-[11px] text-[var(--text-muted)]">All players assigned</p>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  {pendingAssignmentNoCandidateNotice ?? "All players assigned"}
+                </p>
               ) : (
                 <div className="flex flex-col gap-1">
                   {unassignedPlayers.slice(0, 8).map((p) => (
@@ -1794,15 +1920,18 @@ export function RoundBoard({
           cards to the desktop inspector (one shared rendering), one sticky dominant action. */}
       <PlayerAssignmentSheet
         isOpen={sheetOpen}
-        context={assignmentContext}
+        context={targetedAssignmentContext}
         onAssign={handleAssignSuggestion}
         onClose={() => {
           setSheetOpen(false);
           setAssignmentError(null);
+          setPendingAssignmentTarget(null);
         }}
         closedNotice={assignmentClosedNotice}
         lineupHref={selectedPlayerLineupHref}
         errorNotice={assignmentError}
+        resolvingNotice={resolvingNotice}
+        noCandidateNotice={pendingAssignmentNoCandidateNotice}
       />
 
       <Dialog
