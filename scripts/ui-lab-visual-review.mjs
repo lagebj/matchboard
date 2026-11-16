@@ -110,6 +110,14 @@ const gcExtraSmokeViewports = [
   { name: "gc-430", width: 430, height: 900 },
 ];
 
+// Gate C W2 (C04-C06 Round Board) — own named set, same rationale. 430px additionally lands just
+// above the board's `isCompactViewport` breakpoint (`(max-width: 839px)`) remaining squarely
+// inside the compact, match-first composition.
+const gcW2ExtraSmokeViewports = [
+  { name: "gc-360", width: 360, height: 800 },
+  { name: "gc-430", width: 430, height: 900 },
+];
+
 // Gate B W5 (B08 information ownership) — same 360/430px smoke rationale as every prior Gate B
 // wave, plus 600/768/900px for AFTER and the two Report compositions specifically: these are the
 // three transition-sensitive/layout-dense B08 pages (tab rail + multi-widget Overview, or the
@@ -187,6 +195,46 @@ const inspectorSqueezeSmokeViewports = [
 function clickByName(name) {
   return async function perform(page) {
     await page.getByRole("button", { name, exact: true }).click();
+    const isSheet = await page.evaluate(() => document.querySelector('[role="dialog"]')?.getAttribute("aria-modal") === "true");
+    if (isSheet) {
+      await page.waitForFunction(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        if (!dialog) return false;
+        const rect = dialog.getBoundingClientRect();
+        return rect.height > 0 && rect.bottom <= window.innerHeight + 2;
+      }, { timeout: 10000 });
+      await page.waitForTimeout(100);
+    }
+  };
+}
+/**
+ * Gate C W2 (Round Board C04-C06): selects a player by name, drilling into the compact
+ * match-first composition first when needed. Below the board's own `isCompactViewport` breakpoint
+ * (`(max-width: 839px)`, `round-board.tsx`), the desktop workbench's "Select {name}" buttons are
+ * genuinely CSS-hidden (`hidden medium:grid`) and the compact section starts in its "overview"
+ * mode, which shows no player rows at all — the coach must drill Matches -> a specific team's
+ * squad first (real production navigation, not a capture-script workaround) before any "Select"
+ * button exists in the accessibility tree. `anyMatchTeamName` only has to name ONE match in the
+ * round: the drilled-in view's own "Available" sub-list is the same global unassigned-players
+ * list regardless of which match was opened, so it reaches an unassigned player too.
+ */
+function selectPlayerGateCW2(playerName, anyMatchTeamName) {
+  return async function perform(page) {
+    // A SECOND selection on mobile (e.g. C05's open-match-then-closed-match sequence) arrives
+    // with the first player's assignment sheet still open as a genuinely MODAL dialog
+    // (`aria-modal="true"`), which intercepts clicks on the tab strip underneath it — close it
+    // first, same precedent as `openSourceInspectorByName`'s own modal-dialog handling above.
+    const openModal = page.getByRole("dialog");
+    if ((await openModal.count()) > 0 && (await openModal.first().getAttribute("aria-modal")) === "true") {
+      await page.keyboard.press("Escape");
+      await openModal.first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+    }
+    const selectButton = page.getByRole("button", { name: `Select ${playerName}`, exact: true });
+    if (!(await selectButton.first().isVisible().catch(() => false))) {
+      await page.getByRole("tab", { name: "matches", exact: true }).click();
+      await page.getByRole("button", { name: new RegExp(anyMatchTeamName) }).first().click();
+    }
+    await selectButton.first().click({ timeout: 10000 });
     const isSheet = await page.evaluate(() => document.querySelector('[role="dialog"]')?.getAttribute("aria-modal") === "true");
     if (isSheet) {
       await page.waitForFunction(() => {
@@ -911,6 +959,104 @@ const scenarios = [
     slug: "gate-c-w1-c03-event-imminent",
     route: "gate-c/c03-matchday-prelive/event/imminent",
     extraViewports: gcExtraSmokeViewports,
+  },
+  // Gate C W2 candidates (register C04-C06, "Round Board") — CANDIDATE, not approved. Same
+  // self-assigned-scope disclosure as W1 (see docs/ui-lab/gate-c-w2-candidates/
+  // SOURCE_RECONCILIATION.md). Registered from the first commit, per the same B5/R7 lesson W1
+  // already applied. `clickByName`'s existing sheet-settle handling covers the mobile assignment
+  // sheet automatically (it opens on its own at `isCompactViewport` widths) — no separate
+  // "open sheet" interaction id is needed.
+  {
+    slug: "gate-c-w2-c04-planning-open",
+    route: "gate-c/c04-planning-open",
+    extraViewports: gcW2ExtraSmokeViewports,
+    interactions: [{ id: "unresolved-player-selected", perform: selectPlayerGateCW2("Noah", "Rød") }],
+  },
+  {
+    slug: "gate-c-w2-c05-planning-closed",
+    route: "gate-c/c05-planning-closed",
+    extraViewports: gcW2ExtraSmokeViewports,
+    interactions: [
+      { id: "open-match-player-selected", perform: selectPlayerGateCW2("Erik", "Hvit") },
+      { id: "closed-match-player-selected", perform: selectPlayerGateCW2("Oskar", "Rød") },
+      // Remediation finding: the desktop Move picker offered every other match regardless of
+      // its planning boundary. Markus is assigned to Hvit (open); Rød, the round's only other
+      // match, is closed — the picker must show neither it nor a selectable option at all,
+      // only the accurate "closed" explanation. The chip's own "Move to..." button only exists
+      // in the desktop workbench grid (`hidden medium:grid`, round-board.tsx) — below `medium`
+      // it's genuinely absent from the accessibility tree (not merely CSS-hidden-but-present, the
+      // jsdom-vs-real-browser distinction that bit this exact file before), so this is a
+      // deliberate no-op on mobile/narrow/gc captures, same precedent as the Allocation-toggle
+      // interaction above. A real CI run surfaced this (30s timeout on mobile), not just local
+      // reasoning — checked here rather than letting a doomed `.click()` abort the whole capture.
+      {
+        id: "move-picker-excludes-closed",
+        perform: async (page) => {
+          const moveButton = page.getByRole("button", { name: "Move Markus to...", exact: true });
+          if (await moveButton.isVisible().catch(() => false)) await moveButton.click();
+        },
+      },
+    ],
+  },
+  // Remediation finding: match-specific Resolve had no effective desktop behavior (it only
+  // updated mobile-only state). This sub-route's warning has no single player — it's the real,
+  // reachable case for proving the fix (scroll + focus on desktop, the existing match-first
+  // drill-in on mobile) in CI capture evidence, not only in component/Playwright tests.
+  //
+  // Third remediation pass: Resolve no longer focuses an already-assigned lane player (who can
+  // never fill a shortage by being assigned to the match they're already on) — it directs the
+  // coach at "Select Isak", the round's first genuinely unassigned candidate, in both
+  // compositions. The two further interactions below capture the actual correction workflow
+  // (candidate selection, then a committed assignment), not just the Resolve click itself.
+  {
+    slug: "gate-c-w2-c05-open-match-warning",
+    route: "gate-c/c05-planning-closed/open-match-warning",
+    extraViewports: gcW2ExtraSmokeViewports,
+    interactions: [
+      { id: "match-resolved", perform: clickByName("Resolve") },
+      { id: "candidate-selected", perform: clickByName("Select Isak") },
+      { id: "assignment-committed", perform: clickByName("Assign player") },
+    ],
+  },
+  // Same fixture, plus one deliberately rejected destination for Isak — proves the UI never
+  // shows a successful result before a real accepted one for a match-targeted Resolve's commit,
+  // not just the happy path above.
+  {
+    slug: "gate-c-w2-c05-open-match-warning-denied",
+    route: "gate-c/c05-planning-closed/open-match-warning/denied",
+    extraViewports: gcW2ExtraSmokeViewports,
+    interactions: [
+      { id: "match-resolved", perform: clickByName("Resolve") },
+      { id: "candidate-selected", perform: clickByName("Select Isak") },
+      { id: "assignment-denied", perform: clickByName("Assign player") },
+    ],
+  },
+  {
+    slug: "gate-c-w2-c06-dense-allocation",
+    route: "gate-c/c06-dense-allocation",
+    extraViewports: gcW2ExtraSmokeViewports,
+    // Order matters — interactions run cumulatively on one page (same convention as A07's
+    // editor-open -> draft-preview -> pending -> saved sequence): select William FIRST, while
+    // the board view (with its per-player "Select" buttons) is still showing; only THEN switch
+    // to the allocation matrix, which replaces the board view entirely and would otherwise have
+    // already removed the button this step needs.
+    interactions: [
+      { id: "assigned-player-selected", perform: selectPlayerGateCW2("William", "Rød") },
+      // `interactionViewports` is scenario-wide, not per-interaction, so this interaction stays
+      // registered for every viewport but is a deliberate no-op below `medium` — the
+      // Board/Allocation toggle is itself CSS-hidden there (`hidden items-center gap-1
+      // medium:flex`). Mobile's own match-first composition has no equivalent secondary mode by
+      // design (the mobile assignment sheet, exercised above, is its own, separate path). A
+      // thrown error here would abort the whole capture run, so this checks visibility first
+      // rather than letting a doomed `.click()` time out.
+      {
+        id: "allocation-matrix",
+        perform: async (page) => {
+          const toggle = page.getByRole("button", { name: "Allocation", exact: true });
+          if (await toggle.isVisible().catch(() => false)) await toggle.click();
+        },
+      },
+    ],
   },
 ];
 const viewports = [

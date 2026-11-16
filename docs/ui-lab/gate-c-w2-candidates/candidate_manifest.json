@@ -1,0 +1,93 @@
+{
+  "programmeRevision": "0.169.10",
+  "baseCommitSha": "8849c6dac5cd6e9da8c1a2c6e30dfb63320cf2b0",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-c/. Not a production implementation, not an authorization, not a security proof.",
+  "note": "Gate C W2 — C04 (Round Board planning open, unresolved player decision), C05 (planning closed, historical warnings, mixed boundary), C06 (dense allocation, position-precision disclosure). No official Gate C wave-ordering document exists (see SOURCE_RECONCILIATION.md) — this wave's scope is self-assigned and provisional, exactly as Gate C W1 disclosed for C01-C03. FIRST REMEDIATION PASS (independent review of PR #829, findings P1-01 through P1-07, all fixed — see REVIEW_RECORD.md for the full finding-by-finding disposition): (P1-01) the Resolve control now renders only when a computed `resolvable` flag (derived from the real per-match boundary) is true, not merely when a handler is provided; (P1-02) C05's retained historical warning was corrected from SELECTED_PLAYER_UNAVAILABLE (DRAFT-only in the real engine, impossible on a finalized match) to SQUAD_BELOW_MINIMUM (genuinely producible regardless of boundary); (P1-03) movePlayerToMatch now guards the SOURCE match's boundary as well as the destination's, and proactively offers no destination at all once the selected player's own match is closed; (P1-04) playerId/matchId/idempotencyKey are no longer dropped between the plan-integrity engine and the board; (P1-05) a rejected or errored move now returns a real outcome and shows the real reason, inline or via a shared banner, instead of silently refreshing/closing as if it had succeeded; (P1-06) CoachingIntentSelector's own dynamically-imported server actions are now isolated behind the same command boundary, and Clear/Regenerate are disabled outright in UI Lab rather than faking success; (P1-07) C04/C05/C06's primary routes are registered in the CI screenshot-capture pipeline, and all four routes (including the denied-assignment sub-route, via its own dedicated test rather than a capture registration) are covered by 29 new real-Chromium Playwright tests. SECOND REMEDIATION PASS (a further independent review found the first pass's P1-01/P1-03 fixes were still incomplete, plus two further defects — see REVIEW_RECORD.md's 'Second remediation pass findings' table): the Resolve-eligibility `resolvable` computation now also fails closed when the signal's own player is currently assigned to a match that has itself closed (previously it only checked whether *some other* match was open); match-specific Resolve now has a real effect on desktop (scrolls the real lane into view, focuses a real control inside it) instead of silently updating only mobile-only state; the closed-boundary banner now distinguishes a genuinely mixed round (some matches closed, some open) from a fully-closed one instead of narrating every closed-boundary round as if all matches had closed; the desktop Move picker is now filtered to open destinations only, matching the suggestion card's existing filter. A new c05-planning-closed/open-match-warning route and 7 new automated tests (5 adapter decision-matrix, 2 Playwright) cover these. While generating this pass's own real CI attestation evidence, a capture-script interaction added for the Move-picker fix was found to crash the entire CI capture job on mobile viewports (it clicked a button genuinely absent from the accessibility tree below the desktop breakpoint) — fixed with a visibility guard and re-verified against a real green CI run; and a pre-existing documentation inaccuracy from the first remediation pass (claiming the denied-assignment sub-route was capture-registered, when only its own Playwright test ever covered it) was found and corrected rather than left standing. The pre-existing ~600-1200px Round Board desktop-grid layout gap (disclosed since the first remediation pass, unrelated to either pass) is now filed as a separately tracked defect: https://github.com/lagebj/matchboard/issues/830. THIRD REMEDIATION PASS (a further independent review found the second pass's own Resolve fixes were still not enough — see REVIEW_RECORD.md's 'Third remediation pass findings' table): (P1) match-specific Resolve previously scrolled to and focused an already-ASSIGNED player's own lane control — navigation, not resolution, since that player's own current match is always excluded as a destination for themselves. It now directs the coach at the real Available (unassigned) list instead, via a new `pendingAssignmentTarget` presentation state that marks the actual shortage match's suggestion as the dominant, recommended one through candidate selection, with a 'Resolving: {warning}' note; a dedicated no-candidate notice replaces a misleading focus target when nothing is available to assign. (P2) `isResolvable` now independently checks the warning's own OWNING match (`signal.matchId`), not just the player's current one — a warning naming a closed match is never resolvable regardless of where the player involved currently is. (P3) the focus-target query is now scoped by a new `isMobileCompositionVisible` flag (the literal CSS `medium` breakpoint, 599px, distinct from the unrelated `isCompactViewport` 839px dialog-style threshold) to one of two new explicit containers, never DOM order — the previous global query could focus a CSS-hidden desktop control from a real mobile viewport. A new c05-planning-closed/open-match-warning/denied route (capture-registered, unlike C06's own denied-assignment variant) and 17 new automated tests (7 adapter decision-matrix, 6 component, 4 Playwright) cover these. FOURTH REMEDIATION PASS (a further independent review found three further findings — see REVIEW_RECORD.md's 'Fourth remediation pass findings' table): (W2-F01) C06's Lineup link used the legacy, unscoped `/matches/{matchId}` route, which silently fails to resolve (redirects to /organisations instead of the match) for a user who belongs to more than one organisation — confirmed by direct read of src/lib/auth/resolve-org-slug.ts. Fixed: RoundBoard now takes a plain `orgSlug: string` prop (never useOrgUrl()/useOrgSlug() called directly inside it, which would throw in UI Lab/tests) and builds the canonical `/o/{orgSlug}/matches/{matchId}`; the link's label changed from 'View exact position in Lineup' to 'Open Lineup', since Round Board cannot know whether an exact position already exists at the destination. (W2-F02) C06's navigation addition does not, by itself, demonstrate the original 24-vs-14-role acceptance question. Resolved by documentation, not code: C06 is now explicitly split into C06-A (dense allocation, demonstrated, PROPOSED_REFINEMENT implemented) and C06-B (position precision, not demonstrated, BLOCKED_BY_SOURCE_OR_AUTHORITY, unchanged), with a two-option owner decision record in POSITION_VOCABULARY_AND_PRECISION.md — this PR does not choose between the options. (W2-F03) VISUAL_VS_CURRENT.md is rewritten with a consistent 7-point per-scenario structure (acceptance question, existing composition, actual changes, demonstrated state, evidence, deviation, owner-review readiness), explicitly stating that passing tests are behavioral validation, never visual approval. Issue #830 (the pre-existing layout gap) is explicitly re-confirmed unaffected — this pass touched no CSS/layout code. The original two production defects (eligible-coverage data never surfaced; a closed match could accept an assignment from the inspector/sheet) are unchanged by any pass. See CURRENT_STATE_AUDIT.md, OPPORTUNITY_COVERAGE_SEMANTICS.md, CLOSED_STATE_RULES.md, DATA_TRUTH_AND_FIXTURES.md, POSITION_VOCABULARY_AND_PRECISION.md, SOURCE_RECONCILIATION.md, VISUAL_VS_CURRENT.md, and REVIEW_RECORD.md for full detail. All three candidates remain CANDIDATE pending owner review; C06's two concerns (C06-A, C06-B) are tracked as independently-dispositioned, never collapsed into one status.",
+  "candidates": [
+    {
+      "scenarioId": "GATE-C-W2-C04",
+      "sourcePr": 829,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w2-c04-planning-open",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/components/round/round-board.tsx",
+        "src/components/touchline/round-board/round-status-strip.tsx",
+        "src/components/touchline/round-board/round-board-rail.tsx",
+        "src/components/touchline/round-board/player-assignment-inspector.tsx",
+        "src/components/touchline/round-board/player-assignment-sheet.tsx",
+        "src/components/matches/coaching-intent-selector.tsx",
+        "src/lib/touchline/presentation/round-board-view-model.ts",
+        "src/lib/touchline/presentation/round-board-production-adapter.ts",
+        "src/lib/selection/compute-plan-integrity.ts",
+        "src/app/(app)/o/[orgSlug]/rounds/[matchRoundId]/page.tsx",
+        "src/app/dev/ui-lab/gate-c/w2-shared/round-board-fixture-harness.tsx",
+        "src/app/dev/ui-lab/gate-c/c04-planning-open/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-A02"],
+      "experienceContractRef": "docs/ui-lab/gate-c-w2-candidates/SCENARIO_REGISTER.md row GATE-C-W2-C04",
+      "dataContractRef": "docs/adr/0124-adaptive-contextual-ui-composition.md; docs/adr/0157-contextual-coach-workspace-convergence.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — the eligible-player coverage denominator (RoundPlanIntegrity.coverage) was computed but never surfaced anywhere in production UI prior to this PR; see CURRENT_STATE_AUDIT.md item 2 and OPPORTUNITY_COVERAGE_SEMANTICS.md. Remediation pass additionally fixed P1-01 (Resolve now gated on a real resolvable flag) and P1-04 (playerId/matchId/idempotencyKey no longer dropped) at the shared production-adapter/page level this candidate also exercises.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W2-C05",
+      "sourcePr": 829,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w2-c05-planning-closed",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/components/round/round-board.tsx",
+        "src/components/touchline/round-board/player-assignment-inspector.tsx",
+        "src/components/touchline/round-board/player-assignment-sheet.tsx",
+        "src/components/touchline/round-board/round-board-rail.tsx",
+        "src/components/matches/coaching-intent-selector.tsx",
+        "src/lib/selection/planning-boundary.ts",
+        "src/lib/selection/compute-plan-integrity.ts",
+        "src/app/(app)/o/[orgSlug]/rounds/[matchRoundId]/page.tsx",
+        "src/app/dev/ui-lab/gate-c/w2-shared/round-board-fixture-harness.tsx",
+        "src/app/dev/ui-lab/gate-c/c05-planning-closed/page.tsx"
+      ],
+      "lifecycle": "planning_closed_mixed",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w2-candidates/SCENARIO_REGISTER.md row GATE-C-W2-C05",
+      "dataContractRef": "docs/adr/0109-derived-coach-workflow-lifecycle-and-manual-intent-precedence.md; docs/adr/0157-contextual-coach-workspace-convergence.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — a real production defect: the suggestion-card assignment path had no isFinalized guard (unlike the allocation matrix's handleMatrixToggle), so a closed match could render as an assignable destination and accept a committed assignment. Fixed and regression-tested; see CURRENT_STATE_AUDIT.md item 3 and CLOSED_STATE_RULES.md. Remediation pass fixed P1-01 (Resolve gating), P1-02 (the fixture's historical warning corrected to one the real engine can produce), P1-03 (the SOURCE match's boundary is now also guarded, proactively), and P1-05 (truthful rejection feedback) — this candidate exercises all four directly. Third remediation pass's Resolve-eligibility/correction-workflow/focus-scoping fixes (CURRENT_STATE_AUDIT.md items 4/12) do not change this candidate's own rendering (Rød's warning was already correctly non-resolvable); they are exercised by the sibling open-match-warning and open-match-warning/denied routes instead.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W2-C06",
+      "sourcePr": 829,
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w2-c06-dense-allocation",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/components/round/round-board.tsx",
+        "src/components/touchline/round-board/allocation-matrix.tsx",
+        "src/components/touchline/round-board/player-assignment-inspector.tsx",
+        "src/components/touchline/round-board/player-assignment-sheet.tsx",
+        "src/components/matches/coaching-intent-selector.tsx",
+        "src/lib/touchline/presentation/round-board-production-adapter.ts",
+        "src/app/dev/ui-lab/gate-c/w2-shared/round-board-fixture-harness.tsx",
+        "src/app/dev/ui-lab/gate-c/c06-dense-allocation/page.tsx",
+        "src/app/dev/ui-lab/gate-c/c06-dense-allocation/denied-assignment/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["XR-P02"],
+      "experienceContractRef": "docs/ui-lab/gate-c-w2-candidates/SCENARIO_REGISTER.md row GATE-C-W2-C06",
+      "dataContractRef": "docs/adr/0154-canonical-tactical-position-model.md; docs/adr/0129-exact-positional-semantics-and-automatic-planning-safety.md",
+      "baselineAssetRef": "Split into two independently-dispositioned concerns by the fourth remediation pass (see POSITION_VOCABULARY_AND_PRECISION.md's full decision record). C06-A (dense allocation): PROPOSED_REFINEMENT (implemented) — the dense-matrix and mobile-sheet portions are fully demonstrated on real production code; a dedicated, genuinely reachable denied-assignment route (P1-07) and isolated CoachingIntentSelector mutation path (P1-06) are both in place. C06-B (24-vs-14 position-precision contrast): BLOCKED_BY_SOURCE_OR_AUTHORITY — Round Board's Selection model has no position field at all; the real vocabularies belong to the separate Lineup/Formation editor. Disclosed, not fabricated. A real navigation addition (link to the player's current match's canonical Lineup editor, corrected to the organisation-scoped route and an accurate 'Open Lineup' label in the fourth remediation pass, W2-F01) ships instead — but that navigation does not itself demonstrate C06-B; a two-option decision record (accept the narrower C06-A/navigation contract, or defer C06-B unchanged) is left for the repository owner, not implemented here.",
+      "knownGaps": [
+        "C06-B: exact 24-code tactical-position precision does not exist inside Round Board's data model — see POSITION_VOCABULARY_AND_PRECISION.md. Not resolvable without a schema/domain change outside this wave's scope. Remains open pending an explicit owner decision between the two options recorded there.",
+        "No safe desktop width between ~840px and ~1200px for the allocation matrix's current column widths — pre-existing, reproduced on the untouched atlas-followup prototype, out of this wave's scope, unaffected by any remediation pass including the fourth. See BLOCKERS_AND_KNOWN_LIMITATIONS.md and tracked issue #830."
+      ],
+      "approval": null
+    }
+  ]
+}

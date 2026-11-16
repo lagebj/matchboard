@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { RoundBoard } from "../round-board";
+import { RoundBoard, type SignalEntry } from "../round-board";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
@@ -41,6 +41,7 @@ function baseProps() {
     roundLabel: "Round 1",
     planningBoundaryOpen: true,
     matchRoundId: "round-1",
+    orgSlug: "test-org",
     matches: [
       {
         matchId: "m-blue",
@@ -86,7 +87,7 @@ function baseProps() {
       },
     ],
     rotationPathMap: {},
-    warnings: [],
+    warnings: [] as SignalEntry[],
     movementSummary: {
       supportSent: 0,
       supportReceived: 0,
@@ -295,6 +296,85 @@ describe("RoundBoard — emergency repair options (Phase 9)", () => {
   });
 });
 
+// Gate C W2 remediation (W2-F01): the C06 Lineup link previously used the legacy, unscoped
+// `/matches/{matchId}` route, which redirects through an organisation resolver that does not
+// reliably resolve a destination for a user who belongs to multiple organisations. `RoundBoard`
+// now takes an explicit `orgSlug` prop (never `useOrgUrl()`/`useOrgSlug()` called directly here —
+// both throw outside a real `OrgSlugProvider`, which `/dev/ui-lab` and this exact test file never
+// supply) and builds the canonical `/o/{orgSlug}/matches/{matchId}` URL from it.
+describe("RoundBoard — the Lineup link uses the canonical organisation-scoped route (Gate C W2 remediation, W2-F01)", () => {
+  afterEach(() => {
+    restoreMatchMedia?.();
+    restoreMatchMedia = undefined;
+  });
+
+  it("a selected, assigned player receives the correct canonical URL, retaining the current organisation", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.orgSlug = "rivals-fc";
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    const links = screen.getAllByRole("link", { name: /open lineup/i });
+    for (const link of links) {
+      expect(link.getAttribute("href")).toBe("/o/rivals-fc/matches/m-blue");
+    }
+  });
+
+  it("a different organisation produces a different canonical URL for the same match id", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.orgSlug = "another-club";
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    const link = screen.getAllByRole("link", { name: /open lineup/i })[0]!;
+    expect(link.getAttribute("href")).toBe("/o/another-club/matches/m-blue");
+    expect(link.getAttribute("href")).not.toBe("/o/rivals-fc/matches/m-blue");
+  });
+
+  it("an unassigned player has no Lineup link at all", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    render(<RoundBoard {...props} />);
+
+    const desktopBoard = document.querySelector("[data-desktop-board]") as HTMLElement;
+    await user.click(within(desktopBoard).getByRole("button", { name: "Select Zara" }));
+
+    expect(screen.queryByRole("link", { name: /open lineup/i })).toBeNull();
+  });
+
+  it("desktop and mobile both receive the exact same link (one shared computation, not two divergent ones)", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<RoundBoard {...baseProps()} />);
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    const desktopLink = screen.getByRole("link", { name: /open lineup/i });
+    expect(desktopLink.getAttribute("href")).toBe("/o/test-org/matches/m-blue");
+    unmount();
+
+    // The mobile sheet shares the exact same PlayerAssignmentInspector body (never a second,
+    // divergent rendering) — only reachable once the sheet actually opens, which requires the
+    // compact-viewport dialog style.
+    mockCompactViewport();
+    render(<RoundBoard {...baseProps()} />);
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    const sheet = await screen.findByRole("dialog", { name: /assign player/i });
+    const mobileLink = within(sheet).getByRole("link", { name: /open lineup/i });
+    expect(mobileLink.getAttribute("href")).toBe(desktopLink.getAttribute("href"));
+  });
+
+  it("renders correctly with only a synthetic orgSlug prop — no OrgSlugProvider, no auth, no database (UI Lab's own contract)", () => {
+    // This is the same render every other test in this file already performs — RoundBoard never
+    // calls useOrgUrl()/useOrgSlug() itself, so no provider is required. Asserted explicitly here
+    // as the W2-F01 regression guard: a future change that reintroduces a direct hook call would
+    // throw immediately on this exact render, in UI Lab and in every other test in this file.
+    expect(() => render(<RoundBoard {...baseProps()} />)).not.toThrow();
+  });
+});
+
 // Atlas Follow-up Phase F9 superseded the old scroll-snap phone tier (ADR-0124 §12's original
 // "one column, horizontally snap-scrollable below expanded" design) with a match-first
 // drill-down (Overview -> Matches -> one match's squad, feature file "Mobile Round Board is
@@ -353,6 +433,114 @@ describe("RoundBoard — desktop multi-match workbench vs. compact match-first c
 // board no longer receives the persisted MatchRound.status at all -- only the live-derived
 // `planningBoundaryOpen` prop -- so this class of staleness can no longer leak into the editing
 // gate, whatever the persisted status says.
+// Gate C W2 (C04): `computeRoundPlanIntegrity()`'s `coverage` is the canonical eligible-opportunity
+// denominator (rule 3) — the board must surface it as given, not re-derive a second definition.
+describe("RoundBoard — eligible-player coverage (Gate C W2 / C04)", () => {
+  it("shows the coverage prop's distinct-player denominator, labeled separately from squad placements", () => {
+    const props = {
+      ...baseProps(),
+      coverage: {
+        eligibleAvailablePlayerCount: 5,
+        assignedEligibleAvailablePlayerCount: 3,
+        unassignedEligibleAvailablePlayerIds: ["p-x", "p-y"],
+      },
+    };
+    render(<RoundBoard {...props} />);
+    expect(screen.getByText("3 / 5")).toBeTruthy();
+    expect(screen.getByText(/eligible players with an opportunity/i)).toBeTruthy();
+  });
+
+  it("renders 0 / 0 without throwing when no coverage prop is supplied", () => {
+    render(<RoundBoard {...baseProps()} />);
+    expect(screen.getByText("0 / 0")).toBeTruthy();
+  });
+});
+
+// Gate C W2 (C05): a closed match must never appear as an assignable suggestion. Before this fix,
+// `buildAssignmentContext`'s caller offered every other match regardless of `isFinalized`, and
+// `handleAssignSuggestion` had no guard (unlike `handleMatrixToggle`, which already checked
+// `target.isFinalized`) — so a closed match could still accept an assignment from the
+// inspector/sheet suggestion-card path.
+describe("RoundBoard — closed destinations are never offered as assignable (Gate C W2 / C05 fix)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+  });
+
+  it("excludes a finalized match from the selected player's suggestions and explains why", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches[1]!.isFinalized = true; // White is Alice's only other match.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    expect(screen.queryByRole("button", { name: /assign player/i })).toBeNull();
+    expect(screen.queryByText(/suggested assignments/i)).toBeNull();
+    expect(screen.getByText(/planning is closed for every other match in this round/i)).toBeTruthy();
+  });
+
+  it("still offers a destination that remains open, with no closed notice, when only one of several is closed", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches.push({
+      matchId: "m-green",
+      teamId: "team-green",
+      teamName: "Green",
+      teamKitColor: "#00aa44",
+      opponent: "Hawks",
+      matchDate: new Date("2026-01-01"),
+      targetSquadSize: 11,
+      minSquadSize: 7,
+      isFinalized: false,
+      players: [],
+    });
+    props.matches[1]!.isFinalized = true; // White closed, Green stays open.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    // Exactly one destination (Green) survives the filter, so it is the suggestion rendered —
+    // proven below by the committed assignment's matchId, not by a fragile team-name text query
+    // (the closed match's own name, "White", is also the match lane's column header elsewhere
+    // on the page).
+    expect(screen.getByText(/suggested assignments/i)).toBeTruthy();
+    expect(screen.queryByText(/planning is closed for every other match in this round/i)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+    await waitFor(() => expect(addPlayerToMatchAction).toHaveBeenCalledOnce());
+    expect((addPlayerToMatchAction.mock.calls[0][0] as FormData).get("matchId")).toBe("m-green");
+  });
+});
+
+// Gate C W2: narrow command boundary so UI Lab fixtures can inject deterministic responses
+// without touching real server actions, while production (which never passes `commands`) is
+// unaffected — see `RoundBoardCommands`.
+describe("RoundBoard — command boundary (Gate C W2)", () => {
+  beforeEach(() => {
+    removePlayerFromMatchAction.mockClear();
+  });
+
+  it("calls an injected command instead of the real action when `commands` is supplied", async () => {
+    const user = userEvent.setup();
+    const fixtureRemove = vi.fn(async () => ({ success: true, errors: [], warnings: [] }));
+    render(<RoundBoard {...baseProps()} commands={{ removePlayerFromMatch: fixtureRemove }} />);
+
+    await user.click(screen.getByRole("button", { name: /remove alice/i }));
+
+    await waitFor(() => expect(fixtureRemove).toHaveBeenCalledOnce());
+    expect(removePlayerFromMatchAction).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the real action when `commands` is omitted (zero production behavior change)", async () => {
+    const user = userEvent.setup();
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /remove alice/i }));
+
+    await waitFor(() => expect(removePlayerFromMatchAction).toHaveBeenCalledOnce());
+  });
+});
+
 describe("RoundBoard — editing is gated by the live planning boundary, not a persisted status (production bug)", () => {
   it("does not show the 'Planning closed' banner when the boundary is still open", () => {
     const props = { ...baseProps(), planningBoundaryOpen: true };
@@ -378,5 +566,457 @@ describe("RoundBoard — editing is gated by the live planning boundary, not a p
     render(<RoundBoard {...props} />);
     expect(screen.queryByRole("button", { name: /regenerate/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /clear/i })).toBeNull();
+  });
+});
+
+// Gate C W2 remediation (second pass, P2): the round-level `planningBoundaryOpen` banner
+// previously claimed "Every match's planning boundary has closed" unconditionally whenever it
+// was false — but that flag requires only that round-wide operations (Regenerate/Clear) are
+// unavailable, per ADR-0109's "every match must be open" rule. A single closed match in an
+// otherwise-open round made this literally untrue.
+describe("RoundBoard — the closed-boundary banner distinguishes mixed from fully-closed rounds (Gate C W2 remediation)", () => {
+  it("shows the mixed-boundary banner, never claiming every match is closed, when only one match has closed", () => {
+    const props = baseProps();
+    props.planningBoundaryOpen = false;
+    props.matches[0]!.isFinalized = true; // Blue closed, White stays open.
+    render(<RoundBoard {...props} />);
+
+    expect(screen.getByText(/round-wide planning locked/i)).toBeTruthy();
+    expect(screen.getByText(/some matches have closed/i)).toBeTruthy();
+    expect(screen.queryByText(/every match's planning boundary has closed/i)).toBeNull();
+  });
+
+  it("shows the fully-closed banner when every match has actually closed", () => {
+    const props = baseProps();
+    props.planningBoundaryOpen = false;
+    props.matches[0]!.isFinalized = true;
+    props.matches[1]!.isFinalized = true;
+    render(<RoundBoard {...props} />);
+
+    expect(screen.getByText(/^planning closed/i)).toBeTruthy();
+    expect(screen.getByText(/all matches have passed their planning boundary/i)).toBeTruthy();
+    expect(screen.queryByText(/round-wide planning locked/i)).toBeNull();
+  });
+
+  it("falls back to a neutral closed message without claiming every match closed when the round has no matches at all", () => {
+    const props = baseProps();
+    props.planningBoundaryOpen = false;
+    props.matches = [];
+    render(<RoundBoard {...props} />);
+
+    expect(screen.getByText(/^planning closed/i)).toBeTruthy();
+    expect(screen.queryByText(/all matches have passed their planning boundary/i)).toBeNull();
+    expect(screen.queryByText(/round-wide planning locked/i)).toBeNull();
+  });
+});
+
+// Gate C W2 remediation (second pass, P2): the desktop "Move to..." picker offered every other
+// match regardless of its planning boundary — the central movePlayerToMatch command already
+// rejects a closed destination, but the picker still invited the coach to pick one.
+describe("RoundBoard — the Move picker only offers genuinely open destinations (Gate C W2 remediation)", () => {
+  it("excludes a closed match from the Move picker's destination list", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches[1]!.isFinalized = true; // White is closed.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /move alice to/i }));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /white/i })).toBeNull();
+    expect(screen.getByText(/other matches exist, but their planning is closed/i)).toBeTruthy();
+  });
+
+  it("distinguishes 'no other matches exist' from 'other matches exist but are closed'", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches = [props.matches[0]!]; // Only Blue exists at all.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /move alice to/i }));
+    expect(await screen.findByText(/no other matches exist/i)).toBeTruthy();
+    expect(screen.queryByText(/their planning is closed/i)).toBeNull();
+  });
+
+  it("still offers a genuinely open destination", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /move alice to/i }));
+    expect(await screen.findByRole("button", { name: /white/i })).toBeTruthy();
+  });
+});
+
+// Gate C W2 remediation (second pass): a match-specific Resolve previously only updated
+// mobile-only state, which the desktop workbench never reads — clicking it did nothing visible
+// on desktop even though the control looked actionable.
+// Gate C W2 remediation (third pass — P1): a second independent review found that scrolling to
+// and focusing an already-ASSIGNED player's own lane control (the previous pass's fix) is
+// navigation, not resolution — that player's own current match is always excluded as a
+// destination for themselves, so the resulting workflow could never add a player to a squad
+// that is short. The genuine correction is picking an UNASSIGNED candidate from the existing
+// "Available" list, which already feeds the real select → suggest → assign workflow.
+describe("RoundBoard — match-specific Resolve reaches a genuine correction workflow, not just navigation (Gate C W2 remediation, third pass)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+  });
+
+  it("no eligible candidate exists: scrolls the match into view but explains the condition instead of focusing a misleading control", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    const scrollSpy = vi.fn();
+    // baseProps()'s only "available" player (Alice) is already assigned to Blue — genuinely zero
+    // unassigned candidates exist round-wide.
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+    const whiteLane = container.querySelector('[data-desktop-board] [data-drop-match="m-white"]') as HTMLElement;
+    whiteLane.scrollIntoView = scrollSpy;
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+
+    await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+    // Never a misleading focus target — focus is never moved onto a Select/Assign control that
+    // doesn't actually exist (it naturally stays on the Resolve button itself, which the click
+    // already focused — the absence of any *additional* focus-move is exactly the point).
+    expect(document.activeElement?.getAttribute("aria-label") ?? "").not.toMatch(/select |assign/i);
+    expect(
+      within(container.querySelector('[data-desktop-board] [data-drop-available]') as HTMLElement).getByText(
+        /no players are currently available to assign to white/i,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("an unassigned candidate exists: focuses it in the Available column, not an already-assigned lane player", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+    const desktopBoard = container.querySelector("[data-desktop-board]") as HTMLElement;
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+
+    // Scoped to the desktop Available column — resolving also mounts a second, CSS-hidden-in-
+    // jsdom "Select Zara" inside the mobile composition's own Available sub-list.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(within(desktopBoard).getByRole("button", { name: "Select Zara" }));
+    });
+  });
+
+  it("selecting the resolved candidate directs the coach at the actual short match, not the generic recommendation", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    // Blue's target is deliberately raised far above White's, so the generic "most under
+    // target" recommendation heuristic would pick BLUE by default — proving the override is
+    // what directs the coach at White (the match this Resolve flow is actually about), not a
+    // coincidence of both matches needing a similar number of players.
+    props.matches[0]!.targetSquadSize = 25;
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+    // Resolving also mounts a second, CSS-hidden-in-jsdom "Select Zara" inside the mobile
+    // composition's own Available sub-list — scope to the desktop one this test is about.
+    const desktopBoard = container.querySelector("[data-desktop-board]") as HTMLElement;
+    await user.click(within(desktopBoard).getByRole("button", { name: "Select Zara" }));
+
+    // The target match's own warning text survives through candidate inspection.
+    expect(screen.getByText(/resolving: white is below minimum squad size/i)).toBeTruthy();
+    // White — the actual shortage — is the dominant, recommended suggestion, overriding what the
+    // generic heuristic would otherwise have picked (Blue, per its inflated target above).
+    const assignButton = screen.getByRole("button", { name: /assign player/i });
+    expect(within(assignButton.parentElement as HTMLElement).getByText(/white/i)).toBeTruthy();
+  });
+
+  it("committing the assignment into the target match clears the pending target and succeeds truthfully", async () => {
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: true, errors: [], warnings: [] });
+    const props = baseProps();
+    props.matches[0]!.targetSquadSize = 25;
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+    const desktopBoard = container.querySelector("[data-desktop-board]") as HTMLElement;
+    await user.click(within(desktopBoard).getByRole("button", { name: "Select Zara" }));
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+
+    await waitFor(() => expect(addPlayerToMatchAction).toHaveBeenCalledOnce());
+    const fd = addPlayerToMatchAction.mock.calls[0]![0] as FormData;
+    expect(fd.get("matchId")).toBe("m-white");
+    expect(fd.get("playerId")).toBe("p-zara");
+    // Resolving a second time afterwards starts a fresh flow rather than reusing stale state —
+    // confirmed by the "Resolving: ..." note no longer being shown for an unrelated selection.
+    expect(screen.queryByText(/resolving: white is below minimum/i)).toBeNull();
+  });
+});
+
+// Gate C W2 remediation (P1-03): movePlayerToMatch previously only guarded the DESTINATION
+// boundary. A player currently on a CLOSED match could still be removed from it, as a side
+// effect of toggling a *different*, open match's cell for them (matrix), or of a suggestion-card
+// assignment into a genuinely open destination (handleAssignSuggestion only checked the target).
+describe("RoundBoard — movePlayerToMatch guards the SOURCE match's boundary too (Gate C W2 remediation P1-03)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+  });
+
+  it("matrix: does not remove a player from a closed source match when toggling a different, open match's cell", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches[0]!.isFinalized = true; // Alice's current match (Blue) is closed; White stays open.
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /^allocation$/i }));
+    await user.click(screen.getByRole("button", { name: "Alice in White, not assigned" }));
+
+    expect(addPlayerToMatchAction).not.toHaveBeenCalled();
+    expect(removePlayerFromMatchAction).not.toHaveBeenCalled();
+    // Alice remains assigned to Blue — the cell state is unchanged.
+    expect(screen.getByRole("button", { name: "Alice in Blue" })).toBeTruthy();
+    expect(screen.getByRole("alert")).toHaveTextContent(/planning is closed for the player's current match/i);
+  });
+
+  it("suggestion-card path: proactively shows no destination at all for a player whose own current match is closed, rather than offering one that would only fail when tapped", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.matches[0]!.isFinalized = true; // Alice's current match (Blue) is closed.
+    props.matches.push({
+      matchId: "m-green",
+      teamId: "team-green",
+      teamName: "Green",
+      teamKitColor: "#00aa44",
+      opponent: "Hawks",
+      matchDate: new Date("2026-01-01"),
+      targetSquadSize: 11,
+      minSquadSize: 7,
+      isFinalized: false,
+      players: [],
+    });
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    // White and Green are both genuinely open, but Alice's own match (Blue) is closed — every
+    // possible move touches that closed source, so nothing is offered at all, immediately on
+    // selection (not only after a doomed attempt).
+    expect(screen.queryByRole("button", { name: /assign player/i })).toBeNull();
+    expect(screen.getByText(/planning is closed for this player's current match/i)).toBeTruthy();
+    expect(addPlayerToMatchAction).not.toHaveBeenCalled();
+  });
+
+  // Unlike the suggestion-card path above, the matrix shows every player row regardless of
+  // their current match's boundary (it is not a per-player "selected" view), so it still relies
+  // on `movePlayerToMatch`'s own reactive guard — see the dedicated matrix test earlier in this
+  // describe block ("matrix: does not remove a player from a closed source match...").
+});
+
+// Gate C W2 remediation (P1-05): a rejected or errored move must never look like a silent no-op
+// or a success — the sheet/inspector stay open, the selection is preserved, and the real reason
+// is shown.
+describe("RoundBoard — truthful feedback on a rejected or errored assignment (Gate C W2 remediation P1-05)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+  });
+
+  it("keeps the inspector open and preserves the selection when the server rejects the assignment", async () => {
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: false, errors: ["No eligible slot remains."], warnings: [] });
+    const props = baseProps();
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+
+    // Rejected — the suggestion list (and Alice's selection) remains, with the real reason shown.
+    await screen.findByText("No eligible slot remains.");
+    expect(screen.getByRole("button", { name: /assign player/i })).toBeTruthy();
+    expect(removePlayerFromMatchAction).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a partial-completion error truthfully when add succeeds but remove fails, rather than claiming success", async () => {
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: true, errors: [], warnings: [] });
+    removePlayerFromMatchAction.mockResolvedValueOnce({ success: false, errors: ["Conflict."], warnings: [] });
+    const props = baseProps();
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+
+    expect(await screen.findByText(/added to the new match but could not be removed from the previous one/i)).toBeTruthy();
+  });
+
+  it("shows no error banner or false rejection message after a genuine success", async () => {
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: true, errors: [], warnings: [] });
+    const props = baseProps();
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    await user.click(screen.getByRole("button", { name: /assign player/i }));
+
+    await waitFor(() => expect(removePlayerFromMatchAction).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/was rejected|could not be removed/i)).toBeNull();
+  });
+});
+
+/** `useMediaQuery("(max-width: 839px)")` drives `isCompactViewport` — see
+ * `src/app/dev/ui-lab/gate-a/a01-sports-first/__tests__/a01-fixture.test.tsx` for this pattern. */
+let restoreMatchMedia: (() => void) | undefined;
+function mockCompactViewport() {
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) => {
+    if (query === "(max-width: 839px)") {
+      return {
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      } as MediaQueryList;
+    }
+    return original(query);
+  }) as typeof window.matchMedia;
+  restoreMatchMedia = () => {
+    window.matchMedia = original;
+  };
+}
+
+/** `useMediaQuery("(max-width: 599px)")` drives `isMobileCompositionVisible` — the literal CSS
+ * breakpoint boundary (`--breakpoint-medium: 600px`) between the desktop grid and the compact
+ * composition, deliberately distinct from `isCompactViewport` (839px) above. A real narrow phone
+ * viewport makes both true simultaneously, which is what this mocks. */
+function mockMobileCompositionVisible() {
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) => {
+    if (query === "(max-width: 599px)" || query === "(max-width: 839px)") {
+      return {
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      } as MediaQueryList;
+    }
+    return original(query);
+  }) as typeof window.matchMedia;
+  restoreMatchMedia = () => {
+    window.matchMedia = original;
+  };
+}
+
+describe("RoundBoard — match-specific Resolve on a real mobile viewport targets the visible composition, never a CSS-hidden desktop control (Gate C W2 remediation, third pass P3)", () => {
+  afterEach(() => {
+    restoreMatchMedia?.();
+    restoreMatchMedia = undefined;
+  });
+
+  it("focuses the candidate inside the mobile Available sub-list, not the CSS-hidden desktop one", async () => {
+    mockMobileCompositionVisible();
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+
+    const mobileBoard = await waitFor(() => {
+      const board = container.querySelector("[data-mobile-board]");
+      if (!board) throw new Error("mobile board not mounted yet");
+      return board as HTMLElement;
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(within(mobileBoard).getByRole("button", { name: "Select Zara" }));
+    });
+    // The URL-backed mobile match identity is correct, and it is the real mobile composition
+    // (not the desktop one) that is now showing — confirmed by the "All matches" back control
+    // existing, which only renders in the compact match-first view.
+    expect(within(mobileBoard).getByText(/all matches/i)).toBeTruthy();
+  });
+
+  it("no eligible candidate on mobile: explains the condition within the mobile Available sub-list, never focuses a misleading control", async () => {
+    mockMobileCompositionVisible();
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.warnings = [{ code: "SQUAD_BELOW_MINIMUM", message: "White is below minimum squad size.", severity: "HARD_BLOCK", matchId: "m-white" }];
+    const { container } = render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /resolve/i }));
+
+    const mobileBoard = await waitFor(() => {
+      const board = container.querySelector("[data-mobile-board]");
+      if (!board) throw new Error("mobile board not mounted yet");
+      return board as HTMLElement;
+    });
+    await waitFor(() => {
+      expect(within(mobileBoard).getByText(/no players are currently available to assign to white/i)).toBeTruthy();
+    });
+    expect(document.activeElement?.getAttribute("aria-label") ?? "").not.toMatch(/select |assign/i);
+  });
+});
+
+describe("RoundBoard — mobile assignment sheet retains context on rejection (Gate C W2 remediation P1-05)", () => {
+  beforeEach(() => {
+    addPlayerToMatchAction.mockClear();
+    removePlayerFromMatchAction.mockClear();
+  });
+  afterEach(() => {
+    restoreMatchMedia?.();
+    restoreMatchMedia = undefined;
+  });
+
+  it("stays open and shows the real reason when the server rejects the assignment", async () => {
+    mockCompactViewport();
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: false, errors: ["No eligible slot remains."], warnings: [] });
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    const sheet = await screen.findByRole("dialog", { name: /assign player/i });
+    await user.click(within(sheet).getByRole("button", { name: /assign to white/i }));
+
+    // The desktop inspector column is CSS-hidden but still present in jsdom — scope to the
+    // sheet itself, which is the thing actually visible at this (compact) viewport.
+    expect(await within(sheet).findByText("No eligible slot remains.")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: /assign player/i })).toBeTruthy(); // still open.
+  });
+
+  it("closes on a genuine success", async () => {
+    mockCompactViewport();
+    const user = userEvent.setup();
+    addPlayerToMatchAction.mockResolvedValueOnce({ success: true, errors: [], warnings: [] });
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    const sheet = await screen.findByRole("dialog", { name: /assign player/i });
+    await user.click(within(sheet).getByRole("button", { name: /assign to white/i }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: /assign player/i })).toBeNull());
+  });
+
+  it("cancel closes the sheet without calling any assignment action", async () => {
+    mockCompactViewport();
+    const user = userEvent.setup();
+    render(<RoundBoard {...baseProps()} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    await screen.findByRole("dialog", { name: /assign player/i });
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog", { name: /assign player/i })).toBeNull();
+    expect(addPlayerToMatchAction).not.toHaveBeenCalled();
   });
 });

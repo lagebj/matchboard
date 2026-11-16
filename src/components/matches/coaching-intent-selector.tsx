@@ -9,9 +9,31 @@ type CoachingIntentSelectorProps = {
   currentIntent?: string;
   currentIntentId?: string;
   label?: string;
+  /**
+   * Gate C W2 remediation (P1-06): this component dynamically imports its own real server
+   * actions, outside any `commands`-style boundary a parent (e.g. `RoundBoard`) might expose —
+   * an audit gap that let UI Lab call a real mutation with a synthetic id. These two optional
+   * overrides default to the real dynamic imports when omitted, so every other caller of this
+   * shared, widely-used component is completely unaffected.
+   */
+  setCoachingIntentCommand?: (
+    scopeType: CoachingIntentScopeType,
+    scopeId: string,
+    category: string,
+    note: string | null,
+  ) => Promise<{ success: boolean; error?: string }>;
+  removeCoachingIntentCommand?: (intentId: string) => Promise<{ success: boolean; error?: string }>;
 };
 
-export function CoachingIntentSelector({ scopeType, scopeId, currentIntent, currentIntentId, label }: CoachingIntentSelectorProps) {
+export function CoachingIntentSelector({
+  scopeType,
+  scopeId,
+  currentIntent,
+  currentIntentId,
+  label,
+  setCoachingIntentCommand,
+  removeCoachingIntentCommand,
+}: CoachingIntentSelectorProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>(currentIntent ?? "");
@@ -19,8 +41,10 @@ export function CoachingIntentSelector({ scopeType, scopeId, currentIntent, curr
   function handleSet(category: string) {
     setError(null);
     startTransition(async () => {
-      const { setCoachingIntentAction } = await import("@/app/(app)/matches/[matchId]/coaching-actions/actions");
-      const result = await setCoachingIntentAction(scopeType, scopeId, category, null);
+      const setIntent =
+        setCoachingIntentCommand ??
+        (await import("@/app/(app)/matches/[matchId]/coaching-actions/actions")).setCoachingIntentAction;
+      const result = await setIntent(scopeType, scopeId, category, null);
       if (!result.success) {
         setError(result.error ?? "Failed to set intent.");
       }
@@ -32,10 +56,12 @@ export function CoachingIntentSelector({ scopeType, scopeId, currentIntent, curr
     if (!currentIntentId && !selected) return;
     setError(null);
     startTransition(async () => {
-      const { removeCoachingIntentAction } = await import("@/app/(app)/matches/[matchId]/coaching-actions/actions");
       const intentId = currentIntentId;
       if (!intentId) return;
-      const result = await removeCoachingIntentAction(intentId);
+      const removeIntent =
+        removeCoachingIntentCommand ??
+        (await import("@/app/(app)/matches/[matchId]/coaching-actions/actions")).removeCoachingIntentAction;
+      const result = await removeIntent(intentId);
       if (!result.success) {
         setError(result.error ?? "Failed to remove intent.");
       } else {

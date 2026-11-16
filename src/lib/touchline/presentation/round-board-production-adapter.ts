@@ -50,8 +50,16 @@ export type RoundBoardAdapterInput = {
   matches: BoardMatchInput[];
   /** From `computeRoundPlanIntegrity()` — Blocked and Decision required only, never planning notes. */
   attentionSignals: { id: string; summary: string; detail: string; severity: "BLOCKED" | "DECISION_REQUIRED"; playerId?: string | null; matchId?: string | null }[];
-  /** The count of available, currently-unassigned players (the Available column's population). */
-  availablePlayerCount: number;
+  /**
+   * From `computeRoundPlanIntegrity()`'s `coverage` — the canonical eligible-opportunity
+   * denominator (distinct players whose core team has a playable fixture this round), never
+   * re-derived here. Distinct from `plannedOpportunities`/`targetOpportunities` below, which
+   * count squad placements, not distinct players.
+   */
+  eligibleCoverage: {
+    eligiblePlayerCount: number;
+    assignedEligiblePlayerCount: number;
+  };
 };
 
 /** A player row within a lane — squad-repair (BACKFILL) and confidence-rebuild rows render as Support-group. */
@@ -91,6 +99,43 @@ export function buildRoundBoardViewModel(input: RoundBoardAdapterInput): RoundBo
   const decisions = input.attentionSignals.filter((s) => s.severity === "DECISION_REQUIRED").length;
   const blocked = input.attentionSignals.filter((s) => s.severity === "BLOCKED").length;
 
+  // Gate C W2 remediation (P1-01): a legitimate resolution path exists only when the canonical
+  // per-match boundary allows one — never the round-level boundary alone (a mixed round can have
+  // both open and closed matches). Built from the same `input.matches` this function already
+  // receives, not a second derivation.
+  const matchIdByPlayerId = new Map<string, string>();
+  for (const m of input.matches) {
+    for (const p of m.players) matchIdByPlayerId.set(p.playerId, m.matchId);
+  }
+  const isMatchOpen = (matchId: string) => input.matches.find((m) => m.matchId === matchId)?.isFinalized === false;
+  // Re-opened finding (second remediation pass): the first fix only checked whether an open
+  // DESTINATION existed — it never checked whether the player's own SOURCE match had closed.
+  // The central `movePlayerToMatch` command rejects moving a player out of a closed match
+  // regardless of how open the destination is, so a player on a closed match was being offered
+  // a Resolve action that could never succeed. Round Board currently has exactly one action for
+  // a selected player — assign them into a destination — so once their own match is closed,
+  // nothing is resolvable for them, full stop, regardless of which rule produced the signal.
+  function isResolvable(signal: RoundBoardAdapterInput["attentionSignals"][number]): boolean {
+    // Re-opened finding (third remediation pass): a warning's OWNING match (signal.matchId) and
+    // the player's CURRENT match (matchIdByPlayerId) are two independent facts — neither implies
+    // the other, and conflating them let a player-specific warning that names a CLOSED match be
+    // marked resolvable purely because some unrelated match happened to be open (e.g. the player
+    // was unassigned, or assigned to a different, open match). No supported action can correct a
+    // warning whose own owning match has closed, regardless of what else is open, so this check
+    // runs first and is decisive on its own.
+    if (signal.matchId && !isMatchOpen(signal.matchId)) return false;
+
+    if (signal.playerId) {
+      const currentMatchId = matchIdByPlayerId.get(signal.playerId) ?? null;
+      if (currentMatchId && !isMatchOpen(currentMatchId)) return false;
+      return input.matches.some((m) => m.matchId !== currentMatchId && !m.isFinalized);
+    }
+    if (signal.matchId) {
+      return isMatchOpen(signal.matchId);
+    }
+    return false;
+  }
+
   const attention: RoundBoardAttentionItem[] = input.attentionSignals.map((s) => ({
     id: s.id,
     playerId: s.playerId ?? null,
@@ -98,6 +143,7 @@ export function buildRoundBoardViewModel(input: RoundBoardAdapterInput): RoundBo
     summary: s.summary,
     detail: s.detail,
     severity: s.severity,
+    resolvable: isResolvable(s),
   }));
 
   const status: RoundStatus = blocked > 0 ? "BLOCKED" : decisions > 0 ? "NEEDS_DECISIONS" : "READY";
@@ -108,6 +154,7 @@ export function buildRoundBoardViewModel(input: RoundBoardAdapterInput): RoundBo
     plannedOpportunities,
     targetOpportunities,
     coverageIssues: belowMinimum,
+    eligibleCoverage: input.eligibleCoverage,
   };
 
   return {

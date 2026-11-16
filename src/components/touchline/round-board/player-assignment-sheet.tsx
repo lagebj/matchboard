@@ -13,9 +13,31 @@ export type PlayerAssignmentSheetProps = {
   context: RoundBoardPlayerAssignmentContext | null;
   onAssign: (suggestion: RoundBoardAssignmentSuggestion) => void;
   onClose: () => void;
+  /** See `PlayerAssignmentInspector`'s `closedNotice` — passed through unchanged. */
+  closedNotice?: string | null;
+  /** See `PlayerAssignmentInspector`'s `lineupHref` — passed through unchanged. */
+  lineupHref?: string | null;
+  /** See `PlayerAssignmentInspector`'s `errorNotice` — passed through unchanged. The sheet's own
+   * `isOpen` is controlled by the caller, which only closes it on a real success (P1-05) — this
+   * component does not need to decide that itself. */
+  errorNotice?: string | null;
+  /** See `PlayerAssignmentInspector`'s `resolvingNotice` — passed through unchanged. */
+  resolvingNotice?: string | null;
+  /** See `PlayerAssignmentInspector`'s `noCandidateNotice` — passed through unchanged. */
+  noCandidateNotice?: string | null;
 };
 
-export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose }: PlayerAssignmentSheetProps) {
+export function PlayerAssignmentSheet({
+  isOpen,
+  context,
+  onAssign,
+  onClose,
+  closedNotice,
+  lineupHref,
+  errorNotice,
+  resolvingNotice,
+  noCandidateNotice,
+}: PlayerAssignmentSheetProps) {
   const recommended = context?.suggestions.find((s) => s.isRecommended) ?? null;
 
   return (
@@ -37,7 +59,15 @@ export function PlayerAssignmentSheet({ isOpen, context, onAssign, onClose }: Pl
         ) : undefined
       }
     >
-      <PlayerAssignmentInspector context={context} onAssign={onAssign} />
+      <PlayerAssignmentInspector
+        context={context}
+        onAssign={onAssign}
+        closedNotice={closedNotice}
+        lineupHref={lineupHref}
+        errorNotice={errorNotice}
+        resolvingNotice={resolvingNotice}
+        noCandidateNotice={noCandidateNotice}
+      />
     </TouchlineBottomSheet>
   );
 }

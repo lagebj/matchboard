@@ -5,7 +5,8 @@ import { RoundBoardRail } from "../round-board-rail";
 import type { RoundBoardAttentionItem } from "@/lib/touchline/presentation/round-board-view-model";
 
 const ATTENTION: RoundBoardAttentionItem[] = [
-  { id: "b1", playerId: null, matchId: null, summary: "Squad below minimum", detail: "Blue has 5 of 7", severity: "BLOCKED" },
+  // No player, no match identity at all here — correctly not resolvable (fail-safe).
+  { id: "b1", playerId: null, matchId: null, summary: "Squad below minimum", detail: "Blue has 5 of 7", severity: "BLOCKED", resolvable: false },
 ];
 
 function baseProps() {
@@ -23,6 +24,31 @@ describe("RoundBoardRail", () => {
   it("shows the deterministic attention list on the Insights tab by default", () => {
     render(<RoundBoardRail {...baseProps()} />);
     expect(screen.getByText("Squad below minimum")).toBeInTheDocument();
+  });
+
+  // Gate C W2 remediation (P1-01): Resolve must be absent, not merely disabled, when an item
+  // has no legitimate resolution path — never gated on `onResolve` being provided alone.
+  it("never renders a Resolve button for an item with resolvable: false, even though onResolve is provided", () => {
+    render(<RoundBoardRail {...baseProps()} />);
+    expect(screen.queryByRole("button", { name: /resolve/i })).not.toBeInTheDocument();
+  });
+
+  it("renders Resolve and calls onResolve with the item when resolvable: true", async () => {
+    const user = userEvent.setup();
+    const onResolve = vi.fn();
+    const resolvableItem: RoundBoardAttentionItem = {
+      id: "d1",
+      playerId: "p9",
+      matchId: null,
+      summary: "Noah has no opportunity",
+      detail: "Available but unassigned.",
+      severity: "DECISION_REQUIRED",
+      resolvable: true,
+    };
+    render(<RoundBoardRail {...baseProps()} attention={[resolvableItem]} onResolve={onResolve} />);
+    const button = screen.getByRole("button", { name: /resolve/i });
+    await user.click(button);
+    expect(onResolve).toHaveBeenCalledWith(resolvableItem);
   });
 
   it("renders Assistant Coach insights after the deterministic list, clearly labelled, never replacing it", () => {

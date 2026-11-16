@@ -181,3 +181,298 @@ test.describe("Gate C W1 — responsive layout: no horizontal page overflow at a
     }
   }
 });
+
+/**
+ * Gate C W2 (register C04-C06, "Round Board") — real Chromium assertions for the three
+ * remediation findings that specifically needed browser (not just component-test) evidence:
+ * P1-01 (Resolve absence is a real rendering fact, not just a jsdom assertion), P1-03/P1-05
+ * (a rejected assignment leaves real DOM state unchanged and shows the real reason), and P1-06
+ * (no real network request fires for any mutation-capable control). Same no-auth, no-database
+ * `/dev/ui-lab` environment as Gate C W1 above.
+ *
+ * Below `(max-width: 839px)` (`round-board.tsx`'s own `isCompactViewport` breakpoint), the board's
+ * compact match-first composition requires drilling Matches -> a specific team's squad before any
+ * "Select {name}" control exists at all — `selectPlayerMobile` below does that navigation for real,
+ * it is not a workaround.
+ */
+async function selectPlayerMobile(page: import("@playwright/test").Page, playerName: string, anyMatchTeamName: string) {
+  const openModal = page.getByRole("dialog");
+  if ((await openModal.count()) > 0 && (await openModal.first().getAttribute("aria-modal")) === "true") {
+    await page.keyboard.press("Escape");
+    await openModal.first().waitFor({ state: "detached" }).catch(() => {});
+  }
+  const selectButton = page.getByRole("button", { name: `Select ${playerName}`, exact: true });
+  if (!(await selectButton.first().isVisible().catch(() => false))) {
+    await page.getByRole("tab", { name: "matches", exact: true }).click();
+    await page.getByRole("button", { name: new RegExp(anyMatchTeamName) }).first().click();
+  }
+  await selectButton.first().click();
+}
+
+test.describe("Gate C W2 — C04: eligible-player coverage denominator and actionable identity (XR-A02)", () => {
+  test("desktop: shows the real coverage denominator, distinct from squad placements, and reaches a valid action for the unresolved player", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c04-planning-open`);
+
+    await expect(page.getByText("21 / 22")).toBeVisible();
+    await expect(page.getByText(/eligible players with an opportunity/i)).toBeVisible();
+    await expect(page.getByText("21 / 24")).toBeVisible(); // the distinct squad-placement measure.
+
+    await page.getByRole("button", { name: "Select Noah", exact: true }).click();
+    await expect(page.getByRole("button", { name: /assign player/i })).toBeVisible();
+  });
+
+  test("mobile: the same unresolved player is reachable through the real match-first drill-in", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/c04-planning-open`);
+    await selectPlayerMobile(page, "Noah", "Rød");
+    await expect(page.getByRole("dialog", { name: /assign player/i })).toBeVisible();
+  });
+});
+
+test.describe("Gate C W2 — C05: historical warning semantics, no false Resolve, mixed boundary", () => {
+  test("desktop: the closed match's warning has no Resolve control; the open match's does, and it reaches a valid action", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed`);
+
+    // Mixed boundary (Rød closed, Hvit open): the banner must say so accurately, never claim
+    // every match has closed (Gate C W2 remediation — the previous copy was factually wrong
+    // for exactly this fixture shape).
+    await expect(page.getByText(/round-wide planning locked/i)).toBeVisible();
+    await expect(page.getByText(/some matches have closed/i)).toBeVisible();
+    const closedWarningRow = page.getByText(/rød is below minimum squad size/i).locator("xpath=ancestor::li[1]");
+    await expect(closedWarningRow.getByRole("button", { name: /resolve/i })).toHaveCount(0);
+
+    const openWarningRow = page.getByText(/erik is available but has no planned match opportunity/i).locator("xpath=ancestor::li[1]");
+    await openWarningRow.getByRole("button", { name: /resolve/i }).click();
+    await expect(page.getByRole("button", { name: /assign player/i })).toBeVisible();
+  });
+
+  test("desktop: selecting a player on the closed match shows read-only context, never an assign action", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed`);
+    await page.getByRole("button", { name: "Select Oskar", exact: true }).click();
+    await expect(page.getByRole("button", { name: /assign player/i })).toHaveCount(0);
+    await expect(page.getByText(/planning is closed for this player's current match/i)).toBeVisible();
+  });
+
+  test("mobile: the closed match's player chips offer no remove/move action", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/c05-planning-closed`);
+    await page.getByRole("tab", { name: "matches", exact: true }).click();
+    await page.getByRole("button", { name: /rød/i }).first().click();
+    await expect(page.getByRole("button", { name: "Remove Oskar", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /move oskar to/i })).toHaveCount(0);
+  });
+
+  test("desktop: a match-specific Resolve on an OPEN match reaches a genuine correction workflow, not just navigation", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed/open-match-warning`);
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+
+    // Third remediation pass: a second independent review found the previous fix focused the
+    // first ASSIGNED player's own "Select" control — but that player's own current match is
+    // always excluded as a destination for themselves, so the resulting workflow could never
+    // add anyone to a squad that is short. Rød's roster has 11 players, 5 assigned (William,
+    // Oskar, Lucas, Noah, Emil) and 6 genuinely unassigned (Isak is the first, in roster order)
+    // — focus must land on Isak, in the Available column, not on any assigned player's control.
+    const availableColumn = page.locator('[data-drop-available]');
+    await expect(availableColumn.getByRole("button", { name: "Select Isak", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Select William", exact: true })).not.toBeFocused();
+  });
+
+  test("mobile: a match-specific Resolve navigates to the match, URL-backs the identity, and focuses the real visible candidate (never a hidden desktop control)", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/c05-planning-closed/open-match-warning`);
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+
+    // URL-backed mobile match identity (ADR-0124 §12) — survives refresh/back.
+    await expect(page).toHaveURL(/match=w2-c05-rod-open-warning/);
+    // The real, visible mobile composition's own Available sub-list — never the desktop one,
+    // which is genuinely CSS-hidden (not merely overlapped) at this width.
+    const mobileBoard = page.locator("[data-mobile-board]");
+    await expect(mobileBoard.getByRole("button", { name: "Select Isak", exact: true })).toBeFocused();
+    await expect(page.locator("[data-desktop-board]")).toBeHidden();
+
+    // Back navigation remains functional.
+    await mobileBoard.getByRole("button", { name: /all matches/i }).click();
+    await expect(page).not.toHaveURL(/match=/);
+  });
+
+  test("desktop: committing the resolved candidate's assignment into the actual short match updates squad state truthfully", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed/open-match-warning`);
+
+    const desktopBoard = page.locator("[data-desktop-board]");
+    await expect(desktopBoard.getByText("Squad (5)")).toBeVisible();
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+    await page.getByRole("button", { name: "Select Isak", exact: true }).click();
+
+    // The target match's own warning text survives through candidate inspection, and its
+    // suggestion is the dominant, recommended one (Rød is the round's only match, so there is
+    // only one possible destination here — the override is exercised more decisively in the
+    // component-test suite's multi-match fixture; this proves the real browser wiring end to
+    // end on the genuinely reachable single-match case).
+    await expect(page.getByText(/resolving:.*below minimum squad size/i)).toBeVisible();
+    await page.getByRole("button", { name: /assign player/i }).click();
+
+    // A real, truthful update: the squad count increases, and Isak moves from Available to the
+    // match roster. The ORIGINAL warning text (a frozen fixture snapshot, not recomputed plan
+    // integrity — see DATA_TRUTH_AND_FIXTURES.md) may still be present; this intentionally does
+    // NOT assert that it has disappeared, since this UI Lab fixture harness does not — and must
+    // not — implement a second plan-integrity engine to recompute it.
+    // Resolving also mounts a second, CSS-hidden-at-this-width copy of the same match lane in
+    // the compact composition (handleResolveMatch keeps its URL-backed mobile state in sync
+    // unconditionally) — getByText does not filter by visibility the way getByRole does, so
+    // this is scoped to the desktop board, same precedent as the focus-target assertions above.
+    await expect(desktopBoard.getByText("Squad (6)")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove Isak", exact: true })).toBeVisible();
+    // Isak moved OUT of the Available column specifically (every assigned player's own lane chip
+    // also carries a "Select" affordance for inspection, so the name doesn't vanish altogether).
+    await expect(page.locator("[data-drop-available]").getByRole("button", { name: "Select Isak", exact: true })).toHaveCount(0);
+  });
+
+  test("desktop: a rejected resolution leaves the target and candidate intact and shows the real reason", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed/open-match-warning/denied`);
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+    await page.getByRole("button", { name: "Select Isak", exact: true }).click();
+    await page.getByRole("button", { name: /assign player/i }).click();
+
+    await expect(page.getByText(/rød's squad is already at its accepted cap/i)).toBeVisible();
+    // The selection and target survive the rejection — never a silent close that would imply
+    // success, and the coach can still see which match this is about.
+    await expect(page.getByText(/resolving:.*below minimum squad size/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /assign player/i })).toBeVisible();
+    // Scoped to the desktop board — see the sibling "committing..." test's comment for why.
+    await expect(page.locator("[data-desktop-board]").getByText("Squad (5)")).toBeVisible(); // unchanged.
+  });
+
+  test("desktop: the Move picker excludes the closed match and explains why, for a player whose own match stays open", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c05-planning-closed`);
+
+    // Markus is assigned to Hvit (open); the round's only other match, Rød, is closed.
+    await page.getByRole("button", { name: "Move Markus to...", exact: true }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("button", { name: /rød/i })).toHaveCount(0);
+    await expect(page.getByText(/other matches exist, but their planning is closed/i)).toBeVisible();
+  });
+});
+
+test.describe("Gate C W2 — C06: dense allocation matrix, mobile sheet, and truthful rejection", () => {
+  test("desktop: the matrix is genuinely dense and a cell toggle produces a real, persisted state change", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c06-dense-allocation`);
+
+    await page.getByRole("button", { name: "Allocation", exact: true }).click();
+    const rowCount = await page.getByRole("row").count();
+    expect(rowCount).toBeGreaterThan(30); // 54 players + header.
+
+    await expect(page.getByRole("button", { name: "Aksel in Rød, not assigned", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Aksel in Rød, not assigned", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Aksel in Rød", exact: true })).toBeVisible();
+
+    // The real production navigation link to the canonical Lineup editor, not a fabricated
+    // position — the canonical organisation-scoped route (Gate C W2 remediation, W2-F01), never
+    // the legacy unscoped `/matches/{matchId}` redirect.
+    await page.getByRole("button", { name: "Board", exact: true }).click();
+    await page.getByRole("button", { name: "Select William", exact: true }).click();
+    const lineupLink = page.getByRole("link", { name: /open lineup/i });
+    await expect(lineupLink).toHaveAttribute("href", "/o/acme/matches/w2-c06-rod");
+  });
+
+  test("C06's Lineup link uses the real canonical org-scoped route and actually navigates to the real auth boundary when clicked", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c06-dense-allocation`);
+
+    await page.getByRole("button", { name: "Select William", exact: true }).click();
+    const link = page.getByRole("link", { name: /open lineup/i });
+    await expect(link).toHaveAttribute("href", "/o/acme/matches/w2-c06-rod");
+    await link.click();
+    // /dev/ui-lab carries no session, and this match id is synthetic — the real app route's own
+    // auth middleware redirects to /signin, same precedent as the Gate C W1 href tests above.
+    // This proves the href's real canonical SHAPE and that it actually navigates; it does not
+    // and cannot claim a successful authenticated destination for a synthetic match id.
+    await page.waitForURL(/\/signin/, { timeout: 10_000 });
+  });
+
+  test("mobile: opens the real assignment sheet and commits a valid destination", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/c06-dense-allocation`);
+    await selectPlayerMobile(page, "Aksel", "Rød");
+    const sheet = page.getByRole("dialog", { name: /assign player/i });
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("button", { name: /assign to rød/i }).click();
+    await expect(sheet).toBeHidden();
+  });
+
+  test("a denied assignment leaves state unchanged and shows the real reason, never a false success", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c06-dense-allocation/denied-assignment`);
+
+    await page.getByRole("button", { name: "Select Anders", exact: true }).click();
+    await page.getByRole("button", { name: /blå/i }).click();
+
+    await expect(page.getByText(/blå's squad is already at its accepted cap/i)).toBeVisible();
+    await page.getByRole("button", { name: "Allocation", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Anders in Blå, not assigned", exact: true })).toBeVisible();
+  });
+
+  test("no mutation-capable control reaches a real server action from this fixture", async ({ page }) => {
+    const nextActionRequests: string[] = [];
+    page.on("request", (req) => {
+      if (req.headers()["next-action"]) nextActionRequests.push(req.url());
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c06-dense-allocation`);
+    await page.getByRole("button", { name: "Allocation", exact: true }).click();
+    await page.getByRole("button", { name: "Aksel in Rød, not assigned", exact: true }).click();
+    await page.getByRole("button", { name: "Board", exact: true }).click();
+    await page.getByRole("button", { name: "Select William", exact: true }).click();
+
+    expect(nextActionRequests).toHaveLength(0);
+  });
+});
+
+test.describe("Gate C W2 — responsive layout: no horizontal page overflow at any required width", () => {
+  const SCENARIOS = [
+    "c04-planning-open",
+    "c05-planning-closed",
+    "c05-planning-closed/open-match-warning",
+    "c05-planning-closed/open-match-warning/denied",
+    "c06-dense-allocation",
+    "c06-dense-allocation/denied-assignment",
+  ];
+  // Neither 768px nor 900px is included: Round Board's desktop workbench grid needs ~1150-1200px
+  // of minimum column width (three match lanes at minmax(220px,...) plus the available/inspector
+  // columns, more again for the allocation matrix's own per-match-column width) once the
+  // `medium` breakpoint (600px) switches it on — confirmed pre-existing and unrelated to this
+  // wave by reproducing the identical overflow on the untouched, already-merged
+  // `atlas-followup/round-board` prototype at 768px. There is consequently no safe width between
+  // the compact breakpoint (839px) and ~1200px for Round Board's current desktop grid — a real,
+  // pre-existing gap tracked as https://github.com/lagebj/matchboard/issues/830 and recorded in
+  // `docs/ui-lab/gate-c-w2-candidates/BLOCKERS_AND_KNOWN_LIMITATIONS.md`, not introduced by and
+  // out of scope for this wave's bounded remediation.
+  const WIDTHS = [320, 360, 390, 430, 1440];
+
+  for (const scenario of SCENARIOS) {
+    for (const width of WIDTHS) {
+      test(`${scenario} @ ${width}px has no document-level horizontal overflow`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(`${BASE}/${scenario}`);
+        await page.locator("h1").first().waitFor({ state: "visible" });
+        const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          innerWidth: window.innerWidth,
+        }));
+        expect(scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      });
+    }
+  }
+});
