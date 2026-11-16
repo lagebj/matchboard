@@ -592,6 +592,7 @@ export default async function RoundBoardPage({
         roundLabel={roundLabel}
         planningBoundaryOpen={roundPlanningBoundary.editable}
         matchRoundId={matchRoundId}
+        orgSlug={orgSlug}
         matches={boardMatches}
         availablePlayers={boardAvailablePlayers}
         rotationPathMap={rotationPathMap}

@@ -10,6 +10,15 @@
  * like-for-like comparison with the approved Gate D composition.
  */
 
+/**
+ * Gate C W2 remediation (W2-F01): an explicit, synthetic organisation slug for every W2 fixture's
+ * `RoundBoard.orgSlug` prop — never the real production org, never an implicit/global selection.
+ * Mirrors the precedent `gate-c/shared/fixtures.ts`'s `GATE_C_ORG_SLUG` already established for
+ * Gate C W1 (same literal value, deliberately — these are both synthetic UI Lab organisations,
+ * not a shared real tenant).
+ */
+export const W2_ORG_SLUG = "acme";
+
 export const RED = "#d5342c";
 export const WHITE_KIT = "#f2f2f2";
 export const BLUE = "#1d4fa8";

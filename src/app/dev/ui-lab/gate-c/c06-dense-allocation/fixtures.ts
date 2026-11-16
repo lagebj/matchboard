@@ -1,5 +1,5 @@
 import { WarningSeverity } from "@/generated/prisma/client";
-import { ROD, HVIT, BLA, GRONN, buildRoster, KICKOFF_SATURDAY, type FixturePlayerSeed, type FixtureTeam } from "../w2-shared/round-identities";
+import { ROD, HVIT, BLA, GRONN, buildRoster, KICKOFF_SATURDAY, W2_ORG_SLUG, type FixturePlayerSeed, type FixtureTeam } from "../w2-shared/round-identities";
 import type { RoundBoardFixtureInitial } from "../w2-shared/round-board-fixture-harness";
 
 /**
@@ -80,6 +80,7 @@ export function buildC06DenseAllocationFixture(): RoundBoardFixtureInitial {
 
   return {
     roundLabel: "Week 46 — dense round",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: true,
     matchRoundId: "w2-c06-round",
     matches: [rodMatch, hvitMatch, blaMatch, gronnMatch],

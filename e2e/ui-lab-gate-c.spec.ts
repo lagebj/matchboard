@@ -377,11 +377,28 @@ test.describe("Gate C W2 — C06: dense allocation matrix, mobile sheet, and tru
     await page.getByRole("button", { name: "Aksel in Rød, not assigned", exact: true }).click();
     await expect(page.getByRole("button", { name: "Aksel in Rød", exact: true })).toBeVisible();
 
-    // The real production navigation link to the canonical Lineup editor, not a fabricated position.
+    // The real production navigation link to the canonical Lineup editor, not a fabricated
+    // position — the canonical organisation-scoped route (Gate C W2 remediation, W2-F01), never
+    // the legacy unscoped `/matches/{matchId}` redirect.
     await page.getByRole("button", { name: "Board", exact: true }).click();
     await page.getByRole("button", { name: "Select William", exact: true }).click();
-    const lineupLink = page.getByRole("link", { name: /view exact position in lineup/i });
-    await expect(lineupLink).toHaveAttribute("href", "/matches/w2-c06-rod");
+    const lineupLink = page.getByRole("link", { name: /open lineup/i });
+    await expect(lineupLink).toHaveAttribute("href", "/o/acme/matches/w2-c06-rod");
+  });
+
+  test("C06's Lineup link uses the real canonical org-scoped route and actually navigates to the real auth boundary when clicked", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/c06-dense-allocation`);
+
+    await page.getByRole("button", { name: "Select William", exact: true }).click();
+    const link = page.getByRole("link", { name: /open lineup/i });
+    await expect(link).toHaveAttribute("href", "/o/acme/matches/w2-c06-rod");
+    await link.click();
+    // /dev/ui-lab carries no session, and this match id is synthetic — the real app route's own
+    // auth middleware redirects to /signin, same precedent as the Gate C W1 href tests above.
+    // This proves the href's real canonical SHAPE and that it actually navigates; it does not
+    // and cannot claim a successful authenticated destination for a synthetic match id.
+    await page.waitForURL(/\/signin/, { timeout: 10_000 });
   });
 
   test("mobile: opens the real assignment sheet and commits a valid destination", async ({ page }) => {

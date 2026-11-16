@@ -164,6 +164,15 @@ type RoundBoardProps = {
    * gates (drag/drop, add player) use their own per-match live check — see MatchColumn.isFinalized. */
   planningBoundaryOpen: boolean;
   matchRoundId: string;
+  /**
+   * Gate C W2 remediation (W2-F01): the organisation this round belongs to, used purely to build
+   * canonical `/o/{orgSlug}/...` destination links (currently just the C06 Lineup navigation
+   * below). Deliberately a plain string prop, never `useOrgUrl()`/`useOrgSlug()` called directly
+   * inside this component — those throw outside an `OrgSlugProvider`, which `/dev/ui-lab` and
+   * this component's own tests never supply. Production passes the real route `orgSlug` (already
+   * available server-side, no extra fetch); UI Lab fixtures pass an explicit synthetic slug.
+   */
+  orgSlug: string;
   matches: MatchColumn[];
   availablePlayers: PlayerInColumn[];
   rotationPathMap: Record<string, string[]>;
@@ -568,6 +577,7 @@ export function RoundBoard({
   roundLabel,
   planningBoundaryOpen,
   matchRoundId,
+  orgSlug,
   matches,
   availablePlayers: initialAvailable,
   rotationPathMap,
@@ -1287,7 +1297,14 @@ export function RoundBoard({
   // field (ADR-0154's 24-code vocabulary belongs to the separate Lineup/Formation editor, not
   // this surface). Rather than fabricate a position here, link to the player's current match's
   // real Lineup editor, the correct canonical context — only once a match assignment exists.
-  const selectedPlayerLineupHref = selectedPlayerMatchId ? `/matches/${selectedPlayerMatchId}` : null;
+  //
+  // Gate C W2 remediation (W2-F01): the legacy `/matches/{matchId}` route is unscoped and
+  // redirects through an organisation resolver that does not reliably resolve a destination for
+  // a user who belongs to multiple organisations — Round Board already knows the real `orgSlug`
+  // (passed in as a plain prop, never `useOrgUrl()` called here directly), so this now builds
+  // the same canonical `/o/{orgSlug}/matches/{matchId}` URL production's own org-scoped
+  // navigation already uses everywhere else.
+  const selectedPlayerLineupHref = selectedPlayerMatchId ? `/o/${orgSlug}/matches/${selectedPlayerMatchId}` : null;
 
   // Gate C W2 remediation (third pass — P1: match-targeted Resolve). When a squad-shortage
   // signal is being resolved, the target match must stay clearly identified through candidate

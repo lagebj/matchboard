@@ -1,5 +1,5 @@
 import { WarningSeverity } from "@/generated/prisma/client";
-import { ROD, HVIT, buildRoster, KICKOFF_SATURDAY, KICKOFF_SATURDAY_LATE, type FixturePlayerSeed } from "../w2-shared/round-identities";
+import { ROD, HVIT, buildRoster, KICKOFF_SATURDAY, KICKOFF_SATURDAY_LATE, W2_ORG_SLUG, type FixturePlayerSeed } from "../w2-shared/round-identities";
 import type { RoundBoardFixtureInitial } from "../w2-shared/round-board-fixture-harness";
 
 /**
@@ -50,6 +50,7 @@ export function buildC04PlanningOpenFixture(): RoundBoardFixtureInitial {
 
   return {
     roundLabel: "Week 46",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: true,
     matchRoundId: "w2-c04-round",
     matches: [
@@ -120,6 +121,7 @@ export function buildC04PlanningOpenFixture(): RoundBoardFixtureInitial {
 export function buildC04NoEligiblePlayersFixture(): RoundBoardFixtureInitial {
   return {
     roundLabel: "Week 46",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: true,
     matchRoundId: "w2-c04-empty",
     matches: [],
@@ -138,6 +140,7 @@ export function buildC04AllAssignedFixture(): RoundBoardFixtureInitial {
   const rodRoster = buildRoster(ROD, 11, 1);
   return {
     roundLabel: "Week 46",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: true,
     matchRoundId: "w2-c04-complete",
     matches: [
@@ -179,6 +182,7 @@ export function buildC04SeveralMissingFixture(): RoundBoardFixtureInitial {
 
   return {
     roundLabel: "Week 46",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: true,
     matchRoundId: "w2-c04-several-missing",
     matches: [

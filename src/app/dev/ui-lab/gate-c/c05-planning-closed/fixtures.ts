@@ -1,5 +1,5 @@
 import { WarningSeverity } from "@/generated/prisma/client";
-import { ROD, HVIT, buildRoster, KICKOFF_LAST_WEEK, KICKOFF_SATURDAY, type FixturePlayerSeed } from "../w2-shared/round-identities";
+import { ROD, HVIT, buildRoster, KICKOFF_LAST_WEEK, KICKOFF_SATURDAY, W2_ORG_SLUG, type FixturePlayerSeed } from "../w2-shared/round-identities";
 import type { RoundBoardFixtureInitial } from "../w2-shared/round-board-fixture-harness";
 
 /**
@@ -63,6 +63,7 @@ export function buildC05PlanningClosedFixture(): RoundBoardFixtureInitial {
 
   return {
     roundLabel: "Week 45",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: false,
     matchRoundId: "w2-c05-round",
     matches: [
@@ -127,6 +128,7 @@ export function buildC05ClosedNoWarningFixture(): RoundBoardFixtureInitial {
   const rodRoster = buildRoster(ROD, 11, 1);
   return {
     roundLabel: "Week 44",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: false,
     matchRoundId: "w2-c05-closed-clean",
     matches: [
@@ -161,6 +163,7 @@ export function buildC05OpenMatchWarningFixture(): RoundBoardFixtureInitial {
 
   return {
     roundLabel: "Week 47",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: true,
     matchRoundId: "w2-c05-open-match-warning",
     matches: [
@@ -226,6 +229,7 @@ export function buildC05InsufficientIdentityFixture(): RoundBoardFixtureInitial 
 
   return {
     roundLabel: "Week 47",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: true,
     matchRoundId: "w2-c05-insufficient-identity",
     matches: [
@@ -270,6 +274,7 @@ export function buildC05FullyOpenControlFixture(): RoundBoardFixtureInitial {
 
   return {
     roundLabel: "Week 47",
+    orgSlug: W2_ORG_SLUG,
     planningBoundaryOpen: true,
     matchRoundId: "w2-c05-fully-open",
     matches: [

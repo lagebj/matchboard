@@ -10,6 +10,8 @@ A second independent review (of HEAD `af686e3cd8cf0a0633f18d931bb47bf7a6eca590`)
 
 A third independent review (of HEAD `c03f148e4d4e6a7448fc7a375509043e0d7c5040`) found that the second pass's own Resolve fixes were still not enough: scrolling to and focusing a control is navigation, not a genuine correction path, and the player-specific `resolvable` check still didn't account for the warning's own owning match independently of the player's current one. Three further findings, all fixed — see "Third remediation pass findings" below.
 
+A fourth independent review (of HEAD `962d1449fd477ccc265dc206f2d28a6b61d131a9`) found: (W2-F01) the C06 Lineup link used the legacy, unscoped organisation route, which silently fails to resolve for a multi-organisation user; (W2-F02) C06's navigation addition does not, by itself, demonstrate the original 24-vs-14 position-precision acceptance question — that requires an explicit decision record, not a code fix; (W2-F03) the wave's own visual-vs-current documentation did not clearly separate "existing design confirmed" from "behavior corrected" from "actual visual change," risking an owner misreading passing tests as visual approval. W2-F01 is fixed in this pass; W2-F02 and W2-F03 are resolved by documentation (a decision record and a restructured visual comparison), not code — see "Fourth remediation pass findings" below.
+
 ## Finding dispositions
 
 | Finding | Root cause | Fix | Tests |
@@ -68,8 +70,35 @@ No finding required deviating from the brief's hard constraints in this pass eit
 - **`npx playwright test --project=ui-lab-gate-c` against a local `next dev` server — 106/106 passed** (98 pre-existing + 2 new scenario routes' responsive-overflow coverage + 4 new acceptance tests for the match-targeted correction workflow and its mobile focus behavior).
 - A capture-script interaction added for this pass's new correction-workflow captures (select the resolved candidate, commit the assignment) was validated locally against a real Chromium instance across all five viewport widths both new capture scenarios use, before being pushed to CI — learning directly from the second remediation pass's own capture-script crash.
 
-## Disposition
+## Fourth remediation pass findings (reviewed HEAD `962d1449fd477ccc265dc206f2d28a6b61d131a9`)
 
-**READY_FOR_INDEPENDENT_REVIEW.**
+| Finding | Root cause | Fix | Tests |
+|---|---|---|---|
+| W2-F01 — C06 Lineup navigation loses organisation context | `selectedPlayerLineupHref` built a bare `/matches/{matchId}`, the legacy route that redirects via `resolveOrgSlugForLayout()` → `getOrgSlugForUser()`, which returns `null` (and therefore redirects to `/organisations`, never the intended match) whenever the user belongs to more than one organisation | `RoundBoardProps` gained a plain `orgSlug: string` field (threaded from the server page's own route param, never `useOrgUrl()`/`useOrgSlug()` called inside `round-board.tsx` itself); `selectedPlayerLineupHref` now builds the canonical `/o/{orgSlug}/matches/{matchId}`; UI Lab fixtures supply an explicit synthetic `W2_ORG_SLUG` ("acme"). The link label changed from "View exact position in Lineup" to "Open Lineup" — Round Board cannot know whether an exact position already exists at the destination | `round-board.test.tsx`'s 5-test "Lineup link" describe block (canonical URL for an assigned player, organisation retained, a different organisation produces a different URL, no link for an unassigned player, desktop/mobile parity, renders without an `OrgSlugProvider`); `c06-dense-allocation/__tests__/page.test.tsx`'s corrected href/label test; `e2e/ui-lab-gate-c.spec.ts`'s new real-browser navigation test (exact href, click, reaches the real `/signin` auth boundary) |
+| W2-F02 — C06 does not fulfill its original positional-precision requirement merely because navigation works | The Lineup link (previous passes) is correct, honest navigation, but navigation alone does not demonstrate the original 24-vs-14-role acceptance question — that requires data Round Board does not have | Not a code fix. `POSITION_VOCABULARY_AND_PRECISION.md` now explicitly splits C06 into C06-A (dense allocation, demonstrated, `PROPOSED_REFINEMENT (implemented)`) and C06-B (24-vs-14 precision, not demonstrated, `BLOCKED_BY_SOURCE_OR_AUTHORITY`, unchanged), with a two-option decision record (accept the narrower C06-A/navigation contract, or defer C06-B unchanged) left explicitly for the repository owner — this PR does not choose between them | N/A — documentation-only; `SOURCE_RECONCILIATION.md` and `CURRENT_STATE_AUDIT.md` item 12 cross-reference the same split |
+| W2-F03 — visual acceptance not clearly distinguished from behavioral validation | `VISUAL_VS_CURRENT.md` described production fixes and new tiles/links without a consistent per-scenario framework separating "existing design confirmed," "behavior corrected," "visual presentation changed," and "acceptance question not demonstrated" — risking an owner reading passing Playwright assertions as visual approval | Rewrote `VISUAL_VS_CURRENT.md` with the brief's own 7-point structure per scenario (acceptance question, existing composition, actual changes, demonstrated state, evidence, deviation, readiness for owner review) and an explicit statement that test evidence is behavioral validation, never visual approval | N/A — documentation-only |
 
-`capture-attestation.json` is generated from this PR's real CI run (`ui-lab-visual-review.yml`) against this pass's actual branch-tip commit — real Chromium, real SHA-256 hashes, per ADR-0159. The stale evidence from prior commits (before this pass's rendering changes) is not reused.
+No finding in this pass required a schema change, a new selection engine, a new position-projection engine, a Lineup/Formation-editor change, or a Round Board redesign — W2-F01 is a one-prop plumbing fix; W2-F02/W2-F03 are documentation corrections that make an already-true technical state explicit and accurately scoped.
+
+## Local verification performed (fourth remediation pass)
+
+- `npm run typecheck`, `npm run lint` — clean.
+- `npm test` (both vitest configs) — 593 + 166 files, **6589 + 1096 tests**, all passed (up from 6589 + 1091 — 5 new `round-board.test.tsx` tests for the Lineup-link fix).
+- `npm run build` — succeeded; no new routes this pass (W2-F01 is a prop/label change, not a new page).
+- `npm run validate -- --fast` — all 13 steps passed.
+- **`npx playwright test --project=ui-lab-gate-c` against a local `next dev` server — 107/107 passed** (106 pre-existing + 1 new real-browser navigation test for the corrected Lineup link, following the exact precedent Gate C W1's own C01/C02 href tests already established).
+- Issue #830 (the pre-existing ~600-1200px layout gap) is unaffected by this pass — no CSS/layout file was touched; the full responsive-overflow suite (all widths, all W1+W2 scenarios) re-ran and passed as part of the 107/107 total above, confirming no new width regression.
+
+## Disposition (reported separately per concern, never collapsed into one blanket status)
+
+- **Implementation correctness (W2-F01)**: fixed and verified.
+- **C04 acceptance**: `READY_FOR_INDEPENDENT_REVIEW`. The eligible-coverage denominator is real, wired, and distinct from squad-placement counts.
+- **C05 acceptance**: `READY_FOR_INDEPENDENT_REVIEW`. Closed-state read-only behavior, Resolve eligibility (both the player's and the warning's own match), the match-targeted correction workflow, and mobile focus scoping are all fixed and regression-tested across three remediation passes.
+- **C06-A acceptance** (dense allocation): `READY_FOR_INDEPENDENT_REVIEW`. The dense matrix, mobile sheet, and truthful success/rejection outcomes are demonstrated on real production code.
+- **C06-B acceptance** (24-slot vs. 14-role precision): `BLOCKED_BY_SOURCE_OR_AUTHORITY`, unchanged by any pass. A decision record (`POSITION_VOCABULARY_AND_PRECISION.md`) is provided; the choice between its two options is the repository owner's, not this PR's.
+- **Visual Authority**: no approval requested or implied for any candidate. The `Evaluate Visual Authority Gate` check correctly reports "Visual approval rejected or stale" — the gate working as designed, not a defect, since no owner approval exists. Historical Gate B fingerprint invalidation (issue #827) is a separate, pre-existing, open concern not caused by and not remediated in this PR.
+- **CodeQL**: a transient GitHub-side "API rate limit exceeded for installation" error has recurred identically across the second, third, and now this review's own CI runs — verified directly each time via the run's own logs, not assumed; not re-runnable via `gh run rerun` ("cannot be retried"); unrelated to this diff.
+
+`capture-attestation.json` will be regenerated from this pass's real CI run once pushed (the C06 link's href/label change is a real rendering change) — real Chromium, real SHA-256 hashes, per ADR-0159. The stale evidence from prior commits is not reused as proof of this pass's own change.
+
+**Overall PR disposition: READY_FOR_INDEPENDENT_REVIEW**, with C06-B's `BLOCKED_BY_SOURCE_OR_AUTHORITY` status and its owner decision record carried forward explicitly, not resolved by this PR.

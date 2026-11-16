@@ -132,7 +132,12 @@ describe("C06 — Round Board dense allocation and position-precision disclosure
     const rodLane = container.querySelector('[data-drop-match="w2-c06-rod"]') as HTMLElement;
     await user.click(within(rodLane).getByRole("button", { name: /select william/i }));
 
-    const link = screen.getByRole("link", { name: /view exact position in lineup/i });
-    expect(link.getAttribute("href")).toBe("/matches/w2-c06-rod");
+    // Gate C W2 remediation (W2-F01): the canonical organisation-scoped route, built from the
+    // fixture's own explicit synthetic orgSlug (W2_ORG_SLUG, "acme") — never the legacy unscoped
+    // `/matches/{matchId}` redirect, which does not reliably resolve for a multi-organisation
+    // user. The label no longer claims an exact position necessarily exists — it is purely
+    // navigation to the correct canonical context.
+    const link = screen.getByRole("link", { name: /open lineup/i });
+    expect(link.getAttribute("href")).toBe("/o/acme/matches/w2-c06-rod");
   });
 });

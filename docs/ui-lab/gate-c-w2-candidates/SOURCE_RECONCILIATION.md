@@ -26,6 +26,10 @@ As with Gate C W1, **no official Gate-C wave-ordering document exists** (unlike 
 
 The register's C06 acceptance question names "14 general roles" without defining the vocabulary anywhere in `docs/`. Direct code audit resolved this: `src/domain/positions/roles.ts` defines `SOURCE_ROLES` as exactly 14 codes — `EXACT_ROLES` (the 12-code ADR-0129 automatic-planning vocabulary: `GK, LB, CB, RB, DM, CM, AM, LM, RM, LW, RW, ST`) plus `"SS"` and `"W"`. This is the "14 general roles" the register means. See `POSITION_VOCABULARY_AND_PRECISION.md` for why this vocabulary, and the 24-code `CANONICAL_TACTICAL_POSITIONS` it is contrasted against, are both real but neither is currently consumed anywhere in Round Board.
 
+## C06's acceptance question is split into two independently-dispositioned concerns (fourth remediation pass)
+
+The verbatim register text above remains authoritative and unedited. A fourth independent review found that navigation to the Lineup editor (added in a prior remediation pass) does not, by itself, demonstrate C06's acceptance question — it is correct context, not proof. See `POSITION_VOCABULARY_AND_PRECISION.md`'s "C06 as two separate acceptance concerns" section for the full split: **C06-A** (dense Round Board allocation) is demonstrated and disposed `PROPOSED_REFINEMENT (implemented)`; **C06-B** (the literal 24-slot-vs-14-role precision question quoted above) remains `BLOCKED_BY_SOURCE_OR_AUTHORITY`, with a two-option decision record left for the repository owner, not resolved by this PR.
+
 ## Scope decision
 
 C04-C06 constitute this wave's full scope. No work on C07 (Assistant Coach fallback) or C08 (same-day quick add) was started, per the brief's explicit exclusion. Issue #827 (Visual Authority fingerprint invalidation) remains separately tracked and was not remediated here, but its lesson (a shared fixture edit silently invalidates a prior wave's approval) directly shaped this wave's fixture architecture — see `DATA_TRUTH_AND_FIXTURES.md`.

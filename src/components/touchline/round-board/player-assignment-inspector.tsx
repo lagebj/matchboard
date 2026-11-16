@@ -26,7 +26,10 @@ export type PlayerAssignmentInspectorProps = {
    * / C06). Round Board's own assignment is player×match only — it has no tactical-position
    * field (ADR-0154's 24-code vocabulary is owned by the Lineup editor, not this surface) — so
    * this is navigation to the correct canonical context, never a fabricated position value here.
-   * `null`/absent when the player has no current match to link to.
+   * `null`/absent when the player has no current match to link to. Gate C W2 remediation
+   * (W2-F01): the label deliberately says "Open Lineup", not "View exact position" — Round
+   * Board has no way to know whether this player already has an exact position recorded in the
+   * destination's own formation editor, so the link must never promise that data exists.
    */
   lineupHref?: string | null;
   /**
@@ -141,7 +144,7 @@ export function PlayerAssignmentInspector({
                   href={lineupHref}
                   className="mt-0.5 inline-block text-[11px] font-medium text-[var(--accent-strong)] hover:underline"
                 >
-                  View exact position in Lineup →
+                  Open Lineup →
                 </a>
               ) : null}
             </div>

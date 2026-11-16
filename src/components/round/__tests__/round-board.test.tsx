@@ -41,6 +41,7 @@ function baseProps() {
     roundLabel: "Round 1",
     planningBoundaryOpen: true,
     matchRoundId: "round-1",
+    orgSlug: "test-org",
     matches: [
       {
         matchId: "m-blue",
@@ -292,6 +293,85 @@ describe("RoundBoard — emergency repair options (Phase 9)", () => {
     expect(await screen.findByText(/no viable alternative found/i)).toBeTruthy();
     expect(addPlayerToMatchAction).not.toHaveBeenCalled();
     expect(removePlayerFromMatchAction).not.toHaveBeenCalled();
+  });
+});
+
+// Gate C W2 remediation (W2-F01): the C06 Lineup link previously used the legacy, unscoped
+// `/matches/{matchId}` route, which redirects through an organisation resolver that does not
+// reliably resolve a destination for a user who belongs to multiple organisations. `RoundBoard`
+// now takes an explicit `orgSlug` prop (never `useOrgUrl()`/`useOrgSlug()` called directly here —
+// both throw outside a real `OrgSlugProvider`, which `/dev/ui-lab` and this exact test file never
+// supply) and builds the canonical `/o/{orgSlug}/matches/{matchId}` URL from it.
+describe("RoundBoard — the Lineup link uses the canonical organisation-scoped route (Gate C W2 remediation, W2-F01)", () => {
+  afterEach(() => {
+    restoreMatchMedia?.();
+    restoreMatchMedia = undefined;
+  });
+
+  it("a selected, assigned player receives the correct canonical URL, retaining the current organisation", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.orgSlug = "rivals-fc";
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    const links = screen.getAllByRole("link", { name: /open lineup/i });
+    for (const link of links) {
+      expect(link.getAttribute("href")).toBe("/o/rivals-fc/matches/m-blue");
+    }
+  });
+
+  it("a different organisation produces a different canonical URL for the same match id", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.orgSlug = "another-club";
+    render(<RoundBoard {...props} />);
+
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+
+    const link = screen.getAllByRole("link", { name: /open lineup/i })[0]!;
+    expect(link.getAttribute("href")).toBe("/o/another-club/matches/m-blue");
+    expect(link.getAttribute("href")).not.toBe("/o/rivals-fc/matches/m-blue");
+  });
+
+  it("an unassigned player has no Lineup link at all", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    props.availablePlayers.push({ id: "p-zara", name: "Zara", coreTeamName: "Blue", coreTeamId: "team-blue", role: "CORE" as const });
+    render(<RoundBoard {...props} />);
+
+    const desktopBoard = document.querySelector("[data-desktop-board]") as HTMLElement;
+    await user.click(within(desktopBoard).getByRole("button", { name: "Select Zara" }));
+
+    expect(screen.queryByRole("link", { name: /open lineup/i })).toBeNull();
+  });
+
+  it("desktop and mobile both receive the exact same link (one shared computation, not two divergent ones)", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<RoundBoard {...baseProps()} />);
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    const desktopLink = screen.getByRole("link", { name: /open lineup/i });
+    expect(desktopLink.getAttribute("href")).toBe("/o/test-org/matches/m-blue");
+    unmount();
+
+    // The mobile sheet shares the exact same PlayerAssignmentInspector body (never a second,
+    // divergent rendering) — only reachable once the sheet actually opens, which requires the
+    // compact-viewport dialog style.
+    mockCompactViewport();
+    render(<RoundBoard {...baseProps()} />);
+    await user.click(screen.getByRole("button", { name: /select alice/i }));
+    const sheet = await screen.findByRole("dialog", { name: /assign player/i });
+    const mobileLink = within(sheet).getByRole("link", { name: /open lineup/i });
+    expect(mobileLink.getAttribute("href")).toBe(desktopLink.getAttribute("href"));
+  });
+
+  it("renders correctly with only a synthetic orgSlug prop — no OrgSlugProvider, no auth, no database (UI Lab's own contract)", () => {
+    // This is the same render every other test in this file already performs — RoundBoard never
+    // calls useOrgUrl()/useOrgSlug() itself, so no provider is required. Asserted explicitly here
+    // as the W2-F01 regression guard: a future change that reintroduces a direct hook call would
+    // throw immediately on this exact render, in UI Lab and in every other test in this file.
+    expect(() => render(<RoundBoard {...baseProps()} />)).not.toThrow();
   });
 });
 
