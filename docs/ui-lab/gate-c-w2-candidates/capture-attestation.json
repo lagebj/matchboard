@@ -1,26 +1,25 @@
 {
-  "description": "Gate C W2 (Round Board — Planning and Allocation: C04 planning-open, C05 planning-closed/mixed-boundary, C06 dense-allocation) UI Lab visual-review evidence THIRD REMEDIATION PASS. A third independent review of PR #829 found the second remediation pass's own Resolve fixes were still not enough: match-specific Resolve scrolled to and focused an already-ASSIGNED player's own lane control (navigation, not resolution, since that player's own current match is always excluded as a destination for themselves); isResolvable never independently checked the warning's own OWNING match; the focus-target query could pick a CSS-hidden desktop control from a real mobile viewport. All three are fixed in this pass. This evidence supersedes the second pass's own evidence for the c05-open-match-warning route (now shows the real correction workflow: candidate-selected and assignment-committed interaction states, replacing the old scroll-only match-resolved-only capture) and adds a brand-new c05-open-match-warning-denied route. C04/C05-primary/C06 rendering is unaffected by this pass's fixes (confirmed in REVIEW_RECORD.md) but are included for completeness since the whole wave captures in one CI run. See docs/ui-lab/gate-c-w2-candidates/REVIEW_RECORD.md for the full finding-by-finding disposition.",
-  "sourceCommitSha": "b15ff9cb0fc01f0bea00ef8f7c0cf96aa6ff64d0",
-  "generatedAt": "2026-11-15T19:39:46.830Z",
+  "description": "Gate C W2 (Round Board — Planning and Allocation: C04 planning-open, C05 planning-closed/mixed-boundary, C06 dense-allocation) UI Lab visual-review evidence FOURTH REMEDIATION PASS. A fourth independent review of PR #829 found: (W2-F01) C06's Lineup link used the legacy, unscoped /matches/{matchId} route, which silently fails to resolve for a multi-organisation user — fixed with a plain orgSlug prop and the canonical /o/{orgSlug}/matches/{matchId} route, and the label corrected from 'View exact position in Lineup' to 'Open Lineup'; (W2-F02) C06's navigation addition does not by itself demonstrate the original 24-vs-14-role acceptance question — resolved by documentation (an explicit C06-A/C06-B split with an owner decision record), not code; (W2-F03) VISUAL_VS_CURRENT.md rewritten with a consistent 7-point per-scenario structure. This evidence supersedes the third pass's own evidence for every C06 capture showing a selected, assigned player (the Lineup link's href and label genuinely changed, confirmed by a real hash difference against the prior run) and is otherwise identical in content to the third pass for C04/C05 and C06's own non-link-showing states, since W2-F01 touched no CSS/layout. See docs/ui-lab/gate-c-w2-candidates/REVIEW_RECORD.md for the full finding-by-finding disposition.",
+  "sourceCommitSha": "820ea9d9e842c236dc15c736a3f85a1dc3ea1e5d",
+  "generatedAt": "2026-11-16T07:54:31.961Z",
   "environment": {
     "node": "v24.22.2",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/43751436355",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/43823958807",
   "ciArtifact": {
-    "id": 14177685117,
-    "name": "ui-lab-review-43751436355-1",
-    "expiresAt": "2026-11-22T19:32:53Z"
+    "id": 14206806564,
+    "name": "ui-lab-review-43823958807-1",
+    "expiresAt": "2026-11-23T07:46:11Z"
   },
-  "reviewedBranchHeadSha": "c667159ab2d4ba2d0cb37ba19f2ee3afeb44bd27",
+  "reviewedBranchHeadSha": "3dfe6036a938455cf86345e99426f6f88f0c8e3d",
   "knownLimitations": [
-    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head, confirmed via the checkout step's own log: \"Merge c667159ab2d4ba2d0cb37ba19f2ee3afeb44bd27 into 8849c6dac5cd6e9da8c1a2c6e30dfb63320cf2b0\"), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run (the third remediation pass's final commit, c667159a).",
-    "GitHub Actions artifact retention is temporary (expires 2026-11-22) — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
-    "All 170 Gate C W2 hashes recorded below were independently re-verified in this session: all 170 files were downloaded via `gh run download 43751436355` and every SHA-256 recomputed from the raw bytes with `sha256sum` — zero mismatches against the CI job's own self-reported per-file sha256 log lines.",
-    "The first push of this pass's fixes (commit 85f5f9959) produced a complete, successful CAPTURE (no crash), but its own new Gate C Playwright tests failed in that run's acceptance suite with a strict-mode `getByText` ambiguity that this session's own local runs happened not to reproduce (a real-Chromium timing difference, not a flake tolerated on faith — root-caused and fixed by scoping two assertions to the desktop board container). That run (43749001546) is NOT used as evidence for anything here. This attestation's evidence is exclusively from the corrected re-run (43751436355, commit c667159a) after the e2e scoping fix.",
-    "This is the third capture run whose evidence is retained for Gate C W2. The second pass's own run (43734288673, commit b6b845857) is superseded for the c05-open-match-warning route (the Resolve interaction now reaches a real candidate-selection-and-commit workflow, not a scroll-only focus) and for the new c05-open-match-warning-denied route (did not exist in the second pass). C04/C05-primary/C06's own rendering is unchanged by this pass's fixes, but this attestation covers the same revision as the production fix commit regardless, so it is the current evidence for all five routes uniformly.",
-    "This same CI run also executed 106 real Chromium Playwright tests (e2e/ui-lab-gate-c.spec.ts, project `ui-lab-gate-c`) — the 98 tests carried over from the second remediation pass plus 2 new scenario routes' responsive-overflow coverage plus 4 new acceptance tests for the real match-targeted correction workflow and its mobile focus behavior (rewriting the old scroll-only-focus test) — plus 54 B08 Playwright tests, all passing, matching the local pre-push run exactly."
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head, confirmed via the checkout step's own log: \"Merge 3dfe6036a938455cf86345e99426f6f88f0c8e3d into 8849c6dac5cd6e9da8c1a2c6e30dfb63320cf2b0\"), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run (the fourth remediation pass's final commit, 3dfe6036).",
+    "GitHub Actions artifact retention is temporary (expires 2026-11-23) — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
+    "All 170 Gate C W2 hashes recorded below were independently re-verified in this session: all 170 files were downloaded via `gh run download 43823958807` and every SHA-256 recomputed from the raw bytes with `sha256sum` — zero mismatches against the CI job's own self-reported per-file sha256 log lines.",
+    "This is the fourth capture run whose evidence is retained for Gate C W2. The third pass's own run (43751436355, commit c667159a) is superseded specifically for the C06 captures showing a selected, assigned player (gate-c-w2-c06-dense-allocation-*-assigned-player-selected.png, across all 10 viewport/theme combinations) — the Lineup link's href and label genuinely changed, confirmed by comparing this run's hash for gate-c-w2-c06-dense-allocation-desktop-dark-assigned-player-selected.png against the third pass's own recorded hash for the identical filename: they differ (c39ec506... vs 58b2cd5f...), proving this is real new evidence, not a relabeled reuse of stale screenshots. Every other capture in this run (C04 in full, C05 in full, C06's initial/allocation-matrix states) is unaffected by this pass's W2-F01 fix, which touched no CSS or layout code.",
+    "An unrelated B08 Playwright test (e2e/ui-lab-b08.spec.ts, 'LIVE-to-report continuity' Journey C) was reported as 'flaky' by this same CI run (passed on retry) with an unrelated strict-mode violation against a Next.js dev-server error-overlay codeframe element — not a Gate C W2 test, not touched by this pass, and not used as evidence for anything in this document. All 107 Gate C Playwright tests in this run passed on the first attempt."
   ],
   "approvalStatus": "CANDIDATE",
   "captureCountsByScenario": {
@@ -1270,7 +1269,7 @@
       "theme": "dark",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-desktop-dark-closed-match-player-selected.png",
-      "sha256": "1b67b601f03c706f8a4a172105448410fd2d780d211585255f4d9058446a5a7b"
+      "sha256": "8694c33470a70f1b6946de831d40860263987617f2a203c80b83b98bcd1e2353"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1282,7 +1281,7 @@
       "theme": "dark",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-desktop-dark-move-picker-excludes-closed.png",
-      "sha256": "fbd1f1e1e64de820bd8645f5a8682daf6119bc255df6d20c15ae923c9789ce36"
+      "sha256": "e78fd8316c8f0d333f2fc48563f6769c19783797779f96bfce762c78710678f3"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1318,7 +1317,7 @@
       "theme": "light",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-desktop-light-closed-match-player-selected.png",
-      "sha256": "3b0fbb70d5960121949bf356caad00196b310f0463383fa04fb7c4ecf419bde0"
+      "sha256": "9531b469107923f03b94433a6877d2bffd363301fae42d610ab5cfe03b760872"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1330,7 +1329,7 @@
       "theme": "light",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-desktop-light-move-picker-excludes-closed.png",
-      "sha256": "745fe5bb4f00e4679da8784ee98fed7fc557d20c6d369b0b557ddb2334bc548f"
+      "sha256": "260d92b9d78b1becd6bef53c781bc9336ca299fb532728da39223076d48d8f02"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1366,7 +1365,7 @@
       "theme": "dark",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-gc-360-dark-closed-match-player-selected.png",
-      "sha256": "bc4ad0d0d17a577109668e0688d31ce2c3fab89ed08aaf460e06ce420fb85218"
+      "sha256": "417e1adb65b4771806a83244517b7df060fec6a1836707be71de6969b13ce465"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1378,7 +1377,7 @@
       "theme": "dark",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-gc-360-dark-move-picker-excludes-closed.png",
-      "sha256": "bc4ad0d0d17a577109668e0688d31ce2c3fab89ed08aaf460e06ce420fb85218"
+      "sha256": "417e1adb65b4771806a83244517b7df060fec6a1836707be71de6969b13ce465"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1414,7 +1413,7 @@
       "theme": "light",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-gc-360-light-closed-match-player-selected.png",
-      "sha256": "ebd8988647ab8e875b16f8d10110319eec92179fe6d89fb46a65842d80d00af9"
+      "sha256": "1a01cdfd6ee5a995e1db058cb336830687d7bed9e3a36f0b6476265723fed285"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1426,7 +1425,7 @@
       "theme": "light",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-gc-360-light-move-picker-excludes-closed.png",
-      "sha256": "ebd8988647ab8e875b16f8d10110319eec92179fe6d89fb46a65842d80d00af9"
+      "sha256": "1a01cdfd6ee5a995e1db058cb336830687d7bed9e3a36f0b6476265723fed285"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1462,7 +1461,7 @@
       "theme": "dark",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-gc-430-dark-closed-match-player-selected.png",
-      "sha256": "eeb73832b04290b7a34391ec351f7ed917a850fc50ce6ef0d66969e5a453fd2d"
+      "sha256": "72ef2d5b133c974262e5298fb24d471246150b9bd845fd447b90fd36e944581d"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1474,7 +1473,7 @@
       "theme": "dark",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-gc-430-dark-move-picker-excludes-closed.png",
-      "sha256": "eeb73832b04290b7a34391ec351f7ed917a850fc50ce6ef0d66969e5a453fd2d"
+      "sha256": "72ef2d5b133c974262e5298fb24d471246150b9bd845fd447b90fd36e944581d"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1510,7 +1509,7 @@
       "theme": "light",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-gc-430-light-closed-match-player-selected.png",
-      "sha256": "657401a313c407198051da51fea1a8edbea74bbb9c8c23f8040aaf020a69615b"
+      "sha256": "68cb1353da0fd886038b4d7dc8e38ae5e411cfd92776d3b7eef96ab4c0a15254"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1522,7 +1521,7 @@
       "theme": "light",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-gc-430-light-move-picker-excludes-closed.png",
-      "sha256": "657401a313c407198051da51fea1a8edbea74bbb9c8c23f8040aaf020a69615b"
+      "sha256": "68cb1353da0fd886038b4d7dc8e38ae5e411cfd92776d3b7eef96ab4c0a15254"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1558,7 +1557,7 @@
       "theme": "dark",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-mobile-dark-closed-match-player-selected.png",
-      "sha256": "f0dccdd66220e9839713983ac65996f93fce0545a86e916ec2b1934b82390e7e"
+      "sha256": "2b7862829fbe6ba0c09d18de2c6ab83dfadcca2f09188d25283ccede1b691f94"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1570,7 +1569,7 @@
       "theme": "dark",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-mobile-dark-move-picker-excludes-closed.png",
-      "sha256": "f0dccdd66220e9839713983ac65996f93fce0545a86e916ec2b1934b82390e7e"
+      "sha256": "2b7862829fbe6ba0c09d18de2c6ab83dfadcca2f09188d25283ccede1b691f94"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1606,7 +1605,7 @@
       "theme": "light",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-mobile-light-closed-match-player-selected.png",
-      "sha256": "c363db41ebb6c4a7d0c97f31320fd9fb0dc9146458f4d62744a9215af30ed806"
+      "sha256": "9491aedb28a49e3655459cbe822ed7e25deb99e593ff99e79293e5a6783087be"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1618,7 +1617,7 @@
       "theme": "light",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-mobile-light-move-picker-excludes-closed.png",
-      "sha256": "c363db41ebb6c4a7d0c97f31320fd9fb0dc9146458f4d62744a9215af30ed806"
+      "sha256": "9491aedb28a49e3655459cbe822ed7e25deb99e593ff99e79293e5a6783087be"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1654,7 +1653,7 @@
       "theme": "dark",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-narrow-dark-closed-match-player-selected.png",
-      "sha256": "a8fe8a0f818f44d1c8a1d365b2e7dcd174e04f5d426978b66e4088d3ad243a74"
+      "sha256": "09fab5d29fcac42073eb05271c63c5ecfaf13fb81e57aeb2071dac211b6ee3eb"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1666,7 +1665,7 @@
       "theme": "dark",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-narrow-dark-move-picker-excludes-closed.png",
-      "sha256": "712e44858c8fc8ff3d3a10a2cd0098bd9aaa93828bcc6f9435b96981f013672f"
+      "sha256": "010fa30dcbdee02f1a452f61a6e977290ebd7ff7d2c0f2cff3a1acd2b6812e6f"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1702,7 +1701,7 @@
       "theme": "light",
       "interactionState": "closed-match-player-selected",
       "file": "gate-c-w2-c05-planning-closed-narrow-light-closed-match-player-selected.png",
-      "sha256": "8b1285f3dec3ecb98af8b6a72f97d6f03fc949fbbbd17bea918a72978fe43308"
+      "sha256": "6a5d4af01ac69fff632bfcd63ef6aec0bdce7794d87dd5ad1b5db07a9f4e5d32"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1714,7 +1713,7 @@
       "theme": "light",
       "interactionState": "move-picker-excludes-closed",
       "file": "gate-c-w2-c05-planning-closed-narrow-light-move-picker-excludes-closed.png",
-      "sha256": "832396ce4eb5050f5a4b8936713428eb4d3aa9cec723964bf679d20ef5cee9a8"
+      "sha256": "b3a73c49551b97862d9d94c8796e622706ed4c0e67f9880a906c8f165b600648"
     },
     {
       "scenarioId": "GATE-C-W2-C05",
@@ -1762,7 +1761,7 @@
       "theme": "dark",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-desktop-dark-assigned-player-selected.png",
-      "sha256": "58b2cd5f324a7b4b048e3e11954a45cf835452ea11cc6a3ea1bb8a36b80fd70b"
+      "sha256": "c39ec506d40d407c2196bdd661241ce9dffce68ae472e4e8b382bc67be049012"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1798,7 +1797,7 @@
       "theme": "light",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-desktop-light-assigned-player-selected.png",
-      "sha256": "e7ac089fdeeec6ee30ba5d49822b8728104ddf2ed48e4bc2cec1d1797313cc4f"
+      "sha256": "475cdf94053c592babf7f1ff0e8ac1ca8511c7b144df58862f6d62464d6f7a33"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1822,7 +1821,7 @@
       "theme": "dark",
       "interactionState": "allocation-matrix",
       "file": "gate-c-w2-c06-dense-allocation-gc-360-dark-allocation-matrix.png",
-      "sha256": "e5ff3d670ce8561124d29135728053523ff9fcfc3086f0433f0d91c27d292af0"
+      "sha256": "3e285d1c48686d3673c69c3e6de32440c64335368b40e380624adf2b70419ad6"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1834,7 +1833,7 @@
       "theme": "dark",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-gc-360-dark-assigned-player-selected.png",
-      "sha256": "e5ff3d670ce8561124d29135728053523ff9fcfc3086f0433f0d91c27d292af0"
+      "sha256": "3e285d1c48686d3673c69c3e6de32440c64335368b40e380624adf2b70419ad6"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1858,7 +1857,7 @@
       "theme": "light",
       "interactionState": "allocation-matrix",
       "file": "gate-c-w2-c06-dense-allocation-gc-360-light-allocation-matrix.png",
-      "sha256": "69590313e9581c302ef2360fcbe67d124a860d95002df7074f07a602873e3dad"
+      "sha256": "a4d2b34165ac556e3d77d37c15330b0d416220996276d8969334332d61ae4d56"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1870,7 +1869,7 @@
       "theme": "light",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-gc-360-light-assigned-player-selected.png",
-      "sha256": "69590313e9581c302ef2360fcbe67d124a860d95002df7074f07a602873e3dad"
+      "sha256": "a4d2b34165ac556e3d77d37c15330b0d416220996276d8969334332d61ae4d56"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1894,7 +1893,7 @@
       "theme": "dark",
       "interactionState": "allocation-matrix",
       "file": "gate-c-w2-c06-dense-allocation-gc-430-dark-allocation-matrix.png",
-      "sha256": "1ba8a12939ccfc0f186155a94aa4fe0f54cf52fa085d8f3ba82501a6a11bbdf8"
+      "sha256": "511df46b73e393d559ee745ba288a1ef65e70c80ebf5c4f7a670891ba3e248c6"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1906,7 +1905,7 @@
       "theme": "dark",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-gc-430-dark-assigned-player-selected.png",
-      "sha256": "1ba8a12939ccfc0f186155a94aa4fe0f54cf52fa085d8f3ba82501a6a11bbdf8"
+      "sha256": "511df46b73e393d559ee745ba288a1ef65e70c80ebf5c4f7a670891ba3e248c6"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1930,7 +1929,7 @@
       "theme": "light",
       "interactionState": "allocation-matrix",
       "file": "gate-c-w2-c06-dense-allocation-gc-430-light-allocation-matrix.png",
-      "sha256": "6eb12dd35f2da0c1681d924617b0ff5606ec4fc1d1c8f7955fb213be43f78da7"
+      "sha256": "13fbb6c2973e2b7c2da51011d0de0f90806352372652061bfd5e1142888cd4bc"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1942,7 +1941,7 @@
       "theme": "light",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-gc-430-light-assigned-player-selected.png",
-      "sha256": "6eb12dd35f2da0c1681d924617b0ff5606ec4fc1d1c8f7955fb213be43f78da7"
+      "sha256": "13fbb6c2973e2b7c2da51011d0de0f90806352372652061bfd5e1142888cd4bc"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1966,7 +1965,7 @@
       "theme": "dark",
       "interactionState": "allocation-matrix",
       "file": "gate-c-w2-c06-dense-allocation-mobile-dark-allocation-matrix.png",
-      "sha256": "a4569e8d86746657b7678834570c78a55df6798efcfcc11addad6fa2aa39e572"
+      "sha256": "b06878b16e7bb3d392883d43dcfe32051cd56e07d964cad6d72d4a0515ada687"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -1978,7 +1977,7 @@
       "theme": "dark",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-mobile-dark-assigned-player-selected.png",
-      "sha256": "a4569e8d86746657b7678834570c78a55df6798efcfcc11addad6fa2aa39e572"
+      "sha256": "b06878b16e7bb3d392883d43dcfe32051cd56e07d964cad6d72d4a0515ada687"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -2002,7 +2001,7 @@
       "theme": "light",
       "interactionState": "allocation-matrix",
       "file": "gate-c-w2-c06-dense-allocation-mobile-light-allocation-matrix.png",
-      "sha256": "f3bd2b23dc70a86b687aa5adaf43cf269e5b6c47243e066cd0d1f4e1975c0ac2"
+      "sha256": "9cbe2123d171f0e12ad4725cc673070027673e7cab77d3f211d5042e47c2b4f6"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -2014,7 +2013,7 @@
       "theme": "light",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-mobile-light-assigned-player-selected.png",
-      "sha256": "f3bd2b23dc70a86b687aa5adaf43cf269e5b6c47243e066cd0d1f4e1975c0ac2"
+      "sha256": "9cbe2123d171f0e12ad4725cc673070027673e7cab77d3f211d5042e47c2b4f6"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -2038,7 +2037,7 @@
       "theme": "dark",
       "interactionState": "allocation-matrix",
       "file": "gate-c-w2-c06-dense-allocation-narrow-dark-allocation-matrix.png",
-      "sha256": "6c5ff8090e6228569f4e1eea6c9dfdb4abed23fa0acce059345bbad7f8d6f2f1"
+      "sha256": "d314cbed077708246d7f928ce36a3b3f82cefb56c2de88f097314afdb1787125"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -2050,7 +2049,7 @@
       "theme": "dark",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-narrow-dark-assigned-player-selected.png",
-      "sha256": "aacbcde71fd4e0fbe33e21d224ff204f2ce15130f175675b7b5120f847f76770"
+      "sha256": "5b6dbfa89c49e1281a73ea872a8e6f78a1b05b9fa6f8df5a60e53c2dae13fa5b"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -2074,7 +2073,7 @@
       "theme": "light",
       "interactionState": "allocation-matrix",
       "file": "gate-c-w2-c06-dense-allocation-narrow-light-allocation-matrix.png",
-      "sha256": "34e1702313b89e8a1804d63f836f723698efff6ae889776ee7ba6b4c2d16082d"
+      "sha256": "664aae837571f8d0edfe6f62602ebeb6879152c458279bc0a9a6a09b287d1016"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
@@ -2086,7 +2085,7 @@
       "theme": "light",
       "interactionState": "assigned-player-selected",
       "file": "gate-c-w2-c06-dense-allocation-narrow-light-assigned-player-selected.png",
-      "sha256": "a360d89a75c80b9d4b71cfff19166d3aef4b0a4452cadaf120d9570213de59e4"
+      "sha256": "ee7aba5e576c37ee69ee2353c2e07f65d7e471330526cbafe174ac61150af817"
     },
     {
       "scenarioId": "GATE-C-W2-C06",
