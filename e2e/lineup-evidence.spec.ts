@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { randomFutureMatchDate } from "./helpers/live-match-fixtures";
 
 // C06-B (Gate C W2 remediation — PR #829) browser-level integration coverage: proves the real
 // completed-match positional evidence integration lands in the ACTUAL production Lineup/
@@ -19,8 +20,14 @@ import { test, expect } from "@playwright/test";
 test("the real Lineup editor shows a candidate's real completed-match evidence, and the evidence survives assignment and the selected-player inspector", async ({ page }) => {
   test.setTimeout(120_000);
 
+  // Confirmed live (CI run 45017300372): a near-term fixed-offset date starved round-level
+  // selection generation for the history match -- ISO-week-shared generation resolves core/
+  // support jointly across every match in that week, and the near-term range is where real
+  // seeded dataset matches and other E2E runs' fixtures concentrate (same root cause
+  // live-match-fixtures.ts's own randomFutureMatchDate() was built to avoid). Reusing that
+  // proven-safe wide/sparse date pool here instead of inventing a second, narrower one.
   const opponentName = `E2E C06-B ${Date.now()}`;
-  const startsAt = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString();
+  const startsAt = randomFutureMatchDate().toISOString();
 
   const seedResponse = await page.request.post("/api/test-agent/seed-lineup-evidence-match", {
     data: { teamName: "A1 Blues", opponentName, startsAt },
