@@ -6,12 +6,11 @@ updates:
     directory: "/"
 
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Europe/Oslo"
 
-    open-pull-requests-limit: 6
+    open-pull-requests-limit: 3
 
     commit-message:
       prefix: "chore(deps)"
@@ -77,8 +76,7 @@ updates:
     directory: "/"
 
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:15"
       timezone: "Europe/Oslo"
 
@@ -106,12 +104,11 @@ updates:
     directory: "/"
 
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:30"
       timezone: "Europe/Oslo"
 
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 2
 
     commit-message:
       prefix: "chore(deps)"
@@ -127,12 +124,11 @@ updates:
     directory: "/security/broker/enrollment"
 
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:45"
       timezone: "Europe/Oslo"
 
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 2
 
     commit-message:
       prefix: "chore(deps)"
@@ -141,12 +137,11 @@ updates:
     directory: "/security/broker/runtime"
 
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:45"
       timezone: "Europe/Oslo"
 
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 2
 
     commit-message:
       prefix: "chore(deps)"
