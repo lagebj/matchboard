@@ -137,18 +137,20 @@ describe("issue #827 regression — a shared fixture file's unrelated later addi
     ];
   }
 
-  function fingerprintFor(scenario, files, sharedPaths) {
-    const rawContentByPath = new Map(scenario.componentOwners.map((p) => [p, files[p] ?? null]));
-    const reader = new Map();
+  type Scenario = { scenarioId: string; componentOwners: string[] };
+
+  function fingerprintFor(scenario: Scenario, files: Record<string, string>, sharedPaths: Set<string>): string {
+    const rawContentByPath = new Map<string, string | null>(scenario.componentOwners.map((p) => [p, files[p] ?? null]));
+    const reader = new Map<string, string | null>();
     for (const path of scenario.componentOwners) {
-      const content = rawContentByPath.get(path);
+      const content = rawContentByPath.get(path) ?? null;
       if (content === null || !sharedPaths.has(path)) {
         reader.set(path, content);
         continue;
       }
       reader.set(path, scopedSharedContent(path, content, scenario, rawContentByPath) ?? content);
     }
-    return computeFingerprint(scenario.componentOwners, (p) => reader.get(p) ?? null);
+    return computeFingerprint(scenario.componentOwners, (p: string) => reader.get(p) ?? null);
   }
 
   it("B01's fingerprint is unchanged when B05 appends its own unrelated export to the shared file", () => {
