@@ -35,7 +35,7 @@ test("the real Lineup editor shows a candidate's real completed-match evidence, 
   };
 
   await page.goto(`/o/test-club-a/matches/${matchId}`);
-  await expect(page.getByText("Lineup")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: "Lineup", level: 2 })).toBeVisible({ timeout: 20_000 });
 
   // Open the one empty Centre Midfield slot's picker from the "Empty slots" list.
   await page.getByRole("button", { name: /CM.*Midfielder|Midfielder.*CM/i }).click();
@@ -62,8 +62,9 @@ test("the real Lineup editor shows a candidate's real completed-match evidence, 
   await expect(shirtToken).toBeVisible({ timeout: 10_000 });
   await shirtToken.click();
 
-  await expect(page.getByText("Positional fit")).toBeVisible({ timeout: 10_000 });
-  const cmChip = page.getByText("CM", { exact: true }).first();
+  const inspector = page.getByLabel("Inspector");
+  await expect(inspector.getByText("Positional fit")).toBeVisible({ timeout: 10_000 });
+  const cmChip = inspector.getByText("CM", { exact: true }).first();
   await expect(cmChip).toHaveAttribute("title", "1 match, 90 min");
   await test.info().attach("c06b-selected-player-inspector-evidence", { body: await page.screenshot(), contentType: "image/png" });
 
