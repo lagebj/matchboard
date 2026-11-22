@@ -50,11 +50,15 @@ test("the real Lineup editor shows a candidate's real completed-match evidence, 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible({ timeout: 10_000 });
 
-  // The seeded evidence player's candidate row shows real completed-match evidence —
-  // "Played here in 1 match (90 min)" — not a silent/blended score (ADR-0129 §5).
+  // The seeded evidence player's candidate row shows real completed-match evidence --
+  // "Played here in N matches (M min)" -- not a silent/blended score (ADR-0129 §5). The exact
+  // match/minute count is not asserted: this shared Test dataset accumulates each fixture run's
+  // own history match rather than resetting it (the same disclosed tradeoff
+  // live-match-fixtures.ts's own fixtures already accept), so a prior run's accumulated
+  // evidence for the same real player is expected, not a bug.
   const candidateRow = dialog.getByRole("button", { name: new RegExp(evidencePlayerName) });
   await expect(candidateRow).toBeVisible();
-  await expect(candidateRow.getByText("Played here in 1 match (90 min)")).toBeVisible();
+  await expect(candidateRow.getByText(/Played here in \d+ matches? \(\d+ min\)/)).toBeVisible();
   await test.info().attach("c06b-player-picker-evidence", { body: await page.screenshot(), contentType: "image/png" });
 
   // Assign the evidence player — the coach's manual choice remains authoritative; evidence never
@@ -72,7 +76,7 @@ test("the real Lineup editor shows a candidate's real completed-match evidence, 
   const inspector = page.getByLabel("Inspector");
   await expect(inspector.getByText("Positional fit", { exact: true })).toBeVisible({ timeout: 10_000 });
   const cmChip = inspector.getByText("CM", { exact: true }).first();
-  await expect(cmChip).toHaveAttribute("title", "1 match, 90 min");
+  await expect(cmChip).toHaveAttribute("title", /^\d+ matches?, \d+ min$/);
   await test.info().attach("c06b-selected-player-inspector-evidence", { body: await page.screenshot(), contentType: "image/png" });
 
   // Reload to prove the exact tactical-position assignment persisted, not just the in-memory UI

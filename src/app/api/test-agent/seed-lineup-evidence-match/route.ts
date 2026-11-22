@@ -13,23 +13,30 @@ export const maxDuration = 60;
 
 /**
  * Test-only fixture setup for C06-B (Gate C W2 remediation — PR #829) browser-level evidence
- * coverage of the real Lineup/Formation editor: creates TWO real matches for the same team/
- * player pool.
+ * coverage of the real Lineup/Formation editor: creates TWO real matches for the same team.
  *
- * 1. A past "history" match with a real lineup assigning one named selected player to a Centre
+ * 1. A "current" match with a real generated squad (`refreshDraftRound`) and its own fresh,
+ *    unassigned lineup (same CM slot shape) — the one the e2e spec actually opens. One player is
+ *    picked from its OWN real selections, so the evidence player below is GUARANTEED to be a
+ *    real candidate in this match's picker, by id, not by a same-looking synthetic display name
+ *    (confirmed live, CI run 45019533137: the two matches' independently-generated selection
+ *    sets can legitimately contain two DIFFERENT players sharing a look-alike seeded test name
+ *    like "Blues Player8" — a name-only match found the wrong row's evidence missing).
+ * 2. A "history" match for that SAME player id — a real lineup assigning them to a Centre
  *    Midfield slot (grid cell (2,2), the canonical `CM` cell — ADR-0154 §2), with
  *    `matchDurationMinutes` set so the starter interval has a real end. Calls
  *    `rebuildActualTimeline()` — the exact function Live Reporting itself calls on every
  *    mutation (ADR-0096) — directly rather than reimplementing interval math, producing a
- *    genuine, completed-match `ActualPositionInterval` row at CM for that player. The lineup
- *    assignment is written directly (not via the "use server" `assignPlayerToSlot` action),
- *    because that action enforces `requirePlanningEditable()`, which a past-dated match has
- *    already (correctly) closed — this endpoint is seeding completed-match history, not
- *    exercising the live mutation boundary.
- * 2. A future "current" match with its own fresh lineup (same CM slot shape), left unassigned,
- *    for the e2e spec to open and verify the Lineup editor surfaces that player's real CM
- *    evidence while picking/inspecting — proving the planned assignment on THIS match is never
- *    itself treated as completed-match evidence (the brief's explicit requirement).
+ *    genuine, completed-match `ActualPositionInterval` row at CM for that player. No
+ *    `refreshDraftRound()`/`Selection` row is needed for this match at all — real positional
+ *    evidence is read from `MatchLineupAssignment`/`FormationSlot` alone, never from
+ *    `Selection`. The lineup assignment is written directly (not via the "use server"
+ *    `assignPlayerToSlot` action), because that action enforces `requirePlanningEditable()` and
+ *    a real per-match coach-authored assignment ceremony neither of which this fixture needs —
+ *    this endpoint is seeding completed-match history, not exercising the live mutation
+ *    boundary. Proves the current match's own (empty) lineup is never itself treated as
+ *    completed-match evidence (the brief's explicit requirement), since the two matches share a
+ *    player but not a lineup.
  *
  * Double-gated like every other `/api/test-agent/*` route (`isTestAgentAuthEnabled()` + a real
  * authenticated session via `requirePageActorContext()`/`requireMutationRole()`/
@@ -82,9 +89,56 @@ export async function POST(request: Request): Promise<Response> {
   await requireTeamGroupAccess(ctx, team.id);
 
   try {
-    // 1. History match (14 days in the past) — real completed-match evidence source.
+    // 1. Current match — the one the e2e spec actually opens. Real generated squad, fresh
+    // unassigned lineup, same CM cell.
+    const { matchId, matchRoundId } = await createMatchCore(ctx, {
+      teamId: team.id,
+      opponentText: opponentName,
+      startsAt,
+      homeAway: "HOME",
+      matchType: "FRIENDLY",
+      gameFormat: "ELEVEN_A_SIDE",
+    });
+    const regenerateResult = await refreshDraftRound(matchRoundId);
+    if (regenerateResult.preservedManualDraft) {
+      return NextResponse.json({ error: "Round has manual edits that were preserved (unexpected for a freshly created round)." }, { status: 500 });
+    }
+
+    const currentSelection = await db.selection.findFirst({
+      where: { matchId },
+      select: { playerId: true, player: { select: { firstName: true, lastName: true } } },
+    });
+    if (!currentSelection) {
+      return NextResponse.json({ error: "Current match has no selections to seed evidence for." }, { status: 500 });
+    }
+    const evidencePlayerId = currentSelection.playerId;
+    const evidencePlayerName = `${currentSelection.player.firstName} ${currentSelection.player.lastName ?? ""}`.trim();
+
+    const currentFormation = await db.formation.create({
+      data: {
+        organisationId: ctx.organisationId,
+        name: "C06-B evidence fixture (current)",
+        gameFormat: "ELEVEN_A_SIDE",
+        source: "SYSTEM",
+        slots: {
+          create: [
+            { organisationId: ctx.organisationId, gridX: 2, gridY: 2, label: "Centre Midfield", shortLabel: "CM", roleType: "MIDFIELDER", acceptedPositionIds: ["CM"], sortOrder: 1 },
+          ],
+        },
+      },
+    });
+
+    await createLineupFromFormation({
+      matchId,
+      teamId: team.id,
+      formationId: currentFormation.id,
+      orgFilter: ctx.orgFilter,
+    });
+
+    // 2. History match for the SAME player id (by id, never by name) — real completed-match
+    // evidence source. No refreshDraftRound()/Selection row needed here at all.
     const historyStartsAt = new Date(startsAt.getTime() - 14 * 24 * 60 * 60 * 1000);
-    const { matchId: historyMatchId, matchRoundId: historyRoundId } = await createMatchCore(ctx, {
+    const { matchId: historyMatchId } = await createMatchCore(ctx, {
       teamId: team.id,
       opponentText: `${opponentName} (evidence history)`,
       startsAt: historyStartsAt,
@@ -92,19 +146,6 @@ export async function POST(request: Request): Promise<Response> {
       matchType: "FRIENDLY",
       gameFormat: "ELEVEN_A_SIDE",
     });
-    const historyRegen = await refreshDraftRound(historyRoundId);
-    if (historyRegen.preservedManualDraft) {
-      return NextResponse.json({ error: "History round has manual edits that were preserved (unexpected for a freshly created round)." }, { status: 500 });
-    }
-
-    const historySelection = await db.selection.findFirst({
-      where: { matchId: historyMatchId },
-      select: { playerId: true, player: { select: { firstName: true, lastName: true } } },
-    });
-    if (!historySelection) {
-      return NextResponse.json({ error: "History match has no selections to seed evidence for." }, { status: 500 });
-    }
-    const evidencePlayerId = historySelection.playerId;
 
     const historyFormation = await db.formation.create({
       data: {
@@ -133,44 +174,6 @@ export async function POST(request: Request): Promise<Response> {
     });
     await db.match.update({ where: { id: historyMatchId }, data: { matchDurationMinutes: 90 } });
     await rebuildActualTimeline(historyMatchId);
-
-    // 2. Current match — the one the e2e spec actually opens. Fresh lineup, same CM cell, left
-    // unassigned, so the Lineup editor's own evidence integration is what the spec exercises.
-    const { matchId, matchRoundId } = await createMatchCore(ctx, {
-      teamId: team.id,
-      opponentText: opponentName,
-      startsAt,
-      homeAway: "HOME",
-      matchType: "FRIENDLY",
-      gameFormat: "ELEVEN_A_SIDE",
-    });
-    const regenerateResult = await refreshDraftRound(matchRoundId);
-    if (regenerateResult.preservedManualDraft) {
-      return NextResponse.json({ error: "Round has manual edits that were preserved (unexpected for a freshly created round)." }, { status: 500 });
-    }
-
-    const currentFormation = await db.formation.create({
-      data: {
-        organisationId: ctx.organisationId,
-        name: "C06-B evidence fixture (current)",
-        gameFormat: "ELEVEN_A_SIDE",
-        source: "SYSTEM",
-        slots: {
-          create: [
-            { organisationId: ctx.organisationId, gridX: 2, gridY: 2, label: "Centre Midfield", shortLabel: "CM", roleType: "MIDFIELDER", acceptedPositionIds: ["CM"], sortOrder: 1 },
-          ],
-        },
-      },
-    });
-
-    await createLineupFromFormation({
-      matchId,
-      teamId: team.id,
-      formationId: currentFormation.id,
-      orgFilter: ctx.orgFilter,
-    });
-
-    const evidencePlayerName = `${historySelection.player.firstName} ${historySelection.player.lastName ?? ""}`.trim();
 
     return NextResponse.json({
       ok: true,
