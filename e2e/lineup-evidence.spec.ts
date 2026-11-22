@@ -70,7 +70,7 @@ test("the real Lineup editor shows a candidate's real completed-match evidence, 
   await shirtToken.click();
 
   const inspector = page.getByLabel("Inspector");
-  await expect(inspector.getByText("Positional fit")).toBeVisible({ timeout: 10_000 });
+  await expect(inspector.getByText("Positional fit", { exact: true })).toBeVisible({ timeout: 10_000 });
   const cmChip = inspector.getByText("CM", { exact: true }).first();
   await expect(cmChip).toHaveAttribute("title", "1 match, 90 min");
   await test.info().attach("c06b-selected-player-inspector-evidence", { body: await page.screenshot(), contentType: "image/png" });
