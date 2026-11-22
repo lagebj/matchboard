@@ -73,10 +73,16 @@ test("the real Lineup editor shows a candidate's real completed-match evidence, 
   await expect(shirtToken).toBeVisible({ timeout: 10_000 });
   await shirtToken.click();
 
+  // Scoped to the role chip's own aria-label ("CM — N matches, M min"), not plain "CM" text --
+  // confirmed live (CI run 45020847874) that the inspector also shows a plain "CM" role label
+  // elsewhere (PlayerContextHeader, when the real seeded player's own declared primaryPosition
+  // happens to be CM) with no evidence caption at all, which an unscoped text match can pick
+  // instead of the actual role chip.
   const inspector = page.getByLabel("Inspector");
   await expect(inspector.getByText("Positional fit", { exact: true })).toBeVisible({ timeout: 10_000 });
-  const cmChip = inspector.getByText("CM", { exact: true }).first();
-  await expect(cmChip).toHaveAttribute("title", /^\d+ matches?, \d+ min$/);
+  const cmChip = inspector.getByLabel(/^CM — /);
+  await expect(cmChip).toBeVisible({ timeout: 10_000 });
+  await expect(cmChip).toHaveAttribute("aria-label", /^CM — \d+ matches?, \d+ min$/);
   await test.info().attach("c06b-selected-player-inspector-evidence", { body: await page.screenshot(), contentType: "image/png" });
 
   // Reload to prove the exact tactical-position assignment persisted, not just the in-memory UI
