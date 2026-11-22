@@ -20,6 +20,17 @@ async function requireMatchOrgAccess(matchId: string, orgFilter: OrgFilterMode):
   if (!match) throw new Error("Match not found or access denied.");
 }
 
+/** Mirrors `assertLeagueMatchHelperEligible()`'s cancelled-match guard (`match-helper-eligibility.ts`)
+ * — a cancelled match should reject a new participant the same way regardless of whether the
+ * participant is a real Player (helper/match-day addition) or a GuestPlayer; this path had no
+ * such guard at all before the Gate C W3 (register C08) review found the asymmetry. */
+async function requireMatchNotCancelled(matchId: string, orgFilter: OrgFilterMode): Promise<void> {
+  const match = await db.match.findFirst({ where: { id: matchId, ...orgFilter.filter }, select: { status: true } });
+  if (match?.status === "CANCELLED") {
+    throw new Error("Cannot add a guest player to a cancelled match.");
+  }
+}
+
 function revalidateMatchPaths(matchId: string): void {
   revalidatePath(`/matches/${matchId}`);
   revalidatePath(`/matches/${matchId}/live`);
@@ -50,6 +61,7 @@ async function addLeagueMatchGuestInternal(input: {
   requireMutationRole(ctx);
   await requireMatchOrgAccess(input.matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, input.matchId);
+  await requireMatchNotCancelled(input.matchId, ctx.orgFilter);
 
   let matchRoundId: string;
 
@@ -274,6 +286,7 @@ async function createAndAddMatchGuestInternal(input: {
   requireMutationRole(ctx);
   await requireMatchOrgAccess(input.matchId, ctx.orgFilter);
   await requireMatchGroupAccess(ctx, input.matchId);
+  await requireMatchNotCancelled(input.matchId, ctx.orgFilter);
 
   const trimmedName = input.name.trim();
   if (!trimmedName) {

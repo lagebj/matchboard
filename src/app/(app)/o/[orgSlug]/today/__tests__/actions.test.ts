@@ -285,6 +285,31 @@ describe("applyTodaySelectionRecommendationAction (authorization, tenancy, and s
     await testDb.player.update({ where: { id: player.id }, data: { currentAvailability: "AVAILABLE" } });
   });
 
+  it("Gate C W3 (register C08-B): a TENTATIVE player ('after RSVP' in the register's wording — Matchboard has no automated RSVP-deadline mechanism, see ADR-0121/the Gate A A09 disclosure) still counts as available to the plan-integrity rule, but the recommendation degrades to a review-first fallback rather than a misleading one-click add — availability stays authoritative and distinct from planning closure, never conflated with it", async () => {
+    const player = fixture.players.find((p) => p.coreTeamName === "Hvit")!;
+    await isolateSingleCandidate(player.id);
+    await testDb.player.update({ where: { id: player.id }, data: { currentAvailability: "TENTATIVE" } });
+
+    const integrity = await computeRoundPlanIntegrity(fixture.matchRoundId);
+    const decisions = await getTodaySelectionRecommendations(fixture.organisationId, { [fixture.matchRoundId]: integrity }, "test-org", []);
+    const decision = decisions.find((d) => d.playerId === player.id);
+
+    // The plan-integrity signal still fires for a tentative player (AVAILABILITY_VALUES_AVAILABLE
+    // in compute-plan-integrity.ts includes TENTATIVE) — a missed opportunity is still a missed
+    // opportunity, availability does not silently remove the decision from Today altogether.
+    expect(decision).toBeDefined();
+    expect(decision!.availability).toBe("TENTATIVE");
+
+    // But the recommendation itself intentionally withholds the one-click action and names the
+    // specific reason — proportionate, accurate, and never conflated with a planning-boundary
+    // closure message.
+    expect(decision!.recommendation?.directlyActionable).toBe(false);
+    expect(decision!.recommendation?.unavailableReason).toMatch(/tentative/i);
+    expect(decision!.recommendation?.unavailableReason).not.toMatch(/planning is closed|kickoff has passed/i);
+
+    await testDb.player.update({ where: { id: player.id }, data: { currentAvailability: "AVAILABLE" } });
+  });
+
   it("rejects once the planning boundary is closed for the target match", async () => {
     const player = fixture.players.find((p) => p.coreTeamName === "Bla")!;
     await isolateSingleCandidate(player.id);
