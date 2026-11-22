@@ -31,7 +31,9 @@
  * or imminent right now" state, not part of the quiet/decision choice. `InstallPwaCard` no
  * longer renders here at all (ADR-0157 §6): it remains reachable via `/more` unchanged.
  * Context rail order (desktop-only extra column; same content stacks in-flow on mobile): Since
- * your last visit -> Squad today -> Carry forward -> Recent football. P1-03/P1-04/P1-05
+ * your last visit -> Squad today -> Carry forward -> Recent football -> Assistant Coach
+ * (`assistantCoachContext`, Gate C W3 register C07 — appended after the existing fixed four,
+ * never inserted into it; renders nothing in production today). P1-03/P1-04/P1-05
  * remediation: each fact is shown in exactly one place, never twice, and never silently dropped
  * — deduplication must preserve meaning, not merely reduce how many widgets render.
  * - **Squad today** (organisation-wide active-player availability, `getOrgActivePlayerAvailability()`)
@@ -88,6 +90,11 @@ import { TodayQuietState } from "@/components/touchline/today/today-quiet-state"
 import { TodayDecisionWhy } from "@/components/touchline/today/today-decision-why";
 import type { PlanIntegritySignal } from "@/lib/selection/compute-plan-integrity";
 import type { AssistantWorkItem } from "@/lib/assistant/types";
+import { TodayAssistantCoachPanel } from "@/components/touchline/today/today-assistant-coach-panel";
+import {
+  isTodayAssistantCoachVisible,
+  type TodayAssistantCoachContext,
+} from "@/lib/touchline/presentation/today-assistant-coach";
 
 /** ADR-0157 §6 "At most two secondary items that are also actionable now" — a bounded,
  * priority-preserving cap across the three existing secondary sources (selection decisions,
@@ -138,6 +145,7 @@ export function TodaySurface({
   upcomingMatches,
   children,
   nowIso: nowIsoProp,
+  assistantCoachContext,
 }: {
   commandCentre: AssistantCommandCentre;
   projection?: CoachSituationProjection;
@@ -166,6 +174,12 @@ export function TodaySurface({
    * independently calling `new Date()` a second time. Omitted in production today — preserves
    * exact existing behavior. */
   nowIso?: string;
+  /** Today's Assistant Coach contextual fallback (Gate C W3, register C07; ADR-0157 §2/§5) — the
+   * smallest safe integration seam into the real Assistant Coach presentation family, appended
+   * after the context rail's existing fixed order, never inserted into it. Omitted in production
+   * today (`undefined`): Today has no real Assistant Coach data loader yet, so this renders
+   * nothing and every other prop/behavior above is unaffected. */
+  assistantCoachContext?: TodayAssistantCoachContext | null;
 }) {
   const orgUrl = useOrgUrl();
   const { items, leagueSeasonName } = commandCentre;
@@ -267,11 +281,14 @@ export function TodaySurface({
   const contextRailSquadStatus = squadStatusShownInline ? null : squadStatus ?? null;
   const contextRailCarryForwardItems = compositionState === "QUIET" ? carryForwardItems.slice(1) : carryForwardItems;
 
+  const assistantCoachVisible = isTodayAssistantCoachVisible(assistantCoachContext);
+
   const hasContextRailContent = Boolean(
     (sinceLastVisitScope && sinceLastVisitFacts) ||
       contextRailSquadStatus ||
       contextRailCarryForwardItems.length > 0 ||
-      (recentMatches && recentMatches.length > 0),
+      (recentMatches && recentMatches.length > 0) ||
+      assistantCoachVisible,
   );
   // P1-01/P1-02 remediation: Matchday owning the primary anchor is an orthogonal fact to the
   // quiet/decision switch above (that switch is about situational decisions only, never
@@ -402,6 +419,7 @@ export function TodaySurface({
                 squadStatusTitle={matchdayContext ? "All active players" : undefined}
                 carryForwardItems={contextRailCarryForwardItems}
                 recentMatches={recentMatches}
+                assistantCoach={assistantCoachVisible ? <TodayAssistantCoachPanel context={assistantCoachContext} /> : null}
               />
             </div>
           )}
