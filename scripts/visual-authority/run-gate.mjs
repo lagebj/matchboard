@@ -14,6 +14,7 @@
 import { appendFileSync } from "node:fs";
 import { classify } from "./classify.mjs";
 import { computeFingerprint } from "./fingerprint.mjs";
+import { computeSharedComponentOwnerPaths, scopedSharedContent } from "./scoped-export-content.mjs";
 import { hasWriteAccess } from "./check-actor-permission.mjs";
 import { loadVisualAuthorityConfig, isConfiguredApprover } from "./visual-authority-config.mjs";
 import { isKnownRevision } from "./revision.mjs";
@@ -184,10 +185,21 @@ async function loadScenarioRegistry(ref) {
   return { scenarios, complete: true };
 }
 
-async function fingerprintForScenarioAtRef(scenario, ref) {
+async function fingerprintForScenarioAtRef(scenario, ref, sharedPaths) {
+  const rawContentByPath = new Map();
+  for (const path of scenario.componentOwners) {
+    rawContentByPath.set(path, await readFileAtRef(path, ref));
+  }
+
   const reader = new Map();
   for (const path of scenario.componentOwners) {
-    reader.set(path, await readFileAtRef(path, ref));
+    const content = rawContentByPath.get(path);
+    if (content === null || !sharedPaths.has(path)) {
+      reader.set(path, content);
+      continue;
+    }
+    const scoped = scopedSharedContent(path, content, scenario, rawContentByPath);
+    reader.set(path, scoped ?? content);
   }
   return computeFingerprint(scenario.componentOwners, (p) => reader.get(p) ?? null);
 }
@@ -277,9 +289,11 @@ async function main() {
 
   const [{ mergeCommitSha, merged }, { shas: prCommitShas }] = await Promise.all([getPrMeta(), getPrCommitShas()]);
 
+  const sharedComponentOwnerPaths = computeSharedComponentOwnerPaths(scenarios);
+
   const currentFingerprints = new Map();
   for (const scenario of scenarios) {
-    currentFingerprints.set(scenario.scenarioId, await fingerprintForScenarioAtRef(scenario, headSha));
+    currentFingerprints.set(scenario.scenarioId, await fingerprintForScenarioAtRef(scenario, headSha, sharedComponentOwnerPaths));
   }
 
   const referencedShas = approveShasReferencedIn(comments);
@@ -299,7 +313,7 @@ async function main() {
         continue;
       }
       try {
-        fingerprintAtShaCache.set(key, await fingerprintForScenarioAtRef(scenario, sha));
+        fingerprintAtShaCache.set(key, await fingerprintForScenarioAtRef(scenario, sha, sharedComponentOwnerPaths));
       } catch {
         fingerprintAtShaCache.set(key, null);
       }
@@ -308,7 +322,10 @@ async function main() {
       const key = `${scenario.scenarioId}::${scenario.legacyApproval.revisionSha.toLowerCase()}`;
       if (!fingerprintAtShaCache.has(key)) {
         try {
-          fingerprintAtShaCache.set(key, await fingerprintForScenarioAtRef(scenario, scenario.legacyApproval.revisionSha));
+          fingerprintAtShaCache.set(
+            key,
+            await fingerprintForScenarioAtRef(scenario, scenario.legacyApproval.revisionSha, sharedComponentOwnerPaths),
+          );
         } catch {
           fingerprintAtShaCache.set(key, null);
         }
