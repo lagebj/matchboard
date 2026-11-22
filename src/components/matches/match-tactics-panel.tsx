@@ -17,6 +17,9 @@ import { Copy, UserPlus } from "lucide-react";
 import { TouchlineInspector } from "@/components/touchline/workbench/touchline-inspector";
 import { PositionFitList } from "@/components/touchline/workbench/position-fit-list";
 import { computePlayerPositionFitEntries } from "@/domain/positions/position-fit-entries";
+import { summarizePositionEvidence } from "@/domain/positions/position-evidence";
+import type { CanonicalTacticalPosition } from "@/domain/positions/roles";
+import type { PlayerMatchPositionUsage } from "@/lib/player-development/position-usage-history";
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 import { AddPlayerDialog } from "@/components/matches/add-player-dialog";
 import { AbsenceControl } from "@/components/matches/absence-control";
@@ -76,6 +79,15 @@ type MatchTacticsPanelProps = {
     absenceReason?: string | null;
     source?: "planned" | "helper" | "match_day_addition" | "guest";
   }[];
+  /**
+   * C06-B (Gate C W2 remediation — PR #829): real completed-match positional evidence
+   * (`getPlayersActualPositionHistory()`, ADR-0096's `ActualPositionInterval`) for every player
+   * in `selections`, keyed by `playerId`. Fetched once, server-side, at page-load time (the same
+   * pattern `selections` itself already uses) — never a new client-side query, never a parallel
+   * evidence pipeline. `undefined`/absent (e.g. existing tests that don't yet pass it) renders
+   * every evidence surface exactly as it rendered before this prop existed.
+   */
+  positionUsageByPlayerId?: Record<string, PlayerMatchPositionUsage[]>;
 };
 
 export function MatchTacticsPanel({
@@ -84,6 +96,7 @@ export function MatchTacticsPanel({
   teamName,
   gameFormat,
   planningEditable,
+  positionUsageByPlayerId = {},
   selections,
 }: MatchTacticsPanelProps) {
   const router = useRouter();
@@ -137,6 +150,27 @@ export function MatchTacticsPanel({
         secondaryPosition: selectedPlayer.secondaryPosition,
       })
     : [];
+
+  // C06-B (Gate C W2 remediation — PR #829): the selected player's real completed-match
+  // evidence, summarized per exact canonical position already shown by `PositionFitList`'s role
+  // chips -- never a new query here, just aggregating the already-fetched (page-load-time)
+  // `positionUsageByPlayerId` the same way `PlayerPicker` does below. Additive captions only;
+  // `selectedPlayerFitEntries`'s own tier grouping above is untouched.
+  const selectedPlayerEvidenceCaptionByRole: Record<string, string> = {};
+  if (selectedPlayer) {
+    const usage = positionUsageByPlayerId[selectedPlayer.playerId] ?? [];
+    for (const entry of selectedPlayerFitEntries) {
+      for (const role of entry.roles) {
+        const summary = summarizePositionEvidence(usage, role as CanonicalTacticalPosition);
+        if (summary.matchCount > 0) {
+          selectedPlayerEvidenceCaptionByRole[role] =
+            summary.matchCount === 1
+              ? `1 match, ${Math.round(summary.totalMinutes)} min`
+              : `${summary.matchCount} matches, ${Math.round(summary.totalMinutes)} min`;
+        }
+      }
+    }
+  }
 
   // Match Insights (ADR-0149) -- replaces the former standalone Partnership Evidence list and
   // AI Advisor panel. Refetched on every plan mutation via `refreshLineup` below (which already
@@ -807,7 +841,7 @@ export function MatchTacticsPanel({
           <div className="flex flex-col gap-3">
             {selectedPlayer ? (
               <TouchlineInspector title={selectedPlayer.playerName} headline={selectedPlayer.primaryPosition}>
-                <PositionFitList entries={selectedPlayerFitEntries} />
+                <PositionFitList entries={selectedPlayerFitEntries} evidenceCaptionByRole={selectedPlayerEvidenceCaptionByRole} />
               </TouchlineInspector>
             ) : (
               <MatchInsights viewModel={matchInsights} />
@@ -845,6 +879,7 @@ export function MatchTacticsPanel({
           currentAssignedPlayer={currentAssignedPlayerInfo}
           onSelect={handlePlayerSelect}
           onClear={currentAssignedPlayerId && !isConfirmed ? handleRemovePlayer : () => {}}
+          evidenceByPlayerId={positionUsageByPlayerId}
         />
       )}
 

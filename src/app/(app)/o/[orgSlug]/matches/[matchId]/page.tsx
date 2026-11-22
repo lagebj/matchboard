@@ -19,6 +19,7 @@ import { formatKickoffTime } from "@/lib/date-utils";
 import { getCompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 import { buildOpponentContext } from "@/lib/matches/match-insights/opponent-context";
 import { buildOpponentMemoryViewModel, type OpponentMemoryViewModel } from "@/lib/matches/match-insights/opponent-memory-view-model";
+import { getPlayersActualPositionHistory } from "@/lib/player-development/position-usage-history";
 
 export const dynamic = "force-dynamic";
 
@@ -301,6 +302,15 @@ export default async function MatchDetailPage({
 
   const allSelections = [...selectionData, ...helperSelectionData, ...guestSelectionData];
 
+  // C06-B (Gate C W2 remediation — PR #829): one batched read of every eligible player's real
+  // completed-match positional evidence (`ActualPositionInterval`, ADR-0096), for the Lineup
+  // editor's traceable-evidence display (`MatchTacticsPanel` → `PlayerPicker`/`PositionFitList`).
+  // Fetched here, once, alongside `allSelections` itself — never a new client-side query, never
+  // a parallel evidence pipeline (`position-usage-history.ts`'s own existing batched reader).
+  const positionUsageByPlayerId = Object.fromEntries(
+    await getPlayersActualPositionHistory(allSelections.map((s) => s.playerId), ctx.orgFilter),
+  );
+
   // Header/meta presentation — reused, never forked (ADR-0125).
   const headerIsHome = match.homeAway === "HOME";
   const headerHasScore = postMatchReport?.homeGoals != null && postMatchReport?.awayGoals != null;
@@ -362,6 +372,7 @@ export default async function MatchDetailPage({
       matchRoundName={match.matchRound.name}
       notes={match.notes}
       selections={allSelections}
+      positionUsageByPlayerId={positionUsageByPlayerId}
       warnings={warningData}
       hasLineup={Boolean(lineup)}
       plannedRotation={plannedRotation}
