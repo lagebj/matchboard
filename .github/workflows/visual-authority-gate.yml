@@ -102,6 +102,13 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
+      # scoped-export-content.mjs (#829) parses TS/TSX via the real `typescript` compiler API.
+      # This job deliberately never checks out or installs the full project (see the sparse
+      # checkout above), so install just this one package rather than running `npm ci` against a
+      # package.json this checkout doesn't have. Pinned to the version package-lock.json resolves
+      # on main, so the gate's parser stays in step with what the rest of CI actually runs.
+      - name: Install the typescript package used by scoped-export-content.mjs
+        run: npm install --no-save typescript@6.0.3
       - name: Evaluate and report the gate
         id: evaluate
         env:
