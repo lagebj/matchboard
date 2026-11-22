@@ -1,0 +1,190 @@
+{
+  "programmeRevision": "0.169.13",
+  "baseCommitSha": "c102a15e738e75f9d7c33f1a7d8c1babb7bdccbc",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-c/. Not a production implementation, not an authorization, not a security proof.",
+  "note": "Gate C W3 — C07 (Today, Assistant Coach contextual fallback, fixture-driven only — explicit authority override of Gate C W1's own earlier deferral, see SOURCE_RECONCILIATION.md) and C08-A/B/C (Today-side same-day quick add — planning open, after-RSVP/tentative-availability, planning closed; fully prop-driven real TodaySurface fixtures). C08-D (guest) and C08-E (late arrival) have no fixture route here: the real AddPlayerDialog self-fetches its candidate lists via Server Actions and cannot be meaningfully fixture-mocked without either seeding a real match anyway or faking a result (forbidden by the brief). They are evidenced instead by real-DB integration tests (league-match-guest-actions.test.ts, new; match-helper-actions.test.ts, pre-existing) — see C08_OPERATIONAL_ACCEPTANCE.md. Two real findings while building against real production code: (1) guest-add actions had no cancelled-match guard, unlike the equivalent real-Player path — fixed in this branch (league-match-guest-actions.ts's requireMatchNotCancelled()). (2) Guests are entirely absent from the live-reporting pre-match package (getLiveMatchPreMatchPackageAction), so a guest cannot be selected for a live event — a real, disclosed capability gap, too large for this wave's scope, filed as https://github.com/lagebj/matchboard/issues/842, with a regression test documenting current behavior. ADR-0151's document status was corrected from 'Proposed' to 'Accepted' (decisions 1-3 were already fully shipped). Issues #827/#830 remain open, unrelated, untouched — this wave uses its own new, non-shared fixture directory (gate-c/w3-shared/) specifically to avoid re-triggering #827. See CURRENT_STATE_AUDIT.md, DATA_TRUTH_AND_FIXTURES.md, BLOCKERS.md, SOURCE_RECONCILIATION.md, VISUAL_VS_CURRENT.md, REVIEW_RECORD.md, C07_PRODUCTION_INTEGRATION_GAP.md, and C08_OPERATIONAL_ACCEPTANCE.md for full detail. All candidates remain CANDIDATE pending owner review and the first real CI capture run (capture-attestation.json to follow in a separate commit once that run completes, per this repository's standing rule against fabricating capture evidence locally).",
+  "candidates": [
+    {
+      "scenarioId": "GATE-C-W3-C07-OFF",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w3-c07-off",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/components/touchline/today/today-context-rail.tsx",
+        "src/components/touchline/today/today-assistant-coach-panel.tsx",
+        "src/lib/touchline/presentation/today-assistant-coach.ts",
+        "src/app/dev/ui-lab/gate-c/w3-shared/today-mount.tsx",
+        "src/app/dev/ui-lab/gate-c/c07-assistant-coach-fallback/off/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "OFF",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w3-candidates/SCENARIO_REGISTER.md row GATE-C-W3-C07-OFF",
+      "dataContractRef": "docs/adr/0141-today-operational-command-surface.md; docs/adr/0142-today-composition-ownership-and-golden-reference-conformance.md; docs/adr/0157-contextual-coach-workspace-convergence.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — the smallest safe integration seam; see CURRENT_STATE_AUDIT.md item 1 and C07_PRODUCTION_INTEGRATION_GAP.md for the disclosed production-integration gap.",
+      "knownGaps": ["Today has no real Assistant Coach data loader in production — see C07_PRODUCTION_INTEGRATION_GAP.md."],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W3-C07-ON",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w3-c07-on",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/components/touchline/today/today-context-rail.tsx",
+        "src/components/touchline/today/today-assistant-coach-panel.tsx",
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/lib/touchline/presentation/today-assistant-coach.ts",
+        "src/app/dev/ui-lab/gate-c/w3-shared/today-mount.tsx",
+        "src/app/dev/ui-lab/gate-c/c07-assistant-coach-fallback/on/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ON",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w3-candidates/SCENARIO_REGISTER.md row GATE-C-W3-C07-ON",
+      "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md; docs/adr/0155 step B7 (hypothesis/assessment capability)",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — reuses the real, already-shipped AssistantCoachHypothesisPanel unmodified; see C07_PRODUCTION_INTEGRATION_GAP.md.",
+      "knownGaps": ["Today has no real Assistant Coach data loader in production — see C07_PRODUCTION_INTEGRATION_GAP.md."],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W3-C07-EMPTY",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w3-c07-empty",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/components/touchline/today/today-context-rail.tsx",
+        "src/components/touchline/today/today-assistant-coach-panel.tsx",
+        "src/lib/touchline/presentation/today-assistant-coach.ts",
+        "src/app/dev/ui-lab/gate-c/w3-shared/today-mount.tsx",
+        "src/app/dev/ui-lab/gate-c/c07-assistant-coach-fallback/empty/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ON",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w3-candidates/SCENARIO_REGISTER.md row GATE-C-W3-C07-EMPTY",
+      "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — renders nothing, identical layout to OFF, for a different underlying reason.",
+      "knownGaps": ["Today has no real Assistant Coach data loader in production — see C07_PRODUCTION_INTEGRATION_GAP.md."],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W3-C07-ERROR",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w3-c07-error",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/components/touchline/today/today-context-rail.tsx",
+        "src/components/touchline/today/today-assistant-coach-panel.tsx",
+        "src/components/ai/advisor-panel.tsx",
+        "src/lib/touchline/presentation/today-assistant-coach.ts",
+        "src/app/dev/ui-lab/gate-c/w3-shared/today-mount.tsx",
+        "src/app/dev/ui-lab/gate-c/c07-assistant-coach-fallback/error/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ON",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w3-candidates/SCENARIO_REGISTER.md row GATE-C-W3-C07-ERROR",
+      "dataContractRef": "docs/adr/0152 step 17 (error state); docs/adr/0157-contextual-coach-workspace-convergence.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — reuses the real, already-shipped AdvisorPanelUnavailable unmodified.",
+      "knownGaps": ["Today has no real Assistant Coach data loader in production — see C07_PRODUCTION_INTEGRATION_GAP.md."],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W3-C07-STALE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w3-c07-stale",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/components/touchline/today/today-context-rail.tsx",
+        "src/components/touchline/today/today-assistant-coach-panel.tsx",
+        "src/components/ai/advisor-panel.tsx",
+        "src/lib/touchline/presentation/today-assistant-coach.ts",
+        "src/app/dev/ui-lab/gate-c/w3-shared/today-mount.tsx",
+        "src/app/dev/ui-lab/gate-c/c07-assistant-coach-fallback/stale/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "ON",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w3-candidates/SCENARIO_REGISTER.md row GATE-C-W3-C07-STALE",
+      "dataContractRef": "src/lib/ai/presentation/round-board-advisor.ts (freshness/fingerprint precedent); docs/adr/0157-contextual-coach-workspace-convergence.md",
+      "baselineAssetRef": "PROPOSED_REFINEMENT (implemented) — reuses the real, already-shipped AdvisorPanelStale unmodified, same freshness mechanism Round Board already uses.",
+      "knownGaps": ["Today has no real Assistant Coach data loader in production — see C07_PRODUCTION_INTEGRATION_GAP.md."],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W3-C08-A",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w3-c08-planning-open",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/components/touchline/today/today-next-action.tsx",
+        "src/components/touchline/today/today-selection-decisions.tsx",
+        "src/lib/touchline/presentation/today-selection-recommendation-plan.ts",
+        "src/app/(app)/o/[orgSlug]/today/actions.ts",
+        "src/lib/selection/manual-draft-edit.ts",
+        "src/app/dev/ui-lab/gate-c/w3-shared/today-mount.tsx",
+        "src/app/dev/ui-lab/gate-c/c08-same-day-quick-add/planning-open/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w3-candidates/SCENARIO_REGISTER.md row GATE-C-W3-C08-A",
+      "dataContractRef": "docs/adr/0141-today-operational-command-surface.md; docs/adr/0142-today-composition-ownership-and-golden-reference-conformance.md",
+      "baselineAssetRef": "No new production code — display-only fixture of an already-shipped, already-real-DB-tested mutation path. See C08_OPERATIONAL_ACCEPTANCE.md.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W3-C08-B",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w3-c08-after-availability-change",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/components/touchline/today/today-next-action.tsx",
+        "src/components/touchline/today/today-selection-decisions.tsx",
+        "src/lib/touchline/presentation/today-selection-recommendation-plan.ts",
+        "src/app/dev/ui-lab/gate-c/w3-shared/today-mount.tsx",
+        "src/app/dev/ui-lab/gate-c/c08-same-day-quick-add/after-availability-change/page.tsx"
+      ],
+      "lifecycle": "planning_open",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w3-candidates/SCENARIO_REGISTER.md row GATE-C-W3-C08-B",
+      "dataContractRef": "ADR-0121 (round availability resolver); see DATA_TRUTH_AND_FIXTURES.md for the disclosed no-RSVP-mechanism gap",
+      "baselineAssetRef": "No new production code — display-only fixture matching the real planner's TENTATIVE handling, confirmed by a new real-DB test. See C08_OPERATIONAL_ACCEPTANCE.md.",
+      "knownGaps": ["Matchboard has no automated RSVP-deadline mechanism — built against the real TENTATIVE-availability mechanism instead; see DATA_TRUTH_AND_FIXTURES.md."],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-C-W3-C08-C",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-c-w3-c08-planning-closed",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/today/today-surface.tsx",
+        "src/components/touchline/today/today-next-action.tsx",
+        "src/components/touchline/today/today-selection-decisions.tsx",
+        "src/lib/touchline/presentation/today-selection-recommendation-plan.ts",
+        "src/lib/selection/planning-boundary.ts",
+        "src/app/dev/ui-lab/gate-c/w3-shared/today-mount.tsx",
+        "src/app/dev/ui-lab/gate-c/c08-same-day-quick-add/planning-closed/page.tsx"
+      ],
+      "lifecycle": "planning_closed",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [],
+      "experienceContractRef": "docs/ui-lab/gate-c-w3-candidates/SCENARIO_REGISTER.md row GATE-C-W3-C08-C",
+      "dataContractRef": "src/lib/selection/planning-boundary.ts",
+      "baselineAssetRef": "No new production code — display-only fixture matching the real planner's null-recommendation shape, confirmed by direct code reading. See C08_OPERATIONAL_ACCEPTANCE.md.",
+      "knownGaps": ["The real fallback text ('Review on the Round Board.') does not explain the specific reason, unlike the TENTATIVE case — disclosed as an observation, not a defect, in BLOCKERS.md."],
+      "approval": null
+    }
+  ]
+}
