@@ -9,16 +9,12 @@ import { test, expect } from "@playwright/test";
 // a separate, unrelated future match whose own (empty) Lineup the spec actually drives through
 // the real UI.
 //
-// Heavy multi-write test-agent seed endpoints are documented (round-mutation.spec.ts) to
-// consistently time out against Vercel's serverless cold starts on the deployed Test slot after
-// the Next.js 16 proxy migration — this endpoint does strictly more DB work (two matches, two
-// formations, two lineups, one rebuildActualTimeline) than that one, so the same risk applies
-// here. Runnable locally against a reachable dev server; skipped in CI for the same documented
-// reason until that cold-start issue is independently resolved.
-test.skip(
-  Boolean(process.env.CI),
-  "heavy multi-write seed endpoint — see round-mutation.spec.ts's documented Vercel cold-start timeout precedent",
-);
+// round-mutation.spec.ts documents a cold-start timeout risk for a DIFFERENT heavy multi-write
+// test-agent seed endpoint, specific to that endpoint's own measured behavior after the Next.js
+// 16 proxy migration -- it is not a blanket rule about every seed endpoint. An earlier version
+// of this spec speculatively skipped itself in CI on that basis without ever actually measuring
+// this endpoint; that guard is removed so this spec runs for real on every CI acceptance run,
+// which is the only way to find out whether the risk actually applies here.
 
 test("the real Lineup editor shows a candidate's real completed-match evidence, and the evidence survives assignment and the selected-player inspector", async ({ page }) => {
   test.setTimeout(120_000);
