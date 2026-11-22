@@ -10,8 +10,17 @@
 // be looked up by ref after the fact. The commit OBJECT it pointed to remains fetchable by SHA
 // indefinitely (confirmed against a real case: PR #822's `/visual-approve` referenced exactly this
 // kind of commit). Such a commit is always a 2-parent merge of the PR's base tip and the PR's own
-// head — so it's identified structurally, by one of its own parents being this PR's head SHA,
-// rather than by the ref that produced it still existing.
+// head AT THE TIME IT WAS GENERATED — so it's identified structurally, by one of its own parents
+// being a commit this PR has EVER had as its own (any entry in `prCommitShas`, not only the
+// CURRENT `headSha`), rather than by the ref that produced it still existing.
+//
+// Confirmed live (PR #829, 2026-11-22): checking only against the literal current `headSha` broke
+// the moment even one more commit was pushed after the approval — GitHub regenerates
+// `refs/pull/<n>/merge` on every push, so an OLDER merge-preview commit's own PR-side parent is the
+// PR's head AS OF THAT EARLIER PUSH, never the new one. That earlier head is still a real commit
+// this PR has always owned (present in `prCommitShas`), so it must still count as known — an
+// approval must not be silently and permanently unverifiable the instant any further commit lands,
+// regardless of whether that commit touches the approved scenario's own files at all.
 
 /**
  * @param {object} args
@@ -28,5 +37,6 @@ export function isKnownRevision({ sha, headSha, prCommitShas = [], mergeCommitSh
   const needle = sha.toLowerCase();
   const known = [headSha, mergeCommitSha, ...prCommitShas].filter(Boolean).map((s) => s.toLowerCase());
   if (known.some((full) => full.startsWith(needle))) return true;
-  return parentShas.map((s) => s.toLowerCase()).includes(headSha.toLowerCase());
+  const knownSet = new Set(known);
+  return parentShas.map((s) => s.toLowerCase()).some((parent) => knownSet.has(parent));
 }

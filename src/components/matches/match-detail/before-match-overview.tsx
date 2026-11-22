@@ -12,6 +12,7 @@ import { MatchFormatOverrideControls } from "@/components/matches/match-format-o
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchPreparationInput } from "@/lib/matches/match-detail-view-model";
 import type { OpponentMemoryViewModel } from "@/lib/matches/match-insights/opponent-memory-view-model";
+import type { PlayerMatchPositionUsage } from "@/lib/player-development/position-usage-history";
 import { formatMatchType, formatGameFormat, formatVenue, formatMatchFit } from "@/lib/matches/match-detail-format";
 
 type SelectionRow = {
@@ -64,6 +65,7 @@ export function BeforeMatchOverview({
   teamId,
   teamName,
   selections,
+  positionUsageByPlayerId = {},
   planningEditable,
   coachingIntent,
   coachingIntentId,
@@ -86,6 +88,7 @@ export function BeforeMatchOverview({
   teamId: string;
   teamName: string;
   selections: SelectionRow[];
+  positionUsageByPlayerId?: Record<string, PlayerMatchPositionUsage[]>;
   planningEditable: boolean;
   coachingIntent?: string;
   coachingIntentId?: string;
@@ -131,6 +134,7 @@ export function BeforeMatchOverview({
         gameFormat={gameFormat}
         planningEditable={planningEditable}
         selections={selections}
+        positionUsageByPlayerId={positionUsageByPlayerId}
       />
 
       <PlannedPlayingTimePanel

@@ -14,6 +14,44 @@ export type PlayerAssignmentInspectorProps = {
   onAssign: (suggestion: RoundBoardAssignmentSuggestion) => void;
   onClose?: () => void;
   className?: string;
+  /**
+   * A deterministic explanation shown in place of the (empty) suggestions list when no
+   * destination is currently valid for this player — e.g. every other match in the round has
+   * closed (C05). `context.suggestions` already excludes closed destinations; this is purely
+   * the honest "why nothing is here" message, never a disabled-but-clickable action.
+   */
+  closedNotice?: string | null;
+  /**
+   * Link to the player's current match, where the real Lineup/Formation editor lives (Gate C W2
+   * / C06). Round Board's own assignment is player×match only — it has no tactical-position
+   * field (ADR-0154's 24-code vocabulary is owned by the Lineup editor, not this surface) — so
+   * this is navigation to the correct canonical context, never a fabricated position value here.
+   * `null`/absent when the player has no current match to link to. Gate C W2 remediation
+   * (W2-F01): the label deliberately says "Open Lineup", not "View exact position" — Round
+   * Board has no way to know whether this player already has an exact position recorded in the
+   * destination's own formation editor, so the link must never promise that data exists.
+   */
+  lineupHref?: string | null;
+  /**
+   * The real reason a just-attempted assignment was rejected or errored (P1-05) — shown above
+   * the suggestions, never a silent close that would let a rejection look like success. The
+   * caller keeps the inspector/sheet open and the selection unchanged while this is set, so the
+   * coach can pick a different destination or cancel.
+   */
+  errorNotice?: string | null;
+  /**
+   * Gate C W2 (third remediation pass — match-targeted Resolve): names the squad-shortage
+   * warning this player selection is trying to correct, shown above the suggestions so the
+   * intended destination stays clear through candidate inspection. `null`/absent outside that
+   * flow, or once the target is no longer a reachable destination for the selected player.
+   */
+  resolvingNotice?: string | null;
+  /**
+   * Shown in place of the generic "Select a player" placeholder when no player is selected AND
+   * there is no eligible candidate at all to resolve a pending match-targeted Resolve — the
+   * honest "why nothing is here" message, never a fabricated or auto-chosen assignment.
+   */
+  noCandidateNotice?: string | null;
 };
 
 function SuggestionCard({
@@ -71,11 +109,23 @@ function SuggestionCard({
   );
 }
 
-export function PlayerAssignmentInspector({ context, onAssign, onClose, className }: PlayerAssignmentInspectorProps) {
+export function PlayerAssignmentInspector({
+  context,
+  onAssign,
+  onClose,
+  className,
+  closedNotice,
+  lineupHref,
+  errorNotice,
+  resolvingNotice,
+  noCandidateNotice,
+}: PlayerAssignmentInspectorProps) {
   if (!context) {
     return (
       <TouchlineWidget className={className}>
-        <p className="text-[13px] text-[var(--text-muted)]">Select a player to see suggested assignments.</p>
+        <p className="text-[13px] text-[var(--text-muted)]">
+          {noCandidateNotice ?? "Select a player to see suggested assignments."}
+        </p>
       </TouchlineWidget>
     );
   }
@@ -89,6 +139,14 @@ export function PlayerAssignmentInspector({ context, onAssign, onClose, classNam
             <div>
               <p className="text-[14px] font-[700] text-[var(--foreground)]">{context.displayName}</p>
               <p className="text-[11px] text-[var(--text-muted)]">{context.positions.join(" · ") || "No position"}</p>
+              {lineupHref ? (
+                <a
+                  href={lineupHref}
+                  className="mt-0.5 inline-block text-[11px] font-medium text-[var(--accent-strong)] hover:underline"
+                >
+                  Open Lineup →
+                </a>
+              ) : null}
             </div>
           </div>
           {onClose ? (
@@ -100,7 +158,19 @@ export function PlayerAssignmentInspector({ context, onAssign, onClose, classNam
         {context.attentionSummary ? (
           <p className="mt-3 rounded-lg bg-[var(--warning-subtle)] px-3 py-2 text-[12px] text-[var(--warning)]">{context.attentionSummary}</p>
         ) : null}
+        {resolvingNotice ? (
+          <p className="mt-3 rounded-lg bg-[var(--accent-subtle)] px-3 py-2 text-[12px] text-[var(--accent-strong)]">{resolvingNotice}</p>
+        ) : null}
       </TouchlineWidget>
+
+      {errorNotice ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-[var(--danger)]/35 bg-[var(--danger-subtle)] px-3 py-2 text-[12px] text-[var(--danger)]"
+        >
+          {errorNotice}
+        </p>
+      ) : null}
 
       {context.suggestions.length > 0 ? (
         <div className="flex flex-col gap-2">
@@ -109,6 +179,10 @@ export function PlayerAssignmentInspector({ context, onAssign, onClose, classNam
             <SuggestionCard key={s.matchId} suggestion={s} onAssign={onAssign} />
           ))}
         </div>
+      ) : closedNotice ? (
+        <p className="rounded-lg border border-[var(--border-soft)] bg-[var(--tl-c-surface)] px-3 py-2 text-[12px] text-[var(--text-muted)]">
+          {closedNotice}
+        </p>
       ) : null}
     </div>
   );

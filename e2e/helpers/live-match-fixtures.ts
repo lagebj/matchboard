@@ -72,7 +72,7 @@ import { type Page, expect } from "@playwright/test";
  * product bug (also reachable from the real "add match" UI for any coach scheduling a match in
  * the first few days of a new league-season half), not test-only fallout.
  */
-function randomFutureMatchDate(): Date {
+export function randomFutureMatchDate(): Date {
   const entropy = Number(process.hrtime.bigint() % BigInt(50_000));
   const weeksOut = 60 + entropy;
   return new Date(Date.now() + weeksOut * 7 * 24 * 60 * 60 * 1000);

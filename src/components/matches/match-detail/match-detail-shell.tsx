@@ -35,6 +35,7 @@ import type { PlannedRotationWithChanges } from "@/lib/planned-rotation/planned-
 import type { OpponentHistoryData } from "@/lib/audit/opponent-history";
 import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 import type { OpponentMemoryViewModel } from "@/lib/matches/match-insights/opponent-memory-view-model";
+import type { PlayerMatchPositionUsage } from "@/lib/player-development/position-usage-history";
 import { cancelMatchAction, reopenMatchAction } from "@/app/(app)/matches/actions";
 
 type SelectionRow = {
@@ -84,6 +85,12 @@ export type MatchDetailShellProps = {
   matchRoundName: string;
   notes: string | null;
   selections: SelectionRow[];
+  /**
+   * C06-B (Gate C W2 remediation — PR #829): real completed-match positional evidence for every
+   * player in `selections`, keyed by `playerId` — fetched once, page-load-time, same pattern as
+   * `selections` itself. See `MatchTacticsPanel`'s own doc comment for the full provenance.
+   */
+  positionUsageByPlayerId: Record<string, PlayerMatchPositionUsage[]>;
   warnings: WarningRow[];
   /** Existence-only — the real lineup content now renders directly via `MatchTacticsPanel` on
    * Overview, which fetches its own data; this narrow flag only feeds the Match preparation
@@ -155,6 +162,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
     matchRoundName,
     notes,
     selections,
+    positionUsageByPlayerId,
     warnings,
     hasLineup,
     plannedRotation,
@@ -309,6 +317,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
           matchType={matchType}
           matchFit={matchFit}
           selections={selections}
+          positionUsageByPlayerId={positionUsageByPlayerId}
           hasLineup={hasLineup}
           notes={notes}
           plannedRotation={plannedRotation}
@@ -349,6 +358,7 @@ export function MatchDetailShell(props: MatchDetailShellProps) {
             opponent={opponent}
             matchFit={matchFit}
             selections={selections}
+            positionUsageByPlayerId={positionUsageByPlayerId}
             afterData={afterData}
             opponentTeamId={opponentTeamId}
             opponentHistory={opponentHistory}
@@ -380,6 +390,7 @@ function BeforeMatchTabContent(props: {
   matchType: string;
   matchFit: string;
   selections: SelectionRow[];
+  positionUsageByPlayerId: Record<string, PlayerMatchPositionUsage[]>;
   hasLineup: boolean;
   notes: string | null;
   plannedRotation: PlannedRotationWithChanges | null;
@@ -429,6 +440,7 @@ function BeforeMatchTabContent(props: {
         teamId={props.teamId}
         teamName={props.teamName}
         selections={props.selections}
+        positionUsageByPlayerId={props.positionUsageByPlayerId}
         planningEditable={!props.isCancelled}
         coachingIntent={props.coachingIntent}
         coachingIntentId={props.coachingIntentId}
@@ -537,6 +549,7 @@ function AfterMatchTabContent(props: {
   opponent: string;
   matchFit: string;
   selections: SelectionRow[];
+  positionUsageByPlayerId: Record<string, PlayerMatchPositionUsage[]>;
   afterData: MatchDetailAfterData;
   opponentTeamId: string | null;
   opponentHistory: OpponentHistoryData | null;
@@ -564,6 +577,7 @@ function AfterMatchTabContent(props: {
         teamId={props.teamId}
         gameFormat={props.gameFormat}
         selections={props.selections}
+        positionUsageByPlayerId={props.positionUsageByPlayerId}
         tabHref={props.tabHref}
         postMatchHref={props.postMatchHref}
         advisorViewModel={props.completedMatchAdvisorViewModel}
@@ -590,6 +604,7 @@ function AfterMatchTabContent(props: {
         gameFormat={props.gameFormat}
         planningEditable={false}
         selections={props.selections}
+        positionUsageByPlayerId={props.positionUsageByPlayerId}
       />
     );
   }

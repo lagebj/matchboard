@@ -15,6 +15,7 @@ import { AdvisorPanelReviewing, AdvisorPanelUnavailable } from "@/components/ai/
 import type { CompletedMatchAdvisorViewModel } from "@/lib/ai/presentation/completed-match-advisor";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
 import type { MatchDetailAfterData } from "@/lib/matches/get-match-detail-after-data";
+import type { PlayerMatchPositionUsage } from "@/lib/player-development/position-usage-history";
 import { formatOpponentEnvironment, formatMatchFit, formatReflectionRating } from "@/lib/matches/match-detail-format";
 import { COACHING_INTENT_LABELS } from "@/lib/coaching/types";
 import type { CoachingIntentCategory } from "@/generated/prisma/client";
@@ -54,6 +55,7 @@ export function AfterMatchOverview({
   teamId,
   gameFormat,
   selections,
+  positionUsageByPlayerId = {},
   tabHref,
   postMatchHref,
   advisorViewModel,
@@ -70,6 +72,7 @@ export function AfterMatchOverview({
   teamId: string;
   gameFormat: string;
   selections: SelectionRow[];
+  positionUsageByPlayerId?: Record<string, PlayerMatchPositionUsage[]>;
   tabHref: (tab: string) => string;
   postMatchHref: string;
   /** `null` when there is nothing for the Advisor to show (no connection, AI disabled,
@@ -184,6 +187,7 @@ export function AfterMatchOverview({
           gameFormat={gameFormat}
           planningEditable={false}
           selections={selections}
+          positionUsageByPlayerId={positionUsageByPlayerId}
         />
       </div>
 

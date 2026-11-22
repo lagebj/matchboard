@@ -10,6 +10,8 @@ import { classifyExactSuitability } from "@/domain/positions/suitability";
 import { fitLabel, UNSUPPORTED_CONFIRMATION } from "@/domain/positions/labels";
 import type { SuitabilityTier } from "@/domain/positions/matrix";
 import type { SideInput } from "@/domain/positions/roles";
+import { summarizePositionEvidence } from "@/domain/positions/position-evidence";
+import type { PlayerMatchPositionUsage } from "@/lib/player-development/position-usage-history";
 
 type PlayerPickInfo = {
   id: string;
@@ -32,7 +34,24 @@ type PlayerPickerProps = {
   currentAssignedPlayer?: PlayerPickInfo | null;
   onSelect: (playerId: string) => void;
   onClear: () => void;
+  /**
+   * C06-B (Gate C W2 remediation — PR #829): each candidate's real completed-match positional
+   * history (`getPlayersActualPositionHistory()`, ADR-0096's `ActualPositionInterval`), keyed by
+   * player id. Purely additive, traceable evidence shown alongside the existing declared-fit
+   * tier — never blended into `classifyExactSuitability`'s score/tier (ADR-0129 §5's own
+   * invariant), never used to auto-select or reorder beyond the tier this component already
+   * sorts by. `undefined`/absent renders no evidence line, matching every existing caller that
+   * does not yet supply it.
+   */
+  evidenceByPlayerId?: Record<string, PlayerMatchPositionUsage[]>;
 };
+
+function formatEvidence(summary: ReturnType<typeof summarizePositionEvidence>): string {
+  if (summary.matchCount === 0) return "No match record at this position";
+  const minutes = Math.round(summary.totalMinutes);
+  const matches = summary.matchCount === 1 ? "1 match" : `${summary.matchCount} matches`;
+  return `Played here in ${matches} (${minutes} min)`;
+}
 
 const TIER_RANK: Record<SuitabilityTier, number> = {
   NATURAL: 0,
@@ -65,6 +84,7 @@ export function PlayerPicker({
   currentAssignedPlayer,
   onSelect,
   onClear,
+  evidenceByPlayerId,
 }: PlayerPickerProps) {
   const [search, setSearch] = useState("");
   // When set, a confirmation is shown before assigning a player outside automatic fit (§15).
@@ -92,7 +112,18 @@ export function PlayerPicker({
               targetRole,
             )
           : null;
-        return { ...p, tier: suitability?.tier ?? null, eligible: suitability?.automaticallyEligible ?? true };
+        // Only compute/show an evidence line when the caller actually supplies the prop --
+        // never default to "No match record" for callers that never opted into this feature.
+        const evidence =
+          targetRole && evidenceByPlayerId
+            ? summarizePositionEvidence(evidenceByPlayerId[p.id] ?? [], targetRole)
+            : null;
+        return {
+          ...p,
+          tier: suitability?.tier ?? null,
+          eligible: suitability?.automaticallyEligible ?? true,
+          evidence,
+        };
       })
       .sort((a, b) => {
         const at = a.tier ? TIER_RANK[a.tier] : 0;
@@ -184,6 +215,11 @@ export function PlayerPicker({
                     </span>
                     {player.coreTeamName && (
                       <span className="text-[var(--text-meta)] text-[var(--text-muted)]">{player.coreTeamName}</span>
+                    )}
+                    {player.evidence && (
+                      <span className="text-[var(--text-meta)] text-[var(--text-muted)] truncate">
+                        {formatEvidence(player.evidence)}
+                      </span>
                     )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end">

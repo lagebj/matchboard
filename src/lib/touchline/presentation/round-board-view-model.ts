@@ -102,6 +102,21 @@ export type RoundBoardAttentionItem = {
   summary: string;
   detail: string;
   severity: "BLOCKED" | "DECISION_REQUIRED";
+  /**
+   * Whether a legitimate, currently available resolution path exists for this item, derived
+   * from the canonical per-match planning boundary (never the round-level boundary alone — a
+   * mixed round can have both closed and open matches). `matchId` (the warning's OWNING match,
+   * when known) and the player's CURRENT match are independent facts, checked separately — a
+   * warning naming a closed match is never resolvable regardless of what else is open (third
+   * remediation pass; the first fix only checked the player's current match). `true` only when:
+   * the warning's own owning match (if named) is open, AND either (a) the item names a player
+   * and at least one open destination match exists for them (their own current match, if any,
+   * must also be open), or (b) the item names a match with no specific player and that match
+   * itself is open. A historical warning on a closed match, or a warning with no player/match
+   * identity at all, is always `false` — a Resolve action must never render for it (Gate C W2
+   * remediation, P1-01).
+   */
+  resolvable: boolean;
 };
 
 export type RoundBoardSummary = {
@@ -110,6 +125,17 @@ export type RoundBoardSummary = {
   plannedOpportunities: number;
   targetOpportunities: number;
   coverageIssues: number;
+  /**
+   * Distinct-player eligible-opportunity coverage, sourced from
+   * `RoundPlanIntegrity.coverage` (`compute-plan-integrity.ts`) — the canonical owner of this
+   * measure. Never re-derive this in the UI layer (rule 3): `plannedOpportunities`/
+   * `targetOpportunities` above count squad *placements*, not distinct eligible players, and the
+   * two must never be shown as one ambiguous percentage.
+   */
+  eligibleCoverage: {
+    eligiblePlayerCount: number;
+    assignedEligiblePlayerCount: number;
+  };
 };
 
 export type RoundBoardViewModel = {

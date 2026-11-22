@@ -31,9 +31,19 @@ type Props = {
   selectedTier?: SuitabilityTier;
   onSelectTier?: (tier: SuitabilityTier) => void;
   className?: string;
+  /**
+   * C06-B (Gate C W2 remediation — PR #829): per-role-code real completed-match evidence
+   * ("3 matches", "No match record"), keyed by the same role code as `entries[].roles`. Purely
+   * additive, traceable, shown only as a small caption under each role chip — never changes
+   * tier grouping or ordering, which the domain layer (`classifyExactSuitability`) already
+   * computed without evidence by design (ADR-0129 §5). `undefined`/absent renders no evidence
+   * captions, matching every existing caller (e.g. the UI Lab position-fit candidate) that does
+   * not yet supply it.
+   */
+  evidenceCaptionByRole?: Record<string, string>;
 };
 
-export function PositionFitList({ entries, selectedTier, onSelectTier, className }: Props) {
+export function PositionFitList({ entries, selectedTier, onSelectTier, className, evidenceCaptionByRole }: Props) {
   const byTier = new Map(entries.map((e) => [e.tier, e]));
   const ordered = TIER_ORDER.map((tier) => byTier.get(tier)).filter((e): e is PositionFitEntry => e != null);
 
@@ -71,15 +81,20 @@ export function PositionFitList({ entries, selectedTier, onSelectTier, className
               </span>
               <span className="block text-[12px] text-[var(--text-muted)]">{TIER_DESCRIPTION[entry.tier]}</span>
             </span>
-            <span className="flex shrink-0 gap-1">
-              {entry.roles.map((role) => (
-                <span
-                  key={role}
-                  className="rounded-full border border-[var(--border-soft)] px-2 py-0.5 text-[11px] font-semibold uppercase text-[var(--text-soft)]"
-                >
-                  {role}
-                </span>
-              ))}
+            <span className="flex shrink-0 flex-wrap justify-end gap-1">
+              {entry.roles.map((role) => {
+                const evidenceCaption = evidenceCaptionByRole?.[role];
+                return (
+                  <span
+                    key={role}
+                    title={evidenceCaption}
+                    aria-label={evidenceCaption ? `${role} — ${evidenceCaption}` : undefined}
+                    className="rounded-full border border-[var(--border-soft)] px-2 py-0.5 text-[11px] font-semibold uppercase text-[var(--text-soft)]"
+                  >
+                    {role}
+                  </span>
+                );
+              })}
             </span>
           </Tag>
         );
