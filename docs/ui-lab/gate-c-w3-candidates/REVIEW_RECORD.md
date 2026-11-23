@@ -49,22 +49,27 @@ Playwright against a real browser (`next dev` build, not jsdom) in CI, where thi
 own HMR/hydration limitation blocks running Playwright locally (see memory note
 `project_devcontainer_hmr_websocket_blocks_playwright`):
 
-6. **Real defect: `AssistantCoachHypothesisPanel`'s development-focus `<input>` has no width
-   constraint.** Inside a flex column, a plain `<input>` keeps its browser-default intrinsic
-   width and refuses to shrink below it, overflowing a 320px viewport by 21px
-   (`c07-assistant-coach-fallback/on @ 320px`). Pre-existing in production code (this component
-   already ships on Player Detail) — never triggered before because this wave is the first to
-   mount it inside a narrow (320px) context-rail column. **Fixed**: `w-full min-w-0` added to the
-   input's className.
-7. **Test defect (this agent's own new Playwright test): asserted the Promote button as enabled
+6. **Test defect (this agent's own new Playwright test): asserted the Promote button as enabled
    without ever recording a development focus.** The button is correctly disabled until the real
    focus `<input>` has text — the test's own assumption was wrong, not the production behavior.
    **Fixed**: the test now types into the real field first, and additionally asserts the
-   pre-fill disabled state explicitly (stronger than the original intent).
-
-Both fixes verified locally (full component suite, 176 files / 1129 tests, clean;
-`npm run typecheck`/`lint` clean) and pushed in a follow-up commit; awaiting the next CI run for
-final confirmation, since Playwright itself cannot be run locally in this environment.
+   pre-fill disabled state explicitly (stronger than the original intent). Confirmed fixed by the
+   next CI run.
+7. **Real defect: `AssistantCoachHypothesisPanel`'s header row (StatusPill + uncertainty label)
+   and button row (Promote + Dismiss) are non-wrapping `flex` rows, and `TouchlineButton` always
+   applies `whitespace-nowrap` to its label by design.** Overflowed a 320px viewport by 21px
+   (`c07-assistant-coach-fallback/on @ 320px`) — pre-existing in production code (this component
+   already ships on Player Detail), never triggered before because this wave is the first to
+   mount it inside a narrow (320px) context-rail column at full page width. **First attempted
+   fix was wrong**: adding `w-full min-w-0` to the development-focus `<input>` did not change the
+   measured overflow at all (341/320, byte-identical before and after) — proof the input was
+   never the actual cause, caught by rereading the next CI run's own numbers rather than assuming
+   the first fix worked. **Corrected fix**: `flex-wrap` added to both the header and button rows,
+   the actual non-wrapping flex content — a real, more probable culprit given `TouchlineButton`'s
+   own always-on `whitespace-nowrap`. Local verification only (full component suite clean,
+   `w-full`/`min-w-0` kept on the input regardless, since it is still a correct, harmless
+   constraint); final confirmation is the next CI run, since Playwright itself cannot be run
+   locally in this environment.
 
 ## Verification run (this branch, after all fixes above)
 

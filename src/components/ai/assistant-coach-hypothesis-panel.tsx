@@ -80,7 +80,7 @@ function HypothesisCard({ hypothesis }: { hypothesis: AssistantCoachHypothesisVi
 
   return (
     <div className="rounded-[var(--tl-radius-widget)] border border-[var(--border-soft)] bg-[var(--tl-widget)] p-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <StatusPill size="sm" variant="development">
           Assistant Coach hypothesis
         </StatusPill>
@@ -114,7 +114,7 @@ function HypothesisCard({ hypothesis }: { hypothesis: AssistantCoachHypothesisVi
           onChange={(event) => setFocus(event.target.value)}
           placeholder="e.g. Composure receiving under pressure"
         />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <TouchlineButton
             variant="primary"
             size="sm"
