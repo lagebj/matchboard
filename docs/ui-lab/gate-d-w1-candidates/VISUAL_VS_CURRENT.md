@@ -60,3 +60,36 @@ fabricated `0'` and never a position inferred from a plan. Full and partial cove
 distinguishable within the same list.
 
 **No disclosed mismatch.**
+
+## D07 — Attribute evolution review (extension, 2026-11-23, directional)
+
+**Already in production**: the automatic attribute-mutation accumulator and `AssessmentChange`
+audit model (ADR-0092), now amended by ADR-0160 to add a materiality/approval layer on top.
+
+**What exists vs. what's new**: `GATE-D-W1-D07-AUTOMATIC` reproduces real, already-shipped
+behavior (`AssessmentHistoryPanel`'s rendering, mirrored over fixture data for the reason
+disclosed in `DATA_TRUTH_AND_FIXTURES.md`). `GATE-D-W1-D07-MATERIAL` is **not** real production
+behavior yet — `MaterialApprovalReview` is a directional design candidate for ADR-0160's decided
+policy. No schema supports a "pending approval" state today (confirmed: `AssessmentChange` always
+represents an already-applied change). This is explicitly disclosed, not blended with the
+real-component candidates above.
+
+## D08 — Primary position proposal (extension, 2026-11-23, directional)
+
+**Already in production**: `ADR-0139`'s automatic candidate-identification computation
+(unaffected by ADR-0160); the 14-role profile mapping (`collapseTacticalToProfile`, reused from
+Gate A's `a12-profile-editor` directional study — not new to this candidate).
+
+**What's new/directional**: the entire review/approval interaction (`PositionProposalReview`) does
+not exist in production. ADR-0139's `evolvePlayerPositionProfile()` still writes automatically
+today. Both states explicitly disclose this on-page and in the component's own header comment.
+
+## D09 — Evidence lineage (extension, 2026-11-23)
+
+**Already in production, unmodified data model**: `qualitative-evidence-service.ts`'s
+supersession marking (`supersededAt`) — real, already-shipped (ADR-0152).
+
+**What's new**: `EvidenceLineageDisplay` is a new presentational component — no existing
+production component surfaces this lineage to a coach today (every real read helper filters to
+active-only observations). This candidate exposes real data through new presentation, per the
+owner's decision #6 ("exposing existing lineage... not another supersession model").

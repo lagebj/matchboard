@@ -48,9 +48,36 @@ renders exactly as the real data implies — a `minutes: null` match never shows
 and a match with no actual position shows the real "No actual position recorded" text rather
 than an inferred value.
 
+## D07 — Attribute evolution review (extension, 2026-11-23)
+
+**`GATE-D-W1-D07-AUTOMATIC`**: no interaction — `AssessmentHistoryDisplay` is pure display.
+
+**`GATE-D-W1-D07-MATERIAL`**: `MaterialApprovalReview` implements simulated Accept/Reject,
+constructed as local client-side state inside its own `"use client"` component — never a function
+prop received from a server `page.tsx`, following the same RSC-boundary discipline as D01's
+`PlayerPositionProfileMount`. Each button click updates local `decision` state and renders a
+`data-testid="decision-result"` confirmation; no Server Action is called, no `AssessmentChange`
+row is written. Tested directly (`simulates accept/reject without claiming a real record was
+written`).
+
+## D08 — Primary position proposal (extension, 2026-11-23)
+
+Both states implement simulated Accept/Reject/Defer via `PositionProposalReview`, same local
+client-state pattern as D07's `MaterialApprovalReview`. No Server Action is called, no
+`Player.primaryPosition` or `DecisionRecord` row is written. Tested directly for both accept
+(`GATE-D-W1-D08-STRONG`) and defer (`GATE-D-W1-D08-CONFLICT`).
+
+## D09 — Evidence lineage (extension, 2026-11-23)
+
+**Expected interaction**: none — `EvidenceLineageDisplay` is pure display, showing a static
+lineage list. No edit/retract action is implemented in this candidate (the candidate demonstrates
+*existing* lineage, per decision #6; an actual edit/retract UI interaction is not in this wave's
+scope).
+
 ## Summary
 
 No scenario in this wave claims authenticated browser-level interaction evidence or a real
-Server Action call. The only simulated interaction surface (D01's position editor) is explicitly
-disclosed on-page and in this document, matching the precedent set by Gate C W3's C07-ON
-candidate for its own simulated Promote/Dismiss actions.
+Server Action call. D01's position editor, D07's accept/reject, and D08's accept/reject/defer are
+the simulated interaction surfaces — each explicitly disclosed on-page and in this document,
+matching the precedent set by Gate C W3's C07-ON candidate for its own simulated Promote/Dismiss
+actions.

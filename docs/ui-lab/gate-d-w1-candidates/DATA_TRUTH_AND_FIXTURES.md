@@ -63,16 +63,61 @@ the real `buildPlayerEvidenceViewModel`/`EvidenceStory`/`StackedDistribution` st
 
 **No disclosed data-truth limitation for D04.**
 
+## D07 — `d07-attribute-evolution-review/{automatic-non-material,pending-material-approval}/fixtures.ts`
+
+- `automatic-non-material`: `AssessmentChangeEntry[]`, the same shape
+  `src/components/players/player-assessment-history-panel.tsx` (`AssessmentHistoryPanel`) already
+  receives from its internal fetch. **Disclosed data-truth limitation**: that component owns its
+  own `fetch("/api/players/[playerId]/assessment-history")` call, so a deterministic UI Lab
+  fixture cannot pass it data as props without either monkey-patching the network layer or
+  diverging from its real behavior. `AssessmentHistoryDisplay` reproduces its exact rendering
+  logic (same labels, same layout) over fixture input instead — the same "reproduce the real
+  rendering block over fixture input" strategy D02's `EvidenceGroups` already uses, not a new
+  pattern. The one-point change, 4-match, 0.82-confidence fixture satisfies every ADR-0160 §4
+  automatic condition.
+- `pending-material-approval`: `MaterialApprovalProposal`, a new type — **disclosed**: no
+  production schema or component for a pending attribute-approval review exists today
+  (`AssessmentChange` always represents an already-applied change; its `decidedAt`/`decidedBy`
+  fields are only ever set by `recordManualRebase()`, never used to distinguish "pending" from
+  "automatically applied"). The fixture encodes a genuine cumulative-drift example (three prior
+  automatic +1 changes totalling +3 from baseline) using ADR-0160 §4's actual decided thresholds,
+  not placeholder numbers.
+
+## D08 — `d08-primary-position-proposal/{strong-evidence,conflicting-note}/fixtures.ts`
+
+- `PositionProposal`, a new type — **disclosed**: no production proposal/review persistence exists
+  (ADR-0139's `evolvePlayerPositionProfile()` still writes automatically). Both fixtures use real
+  `CanonicalTacticalPosition` codes (`CDM`/`RCM`, `RWB`/`RB`) and the real `exactPositionLabel()`
+  function for the underlying exact-evidence label. The proposed primary is derived via
+  `collapseTacticalToProfile()`, reused directly from Gate A's `a12-profile-editor` directional
+  study (`src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts`) — the one place in this
+  repo that already implements the 14-role mapping table from
+  `15_PLAYER_PROFILE_VS_TACTICAL_POSITION_CONTRACT.md`, reused here rather than reimplemented a
+  third time. The strong-evidence fixture deliberately uses a sided exact code (`RCM`) as the
+  underlying evidence to prove the proposal still targets the unsided profile role (`CM`), per
+  that contract's own mandatory verification example #6.
+
+## D09 — `d09-evidence-lineage/superseded-lineage/fixtures.ts`
+
+- `EvidenceLineageEntry[]` — **disclosed**: no existing production component surfaces qualitative-
+  evidence supersession lineage to a coach; every real read helper in
+  `qualitative-evidence-service.ts` (`ACTIVE_RUN_FILTER`) returns only non-superseded
+  observations. The fixture is built directly from the real field shapes
+  (`QualitativeEvidenceObservation`'s `statement`/`explicitness`/`createdAt`) and the real
+  `supersededAt` semantics (`recordDeterministicExtraction()` marks a prior run superseded on
+  resubmission, never deletes or rewrites it) — per the owner's decision #6, this exposes existing
+  lineage rather than inventing a new supersession model.
+
 ## Running all Gate D tests
 
-Gate D's 27 tests live under two different vitest configs and both must be run to exercise all of
+Gate D's 56 tests live under two different vitest configs and both must be run to exercise all of
 them: `npm run test:components -- --run gate-d` (the default components config, `src/**/*.test.tsx`
-only) runs the 6 `page.test.tsx` render-verification suites (21 tests), but **not** the 6
-`fixtures.test.ts` hash-integrity suites (6 tests) — those are `.test.ts`, not `.test.tsx`, and
+only) runs the 11 `page.test.tsx` render-verification suites (38 tests), but **not** the 11
+`fixtures.test.ts` hash-integrity suites (11 tests) — those are `.test.ts`, not `.test.tsx`, and
 only match the project's default `vitest.config.ts`. Run `npx vitest run gate-d` (default config)
 to exercise the hash tests, or `npm test` if it already covers both configs. Running only
 `test:components` silently skips the fixture-hash verification — it will not fail, it just won't
-execute those 6 tests.
+execute those 11 tests.
 
 ## Fixture-identity convention
 

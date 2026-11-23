@@ -29,12 +29,68 @@ They belong together because:
 |---|---|
 | D03 | `IMPLEMENTED_WITH_PRESENTATION_GAP`, but belongs with D06 as the Assistant Coach / AI-hypothesis family — a distinct concern from the non-AI evidence story in Wave 1 (per mission brief §4.2, evidence and AI hypothesis are different forms of knowledge and should not be bundled into one wave just because the tab is adjacent). Candidate for Wave 2. |
 | D06 | Same reasoning as D03 — groups naturally with it, not with D01/D02/D04. Candidate for Wave 2. |
-| D07 | `BLOCKED_BY_POLICY_OR_AUTHORITY` — depends on resolving the ADR-0139 vs. mutation-contract conflict. Not implementable truthfully today. |
-| D08 | `BLOCKED_BY_POLICY_OR_AUTHORITY` — same conflict, more directly (primary-position approval vs. auto-promotion). |
-| D09 | Secondary dependency on the same conflict family plus an only-partially-delivered ADR-0152 slice range; deferred pending both. |
-
 D05 does not exist in the register (confirmed in `SOURCE_RECONCILIATION.md` §3) and is not
 assigned to any wave.
+
+This table originally deferred D07, D08, and D09 as blocked. **Update, 2026-11-23**: the product
+owner resolved the blocking authority conflict as a decision (ADR-0160) and explicitly instructed
+continuing this same wave with D07 and D08, plus D09 independently. See "Wave 1 extension" below —
+this is additive to the original three-scenario scope above, not a replacement of it.
+
+## Wave 1 extension (2026-11-23): D07, D08, D09
+
+### Why these are added now, and what changed
+
+ADR-0160 resolves the policy question that previously blocked D07/D08 (`BLOCKERS.md` §1–§2). It
+does **not** implement the review/approval UI or persistence — `sync-effective-position.ts`,
+`player-evidence-service.ts`, and `Player.evidenceCutoverAt` are unchanged in production. D07 and
+D08 are therefore `MISSING_PRODUCTION_CAPABILITY` for the actual review interaction, not
+`IMPLEMENTED_WITH_PRESENTATION_GAP` — there is no existing production component to mount for
+"accept/reject a pending proposal," because no such production interaction exists yet.
+
+These candidates are **directional design candidates for a decided-but-unimplemented policy**,
+following the exact precedent Gate A already set for the same situation
+(`src/app/dev/ui-lab/gate-a/a06-position-pitches`, `a12-profile-editor` — directional studies for
+the 14-role profile tier before any production implementation existed). They reuse real,
+unmodified presentational primitives wherever the primitive genuinely already exists (e.g.
+`AssessmentHistoryPanel` for history display, `EvidenceStory`-family components for evidence
+citation, the real confidence/support-band vocabulary), and clearly mark any new review/approval
+container or interaction as proposed design, never as an existing production flow. This must be
+disclosed explicitly in each such candidate's `knownGaps` and in `VISUAL_VS_CURRENT.md` — not
+blended in as if it were the same kind of candidate as D01/D02/D04.
+
+D09 is different: a corrected audit (prompted by the owner's decision #6) found real supersession/
+provenance machinery already shipped (`qualitative-evidence-service.ts`'s `supersededAt` marking
+on resubmission, ADR-0152's governed-learning loop). D09's candidate should therefore lean toward
+the D01/D02/D04 pattern — mounting real components/data shapes — rather than the directional
+pattern, to the extent that existing lineage display components exist; if a real display component
+does not already exist, that specific gap must be disclosed rather than assumed away.
+
+### Minimum states, using ADR-0160's actual decided thresholds (not hypothetical)
+
+- **D07** (attribute evolution review): a non-material automatic example (≤1 point, ≥3 matches,
+  confidence ≥0.7, auto-applied, shown as `AUTOMATIC` in the real history presentation) and a
+  material example (≥2 cumulative points from baseline, pending coach review — before/after,
+  evidence, confidence, accept/reject, clearly simulated). A manual-edit/lock state demonstrating
+  attribute-level (not player-level) rebase is valuable if it fits within the wave's bound; defer
+  it explicitly if not, rather than build it hastily.
+- **D08** (primary position proposal): a proposal with strong, unambiguous evidence, and a proposal
+  with a conflicting note (echoing D01's divergence fixture, now framed as a formal reviewable
+  proposal) — both must target a 14-role profile code (never a sided/central tactical code like
+  `LCB`/`LAM`) as the proposed primary, per ADR-0160 §6, and must disclose that the profile
+  projection itself is constructed directly in the fixture, not called through a real production
+  projection function (none exists yet).
+- **D09**: at least one state showing an original coach-authored observation, a superseded/
+  retracted version, and the active current version with clear provenance — built from real
+  qualitative-evidence types and the real supersession field if a presentable real component
+  exists; disclose plainly if it has to be assembled from real data shapes without an existing
+  display component.
+
+### What remains unchanged from the original Wave 1 decision
+
+D03/D06 remain deferred to Wave 2 (§ above). D05 remains nonexistent. The implementation boundary
+from ADR-0160 applies in full: no schema change, no service change, no real Server Action, no real
+persisted proposal — UI Lab only, exactly like the rest of this wave.
 
 ## Component owners
 
@@ -100,7 +156,8 @@ per the mission brief §7.
 
 ## What this wave will NOT prove
 
-It will not demonstrate Assistant Coach cross-source hypothesis presentation (D03/D06), any
-mutation/approval review flow (D07/D08/D09), or resolution of the ADR-0139 conflict. It will not
-touch production routes, domain services, or Prisma schema. It is a presentation-verification
-wave over already-wired real components, not a new-capability wave.
+It will not demonstrate Assistant Coach cross-source hypothesis presentation (D03/D06), deferred to
+Wave 2. For D07/D08, it demonstrates the *decided design direction* (ADR-0160), not a working
+production review/approval feature — no real Server Action, no real persisted proposal, no real
+schema change. It will not touch production routes, domain services, or Prisma schema anywhere in
+this wave, original or extended.

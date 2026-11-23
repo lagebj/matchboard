@@ -1145,6 +1145,29 @@ const scenarios = [
     slug: "gate-d-w1-d04-partial-coverage",
     route: "gate-d/d04-matches-coverage/partial-coverage",
   },
+  // Gate D W1 extension (2026-11-23 owner decision, ADR-0160): D07/D08 directional candidates and
+  // D09 evidence-lineage exposure. CANDIDATE, not approved. See
+  // docs/ui-lab/gate-d-w1-candidates/WAVE_SCOPE.md's "Wave 1 extension" section.
+  {
+    slug: "gate-d-w1-d07-automatic-non-material",
+    route: "gate-d/d07-attribute-evolution-review/automatic-non-material",
+  },
+  {
+    slug: "gate-d-w1-d07-pending-material-approval",
+    route: "gate-d/d07-attribute-evolution-review/pending-material-approval",
+  },
+  {
+    slug: "gate-d-w1-d08-strong-evidence",
+    route: "gate-d/d08-primary-position-proposal/strong-evidence",
+  },
+  {
+    slug: "gate-d-w1-d08-conflicting-note",
+    route: "gate-d/d08-primary-position-proposal/conflicting-note",
+  },
+  {
+    slug: "gate-d-w1-d09-superseded-lineage",
+    route: "gate-d/d09-evidence-lineage/superseded-lineage",
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },

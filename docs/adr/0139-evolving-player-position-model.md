@@ -254,7 +254,10 @@ None.
 
 ## Superseded by
 
-None.
+ADR-0160 (in part — primary-position automatic write behavior only, effective prospectively from
+that ADR's implementation cutover date; the candidate-identification computation
+(`computeEffectivePlayerPositionProfile`, `determineAutomaticPositionUpdate`) and the
+secondary/tertiary write path described in this ADR remain in force, unchanged).
 
 ## History
 
@@ -327,3 +330,12 @@ tabbed-restructuring follow-up ADR-0136 recorded as deferred.
 - No schema change, no new pitch renderer, no new position model. Verified: full `npm run
   validate`, all pre-existing and new unit/component tests passing (see this bundle's PR for the
   exact count), real UI-Lab fixtures for the seven required deterministic Overview states.
+
+### 2026-11-23
+
+Gate D (Player Intelligence) programme, product-owner decision: this ADR's automatic, no-approval
+primary-position write is superseded by ADR-0160, which requires explicit coach approval for every
+proposed primary-position change. This ADR's candidate-identification computation and
+secondary/tertiary automatic write path are unaffected and remain in force. No implementation
+performed as part of this history entry — see ADR-0160 for the decision record and required
+follow-up work.

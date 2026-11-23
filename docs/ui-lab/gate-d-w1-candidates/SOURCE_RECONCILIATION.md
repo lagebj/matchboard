@@ -82,6 +82,11 @@ owner decision that re-numbers or fills it.
 
 ## 4. Authority conflict — ADR-0139 vs. the mutation/approval contract
 
+> **Update, 2026-11-23**: resolved as a decision by the product owner. See
+> `docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md`. The analysis below is
+> preserved as the accurate record of the conflict as found; it is not rewritten to look
+> pre-resolved.
+
 `04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md` contains an explicit self-flagged entry:
 
 > "Existing repository tension (MUST resolve before implementation)": ADR-0139 auto-promotes a
@@ -102,6 +107,10 @@ scenario's own acceptance question. This is recorded as an unresolved authority 
 (see `WAVE_SCOPE.md`). It is not resolved, reinterpreted, or worked around in this wave.
 
 ## 4b. Second authority conflict — the "14-role profile vocabulary" vs. ADR-0154
+
+> **Update, 2026-11-23**: resolved as a decision by the product owner — the 14-role profile tier is
+> the adopted direction. See ADR-0160 §6, which additively extends ADR-0154 (the 24-code tactical
+> vocabulary itself is unchanged). The analysis below is preserved as found.
 
 Discovered during Wave 1 implementation, not during initial source recovery, and verified
 directly in this session (not merely asserted by a sub-agent).

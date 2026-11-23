@@ -98,7 +98,11 @@ way.
 
 ### D07 — Attribute evolution review (auto-below-threshold / material-approval / manual edit)
 
-**Classification: `BLOCKED_BY_POLICY_OR_AUTHORITY`.** This scenario's acceptance question
+> **Update, 2026-11-23**: the policy question below is resolved by ADR-0160 (owner decision).
+> Reclassified to `MISSING_PRODUCTION_CAPABILITY`: the decided policy's review/approval UI and
+> persistence do not exist in production yet. See `WAVE_SCOPE.md`'s Wave 1 extension.
+
+**Original classification (preserved): `BLOCKED_BY_POLICY_OR_AUTHORITY`.** This scenario's acceptance question
 ("threshold-based, source-linked review; audit; undo when authorised") requires a believable
 approval-tier UI. `ADR-0139` currently auto-promotes position-adjacent attributes with no approval
 step, which is the exact conflict recorded in `SOURCE_RECONCILIATION.md` §4. Building this
@@ -108,7 +112,12 @@ authorized surface (`02_AUTHORITY_SCOPE_AND_APPROVALS.md`). Deferred, not implem
 
 ### D08 — Primary position proposal (accept/reject)
 
-**Classification: `BLOCKED_BY_POLICY_OR_AUTHORITY`, on two independent grounds.** The scenario's
+> **Update, 2026-11-23**: both grounds below are resolved by ADR-0160 (owner decision).
+> Reclassified to `MISSING_PRODUCTION_CAPABILITY`: the decided policy's proposal/review UI,
+> persistence, and the 14-role profile-projection function do not exist in production yet. See
+> `WAVE_SCOPE.md`'s Wave 1 extension.
+
+**Original classification (preserved): `BLOCKED_BY_POLICY_OR_AUTHORITY`, on two independent grounds.** The scenario's
 acceptance question requires "coach approval; no exact-history write" (the ADR-0139 conflict,
 same as D07) **and** a "14-role profile target" distinct from sided tactical codes (the ADR-0154
 conflict — see `SOURCE_RECONCILIATION.md` §4b). Either conflict alone would block this scenario;
@@ -116,12 +125,18 @@ both are present. Deferred, not implemented, not silently reinterpreted to match
 
 ### D09 — Free-text evidence lineage (edit/retract)
 
-**Classification: `PARTIALLY_IMPLEMENTED`, with a secondary `BLOCKED_BY_POLICY_OR_AUTHORITY`
-dependency.** The qualitative-evidence-extraction contract and ADR-0152 (coach learning loop) exist
-and are partially delivered — prior-session tracking records ADR-0152 Slices 0–4 shipped, Slice 4f
-and Slices 5–7 outstanding. Whatever edit/retract audit-trail machinery this scenario needs likely
-shares the same assessment-change path implicated in the D07/D08 conflict. Not verified in depth
-in this audit because it is not a Wave 1 candidate either way (see `WAVE_SCOPE.md`).
+> **Update, 2026-11-23**: corrected on owner instruction (decision #6, "proceed independently").
+> Direct code verification found real, already-shipped supersession machinery
+> (`src/lib/evidence/qualitative-evidence-service.ts`: resubmission marks a prior extraction run's
+> `supersededAt`, part of ADR-0152's governed-learning loop) — this is not blocked by the D07/D08
+> mutation conflict at all; the two systems are independent. **Reclassified to
+> `IMPLEMENTED_WITH_PRESENTATION_GAP`**: the supersession/provenance data model is real; what's
+> unverified is whether a production UI already surfaces that lineage to a coach, which is what
+> D09's candidate (see `WAVE_SCOPE.md`'s Wave 1 extension) now investigates and demonstrates.
+
+**Original classification (preserved): `PARTIALLY_IMPLEMENTED`, with a secondary
+`BLOCKED_BY_POLICY_OR_AUTHORITY` dependency** — this coupling to D07/D08 is now known to be
+incorrect; see the update above.
 
 ## Summary table
 

@@ -2,7 +2,7 @@
   "programmeRevision": "0.169.15",
   "baseCommitSha": "43af5f186a2f7888b987cda532cfa4b9db41e5aa",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-d/. Not a production implementation, not an authorization, not a security proof. Scope and authority sources: docs/ui-lab/gate-d-w1-candidates/SOURCE_RECONCILIATION.md.",
-  "note": "Gate D W1 — D01 (Player Detail Overview, position evidence), D02 (Player Detail Evidence, position-dot consolidation), D04 (Player Detail Matches, minute coverage). D03/D06 (Assistant Coach cross-source hypothesis) deferred to Wave 2. D07/D08/D09 (mutation/approval review) deferred, blocked by an unresolved authority conflict: ADR-0139 auto-promotes a player's primary position with no coach approval step, which contradicts the Gate D source contract's (04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md) requirement of explicit coach approval for primary-position changes — see SOURCE_RECONCILIATION.md §4. A second authority conflict was discovered during D01's implementation and is disclosed in VISUAL_VS_CURRENT.md: the register's D01/D08 acceptance question assumes a 14-role profile vocabulary distinct from the 24-sided tactical vocabulary, but ADR-0154 (Accepted) deliberately unified declaration, tactical slots, and evidence into one 24-code vocabulary — no second vocabulary exists to avoid conflating. D01's candidates therefore demonstrate the real distinction that exists (provenance + support-band/confidence) rather than the one the register assumes; this needs owner resolution before any wave can claim D01/D08 fully satisfied against the register as written. No production code was changed. scripts/ui-lab-visual-review.mjs was edited to register the six new routes for CI capture (consistent with every prior gate's wave, though outside this pass's strict directory scope — see CHANGED_FILES.md). capture-attestation.json is not yet included; it requires a real CI capture run. All candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved.",
+  "note": "Gate D W1 — D01 (Player Detail Overview, position evidence), D02 (Player Detail Evidence, position-dot consolidation), D04 (Player Detail Matches, minute coverage), D07 (attribute evolution review, directional), D08 (primary position proposal, directional), D09 (evidence lineage). D03/D06 (Assistant Coach cross-source hypothesis) deferred to Wave 2. UPDATE 2026-11-23: the product owner resolved the two authority conflicts that originally blocked D07/D08 (ADR-0139 vs. mandatory coach approval; ADR-0154 vs. the 14-role profile vocabulary) via ADR-0160 (docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md), which partially supersedes ADR-0139/ADR-0092 and additively extends ADR-0154. This resolves the conflicts as DECISIONS, not as production implementation — no schema, service, or write-path change was made anywhere in this wave. D07/D08's candidates are therefore directional design candidates for a decided-but-unimplemented policy (not production-component mounts for the review/approval interaction itself, since no such interaction exists in production yet), explicitly labeled as such, following the same precedent Gate A already set with its own a06/a12 directional studies. D09 was found, on re-audit, to be independent of the D07/D08 conflict entirely — real supersession machinery already ships in qualitative-evidence-service.ts; D09 exposes that existing lineage through new presentation. No production code was changed anywhere in this wave. scripts/ui-lab-visual-review.mjs registers all eleven routes for CI capture (consistent with every prior gate's wave). capture-attestation.json is not yet included; it requires a real CI capture run. All candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved.",
   "candidates": [
     {
       "scenarioId": "GATE-D-W1-D01-AGREEING",
@@ -131,6 +131,111 @@
       "dataContractRef": "04_PLAYER_DETAIL_CONTRACT.md §5 (Matches tab)",
       "baselineAssetRef": "No new production code — display-only fixture of an already-shipped, unmodified component.",
       "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D07-AUTOMATIC",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d07-automatic-non-material",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/players/player-assessment-history-panel.tsx",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/assessment-history-display.tsx",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/automatic-non-material/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D07"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D07-AUTOMATIC",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md §4; docs/adr/0092-match-evidence-engine-domain-foundation.md",
+      "baselineAssetRef": "No new production code. Reproduces AssessmentHistoryPanel's real rendering over fixture data (that component owns its own data fetch) — disclosed in DATA_TRUTH_AND_FIXTURES.md.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D07-MATERIAL",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d07-pending-material-approval",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/material-approval-review.tsx",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/pending-material-approval/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D07"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D07-MATERIAL",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md §4",
+      "baselineAssetRef": "No production equivalent exists yet. This is a directional design candidate for ADR-0160's decided-but-unimplemented materiality/approval policy, not a mount of a real production review surface.",
+      "knownGaps": [
+        "No production schema or service supports a pending attribute-approval state today; AssessmentChange always represents an already-applied change.",
+        "Accept/Reject are simulated — no Server Action is called, no AssessmentChange row is written."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D08-STRONG",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d08-strong-evidence",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d08-primary-position-proposal/shared/position-proposal-review.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/d08-primary-position-proposal/strong-evidence/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D08"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D08-STRONG",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md §1, §6; docs/adr/0139-evolving-player-position-model.md",
+      "baselineAssetRef": "No production equivalent exists yet. Directional design candidate; reuses the real, tested collapseTacticalToProfile() from Gate A's a12-profile-editor directional study rather than reimplementing the 14-role mapping table.",
+      "knownGaps": [
+        "ADR-0139's evolvePlayerPositionProfile() still writes automatically in production today; this review surface does not exist yet.",
+        "Accept/Reject/Defer are simulated — no Server Action is called, no position record is written."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D08-CONFLICT",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d08-conflicting-note",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d08-primary-position-proposal/shared/position-proposal-review.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/d08-primary-position-proposal/conflicting-note/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D08"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D08-CONFLICT",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md §1, §6",
+      "baselineAssetRef": "Same as GATE-D-W1-D08-STRONG — directional design candidate.",
+      "knownGaps": [
+        "Same production-equivalence gaps as GATE-D-W1-D08-STRONG.",
+        "A conflicting coach note is disclosed as additional context, never as a reason to auto-suppress or auto-apply the proposal."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D09-LINEAGE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d09-superseded-lineage",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/lib/evidence/qualitative-evidence-service.ts",
+        "src/app/dev/ui-lab/gate-d/d09-evidence-lineage/shared/evidence-lineage-display.tsx",
+        "src/app/dev/ui-lab/gate-d/d09-evidence-lineage/superseded-lineage/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D09"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D09-LINEAGE",
+      "dataContractRef": "docs/adr/0152-coach-learning-loop.md",
+      "baselineAssetRef": "The underlying supersession data model and behavior are real and already shipped (ADR-0152); no existing production component surfaces this lineage to a coach, so this candidate's display component is new presentation over real data, not a mount of an existing production component.",
+      "knownGaps": [
+        "No production UI currently exposes this lineage; this candidate is the first presentation of it."
+      ],
       "approval": null
     }
   ]
