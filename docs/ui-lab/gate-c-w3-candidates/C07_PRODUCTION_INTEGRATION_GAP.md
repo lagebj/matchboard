@@ -34,6 +34,13 @@
   control is clicked, proving the real Server Action is never invoked), and the page explicitly
   discloses "Promote and Dismiss on this candidate are simulated: no Server Action is called, and
   no player-development record is written."
+- **Follow-up fix** (real CI, see `REVIEW_RECORD.md` pass 5): the simulated handlers themselves
+  must not be constructed in server-side fixture code — a Server Component's props to a Client
+  Component must be serializable, and a plain function crossing that boundary threw a real React
+  Server Components error, caught by CI's capture job. The simulated handlers now live inside
+  `w3-shared/today-mount.tsx` (already `"use client"`), activated by a plain boolean prop
+  (`simulateAssistantCoachActions`) rather than a function value ever crossing the boundary. The
+  `actions` override on `AssistantCoachHypothesisPanel` itself is unchanged by this follow-up.
 
 ## What does not exist (the real remaining work)
 

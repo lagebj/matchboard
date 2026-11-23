@@ -1,9 +1,5 @@
 import type { FixtureIdentity } from "@/app/dev/ui-lab/gate-a/shared/fixture-identity";
-import type {
-  AssistantCoachHypothesisActionResult,
-  AssistantCoachHypothesisActions,
-  AssistantCoachHypothesisViewModel,
-} from "@/components/ai/assistant-coach-hypothesis-panel";
+import type { AssistantCoachHypothesisViewModel } from "@/components/ai/assistant-coach-hypothesis-panel";
 import type { TodayAssistantCoachContext } from "@/lib/touchline/presentation/today-assistant-coach";
 import { gateCW3DecisionDayFacts } from "../../w3-shared/fixtures";
 
@@ -40,29 +36,23 @@ export const alexOpportunityHypothesis: AssistantCoachHypothesisViewModel = {
 };
 
 /**
- * Simulated promote/dismiss for this UI Lab candidate (Gate C W3 remediation). The real
+ * No `actions` override here (unlike an earlier draft): this fixture file is imported by the
+ * plain *server* `page.tsx`, and a Server Component's props to a Client Component must be
+ * serializable — a plain function (not a "use server" Server Action) cannot cross that
+ * boundary. Confirmed live: passing a function here crashed CI's real capture job with a React
+ * Server Components serialization error, invisible to jsdom component tests that render the
+ * page directly and never cross the real boundary. The simulated confirm/dismiss handlers are
+ * instead constructed client-side in `w3-shared/today-mount.tsx` (already `"use client"`),
+ * activated here only via the plain boolean `simulateAssistantCoachActions` prop — see that
+ * file's own doc comment for the full explanation. The real
  * `confirmAssistantCoachHypothesisAction`/`dismissAssistantCoachHypothesisAction` require a real
- * session and a persisted `AssistantCoachHypothesis` row — neither exists for this fixture's
- * synthetic id, so calling them for real from `/dev/ui-lab`'s unauthenticated context would hit
- * a real auth failure, not a clean "not found" response. These handlers never call a Server
- * Action or touch persistence; they only resolve the same `{success:true}`/`{success:false}`
- * shape the real actions return, so the shared component's own promote/dismiss UI states
- * (disabled-until-input, pending, success, error) are demonstrated truthfully against the real,
- * unmodified component — never a fabricated extra UI layer.
+ * session and a persisted `AssistantCoachHypothesis` row, neither of which exists for this
+ * fixture's synthetic id, so calling them for real from `/dev/ui-lab`'s unauthenticated context
+ * would hit a real auth failure rather than a clean "not found" response — hence simulating them.
  */
-function simulateAssistantCoachAction(): Promise<AssistantCoachHypothesisActionResult> {
-  return Promise.resolve({ success: true });
-}
-
-export const simulatedAssistantCoachActions: AssistantCoachHypothesisActions = {
-  confirm: simulateAssistantCoachAction,
-  dismiss: simulateAssistantCoachAction,
-};
-
 export const assistantCoachContext: TodayAssistantCoachContext = {
   status: "fresh",
   hypotheses: [alexOpportunityHypothesis],
-  actions: simulatedAssistantCoachActions,
 };
 
 export const { commandCentre, selectionDecisions, liveNow, projection, nowIso } = gateCW3DecisionDayFacts();

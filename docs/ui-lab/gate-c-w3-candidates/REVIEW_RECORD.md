@@ -169,10 +169,34 @@ C08 scenario carries an unqualified PASS verdict anywhere in this wave's docs.
 **Overall verdict (review pass 4): the remediation is genuinely sound and ready for owner
 review.**
 
+## Review pass 5 — real CI (post-remediation run)
+
+CI's capture job on the remediation commit (`0790e515`/`d7935048`) caught a real defect the
+passes above, including independent review pass 4, did not: **C07-ON's `assistantCoachContext`
+(passed from the plain server `on/page.tsx` down into the client `GateCW3TodayMount`) carried a
+plain, non-"use server" function via its `actions` field.** A Server Component's props to a
+Client Component must be serializable; a plain function cannot cross that boundary. This threw a
+real React Server Components error at render time, which manifested in CI as
+`locator.waitFor: Timeout 30000ms exceeded` waiting for `.touchline[data-theme="dark"]` on the
+C07-ON route (the page never finished rendering) — invisible to every jsdom component test in
+this wave (including pass 4's own verification), because those tests render the page directly
+and never cross the real server/client serialization boundary. This is the same class of bug
+`today/page.tsx`'s own existing doc comment already warns about for Server Actions — confirmed
+to apply equally to a plain function wrapped in a UI-Lab-only "simulate" object.
+
+**Fixed**: the simulated confirm/dismiss handlers are no longer constructed in the server-side
+`on/fixtures.ts`. They are now constructed inside `w3-shared/today-mount.tsx` (already
+`"use client"`), activated via a new plain boolean prop (`simulateAssistantCoachActions`) instead
+of a function value crossing the boundary. Verified locally by starting a real `next dev` server
+(Playwright itself cannot run locally in this environment, but a plain HTTP fetch can) and
+confirming all 8 C07/C08 routes return `200` with the real hypothesis content rendered and no
+error text, where the C07-ON route previously would have thrown. Full component suite (176/1133)
+re-verified clean. Final confirmation is still the next real CI run.
+
 ## Not yet done
 
-- A final CI run reflecting this record's own latest commit, and `capture-attestation.json`
-  committed from that specific run (never fabricated locally, never reused from an earlier,
-  now-superseded run).
+- A final CI run reflecting this record's own latest commit, confirming the pass-5 fix, and
+  `capture-attestation.json` committed from that specific run (never fabricated locally, never
+  reused from an earlier, now-superseded run).
 - Owner `/visual-approve` or `/visual-reject`, and merge — neither ever performed by this agent,
   under any framing.

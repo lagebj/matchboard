@@ -32,6 +32,7 @@ export default function C07OnPage() {
         projection={projection}
         selectionDecisions={selectionDecisions}
         assistantCoachContext={assistantCoachContext}
+        simulateAssistantCoachActions
         nowIso={nowIso}
       />
     </div>
