@@ -513,6 +513,41 @@ test.describe("Gate C W3 — C07: OFF/ON priority parity, no duplicate panels", 
     await page.getByLabel("Development focus to record if promoted").fill("Composure under pressure");
     await expect(promote).toBeEnabled();
   });
+
+  test("ON discloses that Promote/Dismiss are simulated", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    await expect(page.getByText(/simulated: no Server Action is called/i)).toBeVisible();
+  });
+
+  test("Promote produces a truthful simulated success, with no real network request to the real Server Action's own route", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    const requests: string[] = [];
+    page.on("request", (req) => {
+      if (req.method() === "POST") requests.push(req.url());
+    });
+
+    await page.getByLabel("Development focus to record if promoted").fill("Composure under pressure");
+    await page.getByRole("button", { name: /promote to development focus/i }).click();
+    await expect(page.getByText(/Alex Dahl has received fewer match opportunities/)).toHaveCount(0);
+
+    // Next.js Server Actions are invoked as a same-URL POST carrying a `Next-Action` request
+    // header — the real confirmAssistantCoachHypothesisAction would appear here as exactly that.
+    // A fixture that merely LOOKS successful while quietly still calling the real action (which
+    // would fail against this unauthenticated route) is exactly what this proves did not happen.
+    expect(requests).toHaveLength(0);
+  });
+
+  test("Dismiss produces a truthful simulated success, with no real network request to the real Server Action's own route", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    const requests: string[] = [];
+    page.on("request", (req) => {
+      if (req.method() === "POST") requests.push(req.url());
+    });
+
+    await page.getByRole("button", { name: /^dismiss$/i }).click();
+    await expect(page.getByText(/Alex Dahl has received fewer match opportunities/)).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+  });
 });
 
 test.describe("Gate C W3 — C08-A/B/C: same-day quick add, real recommendation shapes", () => {

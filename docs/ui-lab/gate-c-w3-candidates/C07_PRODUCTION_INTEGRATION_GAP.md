@@ -17,6 +17,23 @@
 - A new presentational component, `TodayAssistantCoachPanel`, maps that context to the real,
   already-shipped Assistant Coach components (`AssistantCoachHypothesisPanel`,
   `AdvisorPanelStale`, `AdvisorPanelUnavailable`) — no new AI presentation component was built.
+- **Remediation finding and fix** (external review, see `REVIEW_RECORD.md` pass 3): the first
+  version of this candidate mounted the real `AssistantCoachHypothesisPanel` with its Promote/
+  Dismiss controls wired to the real `confirmAssistantCoachHypothesisAction`/
+  `dismissAssistantCoachHypothesisAction` Server Actions. Those actions require a real session
+  and a persisted `AssistantCoachHypothesis` row — neither exists for `/dev/ui-lab`'s synthetic,
+  unauthenticated fixture, so clicking them would not "fail gracefully" with a clean not-found
+  message; it would hit a real, uncaught auth failure. Fixed by adding an optional `actions`
+  override to `AssistantCoachHypothesisPanel` (`AssistantCoachHypothesisActions`): a non-production
+  caller can substitute deterministic, fixture-safe confirm/dismiss handlers that resolve the same
+  `{success}`/`{error}` shape the real actions return, without ever calling a Server Action or
+  writing to persistence. Production passes nothing, so the real actions still run, unchanged.
+  C07-ON now uses this to demonstrate genuine disabled→enabled→simulated-success interaction
+  states (component tests, `on/__tests__/page.test.tsx`; Playwright, `e2e/ui-lab-gate-c.spec.ts`
+  — the Playwright coverage additionally asserts zero POST network requests fire when either
+  control is clicked, proving the real Server Action is never invoked), and the page explicitly
+  discloses "Promote and Dismiss on this candidate are simulated: no Server Action is called, and
+  no player-development record is written."
 
 ## What does not exist (the real remaining work)
 

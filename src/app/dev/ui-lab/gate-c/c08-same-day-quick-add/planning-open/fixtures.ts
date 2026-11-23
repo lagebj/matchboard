@@ -4,8 +4,12 @@ import { gateCW3QuickAddFacts } from "../../w3-shared/fixtures";
 /**
  * C08-A — Planning open (register C08: "Planning open"). The real, already-shipped Today quick-
  * add (`applyTodaySelectionRecommendationAction` -> `addPlayerToDraftMatch`) offers a genuine
- * one-click "Add" action. Display-only here; the real mutation is exercised by
- * `e2e/gate-c-w3-today-quick-add.spec.ts` against a seeded match.
+ * one-click "Add" action. Display-only here; the real mutation, persistence, and cross-surface
+ * revalidation are exercised by the real-DB integration test
+ * "applies the mutation and revalidates Today/Round Board/Fixtures when the fingerprint matches
+ * current state" in `src/app/(app)/o/[orgSlug]/today/__tests__/actions.test.ts` — not a browser
+ * test; see `docs/ui-lab/gate-c-w3-candidates/BLOCKERS.md` for why a genuine authenticated
+ * browser-level quick-add journey is not available in this wave.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "C08-A",

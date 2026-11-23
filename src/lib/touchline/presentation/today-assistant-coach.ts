@@ -1,4 +1,7 @@
-import type { AssistantCoachHypothesisViewModel } from "@/components/ai/assistant-coach-hypothesis-panel";
+import type {
+  AssistantCoachHypothesisActions,
+  AssistantCoachHypothesisViewModel,
+} from "@/components/ai/assistant-coach-hypothesis-panel";
 
 /**
  * Today's Assistant Coach contextual fallback seam (Gate C W3 — register C07). This type exists
@@ -17,7 +20,14 @@ import type { AssistantCoachHypothesisViewModel } from "@/components/ai/assistan
 export type TodayAssistantCoachContext =
   | { status: "off" }
   | { status: "empty" }
-  | { status: "fresh"; hypotheses: AssistantCoachHypothesisViewModel[] }
+  | {
+      status: "fresh";
+      hypotheses: AssistantCoachHypothesisViewModel[];
+      /** Gate C W3 remediation: a non-production caller (UI Lab) can supply simulated
+       * confirm/dismiss handlers here instead of letting the real, session-requiring Server
+       * Actions run against a synthetic fixture id. Omitted in production. */
+      actions?: AssistantCoachHypothesisActions;
+    }
   | { status: "stale" }
   | { status: "unavailable" };
 

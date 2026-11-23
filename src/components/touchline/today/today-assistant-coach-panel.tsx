@@ -20,7 +20,7 @@ export function TodayAssistantCoachPanel({ context }: { context: TodayAssistantC
   if (!isTodayAssistantCoachVisible(context)) return null;
 
   if (context.status === "fresh") {
-    return <AssistantCoachHypothesisPanel hypotheses={context.hypotheses} />;
+    return <AssistantCoachHypothesisPanel hypotheses={context.hypotheses} actions={context.actions} />;
   }
   if (context.status === "stale") {
     return <AdvisorPanelStale />;

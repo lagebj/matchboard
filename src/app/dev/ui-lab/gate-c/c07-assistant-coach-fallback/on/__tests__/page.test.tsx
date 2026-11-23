@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
+import {
+  confirmAssistantCoachHypothesisAction,
+  dismissAssistantCoachHypothesisAction,
+} from "@/app/(app)/o/[orgSlug]/players/[playerId]/assistant-coach-actions";
 
 vi.mock("@/components/assistant/due-decision-review-section", () => ({
   DueDecisionReviewSection: () => null,
@@ -57,5 +61,34 @@ describe("Gate C W3 — C07-ON material contextual synthesis", () => {
   it("never renders InstallPwaCard", () => {
     renderPage();
     expect(screen.queryByText(/install matchboard/i)).not.toBeInTheDocument();
+  });
+
+  it("discloses that Promote/Dismiss are simulated — no production data is written", () => {
+    renderPage();
+    expect(screen.getByText(/simulated: no Server Action is called/i)).toBeInTheDocument();
+  });
+
+  it("Promote stays disabled until a development focus is recorded, then simulates a truthful success without calling the real Server Action", async () => {
+    renderPage();
+    const promote = screen.getByRole("button", { name: /promote to development focus/i });
+    expect(promote).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Development focus to record if promoted"), {
+      target: { value: "Composure under pressure" },
+    });
+    expect(promote).toBeEnabled();
+
+    fireEvent.click(promote);
+    await waitFor(() => expect(screen.queryByText(/Alex Dahl has received fewer match opportunities/)).not.toBeInTheDocument());
+
+    expect(confirmAssistantCoachHypothesisAction).not.toHaveBeenCalled();
+  });
+
+  it("Dismiss simulates a truthful success without calling the real Server Action", async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /^dismiss$/i }));
+    await waitFor(() => expect(screen.queryByText(/Alex Dahl has received fewer match opportunities/)).not.toBeInTheDocument());
+
+    expect(dismissAssistantCoachHypothesisAction).not.toHaveBeenCalled();
   });
 });

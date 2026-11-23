@@ -16,7 +16,12 @@ function renderPage() {
   );
 }
 
-describe("Gate C W3 — C08-B after RSVP (tentative availability)", () => {
+describe("Gate C W3 — C08-B tentative availability (supplementary — not an RSVP deadline)", () => {
+  it("discloses that this is not an RSVP-deadline demonstration", () => {
+    renderPage();
+    expect(screen.getByText(/Matchboard has no RSVP-deadline mechanism/)).toBeInTheDocument();
+  });
+
   it("still surfaces the decision (availability does not silently remove it) but withholds the one-click action", () => {
     renderPage();
     expect(screen.getByText("Tentative")).toBeInTheDocument();

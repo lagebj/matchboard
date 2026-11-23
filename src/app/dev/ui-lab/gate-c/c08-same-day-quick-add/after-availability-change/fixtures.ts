@@ -2,11 +2,12 @@ import type { FixtureIdentity } from "@/app/dev/ui-lab/gate-a/shared/fixture-ide
 import { gateCW3QuickAddFacts } from "../../w3-shared/fixtures";
 
 /**
- * C08-B — "After RSVP" (register C08). Matchboard has no automated RSVP-deadline mechanism
+ * C08-B — tentative availability, planning still open. The official register lists "after RSVP"
+ * as one of C08's required states; Matchboard has no automated RSVP-deadline mechanism at all
  * (`PlannedAbsenceReason.NO_RSVP` is a manually-selected category, not a computed deadline — see
- * Gate A's A09 `BLOCKERS.md` for the same disclosure). This scenario is built against the real
- * mechanism that actually exists: a `TENTATIVE` `Player.currentAvailability`, with planning still
- * open.
+ * Gate A's A09 `BLOCKERS.md` for the same disclosure), so that specific requirement is **BLOCKED**
+ * — this scenario does not satisfy it. It demonstrates the real, adjacent mechanism that does
+ * exist (`TENTATIVE` `Player.currentAvailability`) as disclosed supplementary coverage only.
  *
  * Confirmed against the real planner (`today-selection-recommendation-plan.ts`, proven live in
  * `today/__tests__/actions.test.ts`): a tentative player still produces a real

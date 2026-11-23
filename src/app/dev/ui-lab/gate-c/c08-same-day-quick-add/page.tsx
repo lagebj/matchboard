@@ -12,13 +12,18 @@ import { AppearanceControl } from "@/components/touchline";
  * meaningfully mounted against static props without either (a) hitting a real seeded match
  * anyway, or (b) faking a result — the brief's own §7 forbids exactly that ("A simulated success
  * message without a successful underlying mutation is not acceptable"). Those two scenarios are
- * instead verified and captured via authenticated Playwright evidence against a real seeded
- * match (`e2e/gate-c-w3-match-day-additions.spec.ts`) — see `docs/ui-lab/gate-c-w3-candidates/`
- * for the full disclosure and visual evidence.
+ * instead verified via real-DB integration tests
+ * (`src/app/(app)/matches/__tests__/league-match-guest-actions.test.ts`, pre-existing
+ * `match-helper-actions.test.ts`) — NOT a browser-level journey; this repo's one existing
+ * precedent for a seeded authenticated browser mutation test (`e2e/round-mutation.spec.ts`) is
+ * itself currently `test.skip()`-disabled (its heavy seed endpoints time out on Vercel
+ * serverless post-Next.js-16 migration), and requesting a real Test-slot deployment to attempt a
+ * new one was declined for this wave. See `docs/ui-lab/gate-c-w3-candidates/BLOCKERS.md` and
+ * `C08_OPERATIONAL_ACCEPTANCE.md` for the full disclosure.
  */
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-c/c08-same-day-quick-add/planning-open", id: "C08-A", title: "Planning open" },
-  { href: "/dev/ui-lab/gate-c/c08-same-day-quick-add/after-availability-change", id: "C08-B", title: "After RSVP (tentative availability)" },
+  { href: "/dev/ui-lab/gate-c/c08-same-day-quick-add/after-availability-change", id: "C08-B", title: "Tentative availability (supplementary — not an RSVP deadline)" },
   { href: "/dev/ui-lab/gate-c/c08-same-day-quick-add/planning-closed", id: "C08-C", title: "Planning closed" },
 ];
 
@@ -30,10 +35,13 @@ export default function C08IndexPage() {
       </Link>
       <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">C08 — Same-day quick add</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-        A/B/C below are fixture-driven displays of Today&apos;s real quick-add. D (guest) and E
-        (late arrival) use the real Match Details &quot;Add player&quot; dialog, which self-fetches
-        from Server Actions and so is verified via authenticated Playwright evidence instead — see
-        docs/ui-lab/gate-c-w3-candidates/ for the full disclosure.
+        A/B/C below are fixture-driven displays of Today&apos;s real quick-add; the real mutation
+        is proven by real-DB integration tests, not a browser journey (see BLOCKERS.md). B
+        demonstrates tentative availability, a real but separate state from an RSVP deadline —
+        Matchboard has no RSVP-deadline mechanism; the official &quot;after RSVP&quot; requirement
+        is BLOCKED, not satisfied by this scenario. D (guest) and E (late arrival) use the real
+        Match Details &quot;Add player&quot; dialog, verified via real-DB integration tests only —
+        see docs/ui-lab/gate-c-w3-candidates/ for the full disclosure.
       </p>
 
       <div className="mt-6">
