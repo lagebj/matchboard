@@ -519,30 +519,36 @@ test.describe("Gate C W3 — C07: OFF/ON priority parity, no duplicate panels", 
     await expect(page.getByText(/simulated: no Server Action is called/i)).toBeVisible();
   });
 
-  test("Promote produces a truthful simulated success, with no real network request to the real Server Action's own route", async ({ page }) => {
-    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+  // Next.js Server Actions are invoked as a same-URL POST carrying a `Next-Action` request
+  // header — the real confirmAssistantCoachHypothesisAction/dismissAssistantCoachHypothesisAction
+  // would appear here as exactly that. Filtering on this header specifically (not "any POST") is
+  // deliberate: the real page also fires unrelated POSTs the browser sends on its own (e.g. a CSP
+  // violation report to /api/csp-report) that have nothing to do with Server Actions — confirmed
+  // live in CI, where a blanket "zero POST requests" assertion false-failed on exactly those.
+  function collectServerActionRequests(page: import("@playwright/test").Page): string[] {
     const requests: string[] = [];
     page.on("request", (req) => {
-      if (req.method() === "POST") requests.push(req.url());
+      if (req.method() === "POST" && req.headers()["next-action"]) requests.push(req.url());
     });
+    return requests;
+  }
+
+  test("Promote produces a truthful simulated success, with no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    const requests = collectServerActionRequests(page);
 
     await page.getByLabel("Development focus to record if promoted").fill("Composure under pressure");
     await page.getByRole("button", { name: /promote to development focus/i }).click();
     await expect(page.getByText(/Alex Dahl has received fewer match opportunities/)).toHaveCount(0);
 
-    // Next.js Server Actions are invoked as a same-URL POST carrying a `Next-Action` request
-    // header — the real confirmAssistantCoachHypothesisAction would appear here as exactly that.
     // A fixture that merely LOOKS successful while quietly still calling the real action (which
     // would fail against this unauthenticated route) is exactly what this proves did not happen.
     expect(requests).toHaveLength(0);
   });
 
-  test("Dismiss produces a truthful simulated success, with no real network request to the real Server Action's own route", async ({ page }) => {
+  test("Dismiss produces a truthful simulated success, with no real Server Action invoked", async ({ page }) => {
     await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
-    const requests: string[] = [];
-    page.on("request", (req) => {
-      if (req.method() === "POST") requests.push(req.url());
-    });
+    const requests = collectServerActionRequests(page);
 
     await page.getByRole("button", { name: /^dismiss$/i }).click();
     await expect(page.getByText(/Alex Dahl has received fewer match opportunities/)).toHaveCount(0);

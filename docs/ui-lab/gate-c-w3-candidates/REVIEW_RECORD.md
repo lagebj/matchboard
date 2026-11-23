@@ -193,9 +193,34 @@ confirming all 8 C07/C08 routes return `200` with the real hypothesis content re
 error text, where the C07-ON route previously would have thrown. Full component suite (176/1133)
 re-verified clean. Final confirmation is still the next real CI run.
 
+## Review pass 6 — real CI (confirming the pass-5 fix)
+
+The pass-5 fix resolved the RSC serialization crash (the page now renders), but the same CI run
+surfaced two more real issues once the page could actually render far enough to be tested:
+
+15. **Test defect (this agent's own Playwright tests): the "zero Server Action calls" assertion
+    counted every POST request, not just Server Action invocations.** The real page legitimately
+    fires two unrelated POSTs of its own (`/api/csp-report`, a Content Security Policy violation
+    report the browser sends on its own) that have nothing to do with Server Actions, causing a
+    false failure (`Received length: 2`, both to `/api/csp-report`). **Fixed**: the assertion now
+    filters specifically on the `next-action` request header — the actual, real signature of a
+    Next.js Server Action invocation — rather than "any POST".
+16. **Real defect: the new disclosure paragraph's long, unbroken file-path-shaped text forced a
+    6px horizontal overflow at 320px** (326/320, down from 341/320 before the pass-2 `flex-wrap`
+    fix — confirming that fix's own effect, just not sufficient for this new element). **Fixed**:
+    simplified the disclosure text to drop the inline file-path citation, and added `break-words`
+    defensively. Verified locally via a real `next dev` server fetch (confirms rendering and
+    absence of errors; viewport-overflow measurement itself still requires a real browser, which
+    only CI can run here) — full component suite (176/1133) re-verified clean.
+
+A pre-existing CSP-violation-reporting behavior on this route was newly observed as a side effect
+of writing a more precise network assertion (finding 15) — not investigated further, since it is
+unrelated to this PR's own changes and outside this remediation's scope; noted here only because
+it is the reason finding 15's original assertion needed correcting, not as a new disclosed gap.
+
 ## Not yet done
 
-- A final CI run reflecting this record's own latest commit, confirming the pass-5 fix, and
+- A final CI run reflecting this record's own latest commit, confirming passes 5-6's fixes, and
   `capture-attestation.json` committed from that specific run (never fabricated locally, never
   reused from an earlier, now-superseded run).
 - Owner `/visual-approve` or `/visual-reject`, and merge — neither ever performed by this agent,

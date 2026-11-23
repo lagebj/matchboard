@@ -21,10 +21,9 @@ export default function C07OnPage() {
       <h1 className="mb-1 text-[13px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
         C07-ON &middot; Material contextual synthesis
       </h1>
-      <p className="mb-4 text-[12px] text-[var(--text-muted)]">
+      <p className="mb-4 break-words text-[12px] text-[var(--text-muted)]">
         Promote and Dismiss on this candidate are simulated: no Server Action is called, and no
-        player-development record is written. See{" "}
-        <code className="text-[11px]">docs/ui-lab/gate-c-w3-candidates/C07_PRODUCTION_INTEGRATION_GAP.md</code>.
+        player-development record is written.
       </p>
       <GateCW3TodayMount
         commandCentre={commandCentre}
