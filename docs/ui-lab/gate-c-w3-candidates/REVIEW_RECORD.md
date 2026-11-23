@@ -138,12 +138,41 @@ evidence each fix relies on.
 - `npm test` (full node/real-DB suite) — passed.
 - New/changed test files individually re-verified after every fixture/behavior correction above.
 
+## Review pass 4 — genuinely separate review agent (2026-11-23)
+
+A fresh review agent, with no prior involvement in this work and no shared context with passes
+1-3, independently reviewed the full diff (`git log main..HEAD`, 8 commits at the time) and the
+complete doc set, re-verifying every claim against the real code rather than trusting the docs'
+own account — including running the real-DB integration tests itself (21/21 passed) and tracing
+the live Visual Authority Gate's actual source (`scripts/visual-authority/resolve-approval.mjs`,
+`fingerprint.mjs`) rather than assuming its CI status.
+
+**Findings: no Critical, no Major.** One Minor/disclosure item, fixed:
+
+14. This wave's C07 seam directly edits `today-surface.tsx`/`today-context-rail.tsx`, which are
+    also `componentOwners` for the already-approved Gate C W1 scenarios (merged PR #826). CI's
+    live Visual Authority Gate reports `AWAITING_APPROVAL` for those W1 scenarios on this PR —
+    the reviewer traced the actual gate mechanism and confirmed this is the routine "no approval
+    comment on this PR yet" backlog state (the same state untouched Gate B scenarios B05-B08 are
+    also in), not a new instance of issue #827's whole-file-hash fingerprint-invalidation bug.
+    **Fixed**: one disclosure paragraph added to `SOURCE_RECONCILIATION.md`'s #827/#830 section
+    so the owner isn't surprised by this at merge/approval time.
+
+Every other claim this remediation made — the C07 handler-separation mechanics, the C08
+evidence-tier honesty, the RSVP-mechanism absence, the stale-reference fixes, and that issue
+#842 was disclosed rather than quietly implemented — was independently verified true, not merely
+restated. One wording precision nit was noted (the acceptance report's per-sub-requirement PASS
+labels mean "this specific sub-item passed," never "this scenario passed overall" — already
+consistent with how the table is structured, just worth stating explicitly here): no top-level
+C08 scenario carries an unqualified PASS verdict anywhere in this wave's docs.
+
+**Overall verdict (review pass 4): the remediation is genuinely sound and ready for owner
+review.**
+
 ## Not yet done
 
-- A final CI run reflecting pass-3's code changes, and `capture-attestation.json` committed from
-  that specific run (never fabricated locally, never reused from an earlier, now-superseded run).
-- **Review pass 4** — a genuinely separate review agent's pass over the final diff (requested by
-  this remediation's own §7), distinct from both the implementing agent's self-review (pass 1)
-  and the external brief's own review (pass 3). Recorded below once complete.
+- A final CI run reflecting this record's own latest commit, and `capture-attestation.json`
+  committed from that specific run (never fabricated locally, never reused from an earlier,
+  now-superseded run).
 - Owner `/visual-approve` or `/visual-reject`, and merge — neither ever performed by this agent,
   under any framing.

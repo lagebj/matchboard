@@ -68,3 +68,14 @@ fixture directory (`gate-c/w3-shared/`), following W2's precedent, specifically 
 re-trigger #827's fingerprint-invalidation mechanism. #830 (Round Board ~840-1200px desktop gap)
 is not touched; C08's fixtures are Today-side only and do not exercise Round Board's layout at
 all in this wave.
+
+**Disclosure (independent review, review pass 4):** this wave's C07 seam does directly edit
+`src/components/touchline/today/today-surface.tsx` and `today-context-rail.tsx`, which are also
+listed as `componentOwners` for the already-approved Gate C W1 scenarios (C01-C03, merged PR
+#826). CI's live Visual Authority Gate reports `AWAITING_APPROVAL` for those W1 scenarios (and
+unrelated, untouched Gate B scenarios B05-B08) on this PR — verified against
+`scripts/visual-authority/resolve-approval.mjs`/`fingerprint.mjs` to be the routine "no approval
+comment on *this* PR yet" backlog state, not the whole-file-hash `INVALID` bug #827 itself; the
+owner clears this with one consolidated `/visual-approve` comment at merge time, exactly as done
+on PRs #826/#829. No new instance of #827's fingerprint-invalidation mechanism is introduced by
+this wave.
