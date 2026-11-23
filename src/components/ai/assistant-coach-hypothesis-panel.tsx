@@ -17,6 +17,15 @@ import type { EvidenceRef } from "@/lib/development-context/types";
  * it gets its own visually distinct card with an explicit "Assistant Coach hypothesis" label,
  * cited evidence-reference counts, disclosed missing evidence, and a promote/dismiss action —
  * never silent canonical-state mutation (ADR-0157 §5).
+ *
+ * Gate C W3 remediation: an optional `actions` override (see `AssistantCoachHypothesisActions`)
+ * lets a non-production caller substitute its own confirm/dismiss handlers, instead of always
+ * calling the real Server Actions directly. Production never passes it — the real actions run
+ * unchanged. This exists because the real actions require a real session
+ * (`requirePageActorContext`) and operate on a persisted `AssistantCoachHypothesis` row; a UI Lab
+ * fixture's synthetic hypothesis ids have neither, so calling the real actions from an
+ * unauthenticated `/dev/ui-lab` context would not "fail gracefully" — it would hit a real,
+ * uncaught auth failure, not the hypothesis's own clean not-found path.
  */
 
 const UNCERTAINTY_LABEL: Record<string, string> = {
@@ -48,12 +57,29 @@ export type AssistantCoachHypothesisViewModel = {
   missingEvidence: string[];
 };
 
+export type AssistantCoachHypothesisActionResult = { success: true } | { success: false; error: string };
+
+/**
+ * Override for confirm/dismiss, keyed by hypothesis id. Exists so a non-production context (UI
+ * Lab) with no persisted `AssistantCoachHypothesis` record behind its synthetic ids can
+ * demonstrate real promote/dismiss interaction states without ever calling the real Server
+ * Actions, which require a real session (`requirePageActorContext`) and would otherwise either
+ * throw against `/dev/ui-lab`'s unauthenticated context or misrepresent a fixture id as a
+ * persisted one. Omitted in production — the real actions are called directly, unchanged.
+ */
+export type AssistantCoachHypothesisActions = {
+  confirm: (hypothesisId: string, focus: string) => Promise<AssistantCoachHypothesisActionResult>;
+  dismiss: (hypothesisId: string) => Promise<AssistantCoachHypothesisActionResult>;
+};
+
 const MAX_FOCUS_LENGTH = 200;
 
 export function AssistantCoachHypothesisPanel({
   hypotheses,
+  actions,
 }: {
   hypotheses: AssistantCoachHypothesisViewModel[];
+  actions?: AssistantCoachHypothesisActions;
 }) {
   if (hypotheses.length === 0) return null;
 
@@ -63,13 +89,19 @@ export function AssistantCoachHypothesisPanel({
         Assistant Coach hypotheses
       </p>
       {hypotheses.map((hypothesis) => (
-        <HypothesisCard key={hypothesis.id} hypothesis={hypothesis} />
+        <HypothesisCard key={hypothesis.id} hypothesis={hypothesis} actions={actions} />
       ))}
     </div>
   );
 }
 
-function HypothesisCard({ hypothesis }: { hypothesis: AssistantCoachHypothesisViewModel }) {
+function HypothesisCard({
+  hypothesis,
+  actions,
+}: {
+  hypothesis: AssistantCoachHypothesisViewModel;
+  actions?: AssistantCoachHypothesisActions;
+}) {
   const orgSlug = useOrgSlug();
   const [isPending, startTransition] = useTransition();
   const [outcome, setOutcome] = useState<"promoted" | "dismissed" | null>(null);
@@ -80,7 +112,7 @@ function HypothesisCard({ hypothesis }: { hypothesis: AssistantCoachHypothesisVi
 
   return (
     <div className="rounded-[var(--tl-radius-widget)] border border-[var(--border-soft)] bg-[var(--tl-widget)] p-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <StatusPill size="sm" variant="development">
           Assistant Coach hypothesis
         </StatusPill>
@@ -108,13 +140,13 @@ function HypothesisCard({ hypothesis }: { hypothesis: AssistantCoachHypothesisVi
         </label>
         <input
           id={`assistant-coach-focus-${hypothesis.id}`}
-          className="rounded-md border border-[var(--border-soft)] bg-[var(--background)] px-2 py-1 text-sm text-[var(--foreground)]"
+          className="w-full min-w-0 rounded-md border border-[var(--border-soft)] bg-[var(--background)] px-2 py-1 text-sm text-[var(--foreground)]"
           value={focus}
           maxLength={MAX_FOCUS_LENGTH}
           onChange={(event) => setFocus(event.target.value)}
           placeholder="e.g. Composure receiving under pressure"
         />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <TouchlineButton
             variant="primary"
             size="sm"
@@ -122,7 +154,9 @@ function HypothesisCard({ hypothesis }: { hypothesis: AssistantCoachHypothesisVi
             onClick={() => {
               setError(null);
               startTransition(async () => {
-                const result = await confirmAssistantCoachHypothesisAction(orgSlug, hypothesis.id, focus);
+                const result = actions
+                  ? await actions.confirm(hypothesis.id, focus)
+                  : await confirmAssistantCoachHypothesisAction(orgSlug, hypothesis.id, focus);
                 if (result.success) setOutcome("promoted");
                 else setError(result.error);
               });
@@ -137,7 +171,9 @@ function HypothesisCard({ hypothesis }: { hypothesis: AssistantCoachHypothesisVi
             onClick={() => {
               setError(null);
               startTransition(async () => {
-                const result = await dismissAssistantCoachHypothesisAction(orgSlug, hypothesis.id);
+                const result = actions
+                  ? await actions.dismiss(hypothesis.id)
+                  : await dismissAssistantCoachHypothesisAction(orgSlug, hypothesis.id);
                 if (result.success) setOutcome("dismissed");
                 else setError(result.error);
               });

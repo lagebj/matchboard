@@ -2,6 +2,10 @@
  * Today context rail (ADR-0142 `02_PRODUCTION_COMPOSITION_CONTRACT.md` "Context-rail ordering").
  * Fixed order — Since your last visit, Squad today, Carry forward, Recent football — rendering
  * only sections with content. Low-priority context, never a second unrelated dashboard.
+ *
+ * `assistantCoach` (Gate C W3, register C07) is appended after that fixed four rather than
+ * inserted into it — it never reorders the documented ADR-0142 sequence, and renders nothing
+ * (`null`) in production today, since Today has no real Assistant Coach data loader yet.
  */
 
 import { TodaySinceLastVisit } from "@/components/touchline/today/today-since-last-visit";
@@ -19,6 +23,7 @@ export function TodayContextRail({
   squadStatusTitle,
   carryForwardItems,
   recentMatches,
+  assistantCoach,
 }: {
   sinceLastVisitScope?: string;
   sinceLastVisitFacts?: TodayVisitCurrentFacts;
@@ -29,6 +34,9 @@ export function TodayContextRail({
   squadStatusTitle?: string;
   carryForwardItems: TodayCarryForwardItem[];
   recentMatches?: MatchPresentation[];
+  /** Gate C W3 (register C07) — already resolved to a renderable node (or `null`) by the caller;
+   * this component only places it, never decides whether it renders. */
+  assistantCoach?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -46,6 +54,7 @@ export function TodayContextRail({
       )}
       <TodayCarryForwardWidget items={carryForwardItems} />
       {recentMatches && recentMatches.length > 0 && <RecentFootballWidget matches={recentMatches} />}
+      {assistantCoach}
     </div>
   );
 }

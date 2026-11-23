@@ -476,3 +476,137 @@ test.describe("Gate C W2 — responsive layout: no horizontal page overflow at a
     }
   }
 });
+
+/**
+ * Gate C W3 (register C07 "Today Assistant Coach fallback", C08-A/B/C "Today same-day quick
+ * add") — real Chromium assertions. C07 is fixture-driven only (Today has no real Assistant
+ * Coach data loader in production — see docs/ui-lab/gate-c-w3-candidates/BLOCKERS.md); these
+ * tests assert real rendered presentation, never a live AI call. C08-D/E have no route here —
+ * see the same BLOCKERS.md for why (`AddPlayerDialog` self-fetches via Server Actions and is
+ * evidenced by real-DB integration tests instead, not a UI Lab route).
+ */
+test.describe("Gate C W3 — C07: OFF/ON priority parity, no duplicate panels", () => {
+  test("OFF and ON render the identical primary decision — capability state never reorders it", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/off`);
+    await expect(page.getByText("Available and active, but not assigned to any match in Round 9.")).toBeVisible();
+    await expect(page.getByText(/assistant coach/i)).toHaveCount(0);
+
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    await expect(page.getByText("Available and active, but not assigned to any match in Round 9.")).toBeVisible();
+    await expect(page.getByText("Assistant Coach hypotheses")).toBeVisible();
+  });
+
+  test("ON renders exactly one Assistant Coach panel — no duplicate information panels", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    await expect(page.getByText("Assistant Coach hypotheses")).toHaveCount(1);
+  });
+
+  test("ON's promote/dismiss controls are real, keyboard-reachable buttons", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    const promote = page.getByRole("button", { name: /promote to development focus/i });
+    const dismiss = page.getByRole("button", { name: /^dismiss$/i });
+    await expect(promote).toBeVisible();
+    await expect(dismiss).toBeEnabled();
+    // Promote is correctly disabled until a development focus is recorded — never a fake-enabled
+    // control. Typing into the real focus field (not asserted as a fixture bypass) enables it.
+    await expect(promote).toBeDisabled();
+    await page.getByLabel("Development focus to record if promoted").fill("Composure under pressure");
+    await expect(promote).toBeEnabled();
+  });
+
+  test("ON discloses that Promote/Dismiss are simulated", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    await expect(page.getByText(/simulated: no Server Action is called/i)).toBeVisible();
+  });
+
+  // Next.js Server Actions are invoked as a same-URL POST carrying a `Next-Action` request
+  // header — the real confirmAssistantCoachHypothesisAction/dismissAssistantCoachHypothesisAction
+  // would appear here as exactly that. Filtering on this header specifically (not "any POST") is
+  // deliberate: the real page also fires unrelated POSTs the browser sends on its own (e.g. a CSP
+  // violation report to /api/csp-report) that have nothing to do with Server Actions — confirmed
+  // live in CI, where a blanket "zero POST requests" assertion false-failed on exactly those.
+  function collectServerActionRequests(page: import("@playwright/test").Page): string[] {
+    const requests: string[] = [];
+    page.on("request", (req) => {
+      if (req.method() === "POST" && req.headers()["next-action"]) requests.push(req.url());
+    });
+    return requests;
+  }
+
+  test("Promote produces a truthful simulated success, with no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    const requests = collectServerActionRequests(page);
+
+    await page.getByLabel("Development focus to record if promoted").fill("Composure under pressure");
+    await page.getByRole("button", { name: /promote to development focus/i }).click();
+    await expect(page.getByText(/Alex Dahl has received fewer match opportunities/)).toHaveCount(0);
+
+    // A fixture that merely LOOKS successful while quietly still calling the real action (which
+    // would fail against this unauthenticated route) is exactly what this proves did not happen.
+    expect(requests).toHaveLength(0);
+  });
+
+  test("Dismiss produces a truthful simulated success, with no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
+    const requests = collectServerActionRequests(page);
+
+    await page.getByRole("button", { name: /^dismiss$/i }).click();
+    await expect(page.getByText(/Alex Dahl has received fewer match opportunities/)).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+  });
+});
+
+test.describe("Gate C W3 — C08-A/B/C: same-day quick add, real recommendation shapes", () => {
+  test("planning-open shows the real one-click Add action", async ({ page }) => {
+    await page.goto(`${BASE}/c08-same-day-quick-add/planning-open`);
+    await expect(page.getByRole("button", { name: /Add Mia Berg to Blå vs Stoppen Juventus/i })).toBeVisible();
+  });
+
+  test("after-availability-change (tentative) withholds the one-click action, names the real reason, and still offers Round Board review", async ({ page }) => {
+    await page.goto(`${BASE}/c08-same-day-quick-add/after-availability-change`);
+    await expect(page.getByRole("button", { name: /Add Mia Berg/i })).toHaveCount(0);
+    await expect(page.getByText("Player availability is tentative — review before assigning.")).toBeVisible();
+    const link = page.getByRole("link", { name: /Review in Round Board/i });
+    await expect(link).toHaveAttribute("href", "/o/acme/rounds/round-c08-1");
+    await link.click();
+    await page.waitForURL(/\/signin/);
+  });
+
+  test("planning-closed offers no misleading action and still routes to the real auth boundary via Round Board", async ({ page }) => {
+    await page.goto(`${BASE}/c08-same-day-quick-add/planning-closed`);
+    await expect(page.getByRole("button", { name: /Add Mia Berg/i })).toHaveCount(0);
+    await expect(page.getByText("Review on the Round Board.")).toBeVisible();
+    const link = page.getByRole("link", { name: /Review in Round Board/i });
+    await link.click();
+    await page.waitForURL(/\/signin/);
+  });
+});
+
+test.describe("Gate C W3 — responsive layout: no horizontal page overflow at any required width", () => {
+  const SCENARIOS = [
+    "c07-assistant-coach-fallback/off",
+    "c07-assistant-coach-fallback/on",
+    "c07-assistant-coach-fallback/empty",
+    "c07-assistant-coach-fallback/error",
+    "c07-assistant-coach-fallback/stale",
+    "c08-same-day-quick-add/planning-open",
+    "c08-same-day-quick-add/after-availability-change",
+    "c08-same-day-quick-add/planning-closed",
+  ];
+  const WIDTHS = [320, 360, 390, 430, 768, 1440];
+
+  for (const scenario of SCENARIOS) {
+    for (const width of WIDTHS) {
+      test(`${scenario} @ ${width}px has no document-level horizontal overflow`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(`${BASE}/${scenario}`);
+        await page.locator("h1").first().waitFor({ state: "visible" });
+        const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          innerWidth: window.innerWidth,
+        }));
+        expect(scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      });
+    }
+  }
+});

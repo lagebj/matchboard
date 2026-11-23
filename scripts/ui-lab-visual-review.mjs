@@ -118,6 +118,16 @@ const gcW2ExtraSmokeViewports = [
   { name: "gc-430", width: 430, height: 900 },
 ];
 
+// Gate C W3 (C07 Assistant Coach fallback, C08 Today-side same-day quick add) — own named set,
+// same rationale. C08-D/E (guest, late arrival) are not registered here at all — they are not
+// `/dev/ui-lab` fixture routes (the real `AddPlayerDialog` self-fetches via Server Actions and
+// cannot be meaningfully fixture-mocked), so they are evidenced by authenticated Playwright
+// screenshots instead; see docs/ui-lab/gate-c-w3-candidates/VISUAL_VS_CURRENT.md.
+const gcW3ExtraSmokeViewports = [
+  { name: "gc-360", width: 360, height: 800 },
+  { name: "gc-430", width: 430, height: 900 },
+];
+
 // Gate B W5 (B08 information ownership) — same 360/430px smoke rationale as every prior Gate B
 // wave, plus 600/768/900px for AFTER and the two Report compositions specifically: these are the
 // three transition-sensitive/layout-dense B08 pages (tab rail + multi-widget Overview, or the
@@ -1057,6 +1067,55 @@ const scenarios = [
         },
       },
     ],
+  },
+  // Gate C W3 candidates (register C07, "Today — Assistant Coach contextual fallback") —
+  // CANDIDATE, not approved. Fixture-driven only, per the explicit authority-override disclosed
+  // in docs/ui-lab/gate-c-w3-candidates/SOURCE_RECONCILIATION.md — Today has no real Assistant
+  // Coach data loader in production. Registered from the first commit, per the same B5/R7 lesson
+  // every prior Gate C wave already applied.
+  {
+    slug: "gate-c-w3-c07-off",
+    route: "gate-c/c07-assistant-coach-fallback/off",
+    extraViewports: gcW3ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w3-c07-on",
+    route: "gate-c/c07-assistant-coach-fallback/on",
+    extraViewports: gcW3ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w3-c07-empty",
+    route: "gate-c/c07-assistant-coach-fallback/empty",
+    extraViewports: gcW3ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w3-c07-error",
+    route: "gate-c/c07-assistant-coach-fallback/error",
+    extraViewports: gcW3ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w3-c07-stale",
+    route: "gate-c/c07-assistant-coach-fallback/stale",
+    extraViewports: gcW3ExtraSmokeViewports,
+  },
+  // Gate C W3 candidates (register C08, "Round Board + Today — Same-day quick add"), Today-side
+  // only (A planning open / B after RSVP / C planning closed) — these three are fully prop-driven
+  // real `TodaySurface` fixtures, so they fit this capture pipeline. D (guest) and E (late
+  // arrival) do not: see the note on `gcW3ExtraSmokeViewports` above.
+  {
+    slug: "gate-c-w3-c08-planning-open",
+    route: "gate-c/c08-same-day-quick-add/planning-open",
+    extraViewports: gcW3ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w3-c08-after-availability-change",
+    route: "gate-c/c08-same-day-quick-add/after-availability-change",
+    extraViewports: gcW3ExtraSmokeViewports,
+  },
+  {
+    slug: "gate-c-w3-c08-planning-closed",
+    route: "gate-c/c08-same-day-quick-add/planning-closed",
+    extraViewports: gcW3ExtraSmokeViewports,
   },
 ];
 const viewports = [

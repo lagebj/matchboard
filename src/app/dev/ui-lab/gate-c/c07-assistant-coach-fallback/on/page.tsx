@@ -1,0 +1,39 @@
+import Link from "next/link";
+import { AppearanceControl } from "@/components/touchline";
+import { GateCW3TodayMount } from "../../w3-shared/today-mount";
+import { commandCentre, liveNow, projection, selectionDecisions, nowIso, assistantCoachContext } from "./fixtures";
+
+/**
+ * Gate C W3 — C07-ON, material contextual synthesis. A plain server component mounting the real,
+ * unmodified production `TodaySurface` with a deterministic Assistant Coach hypothesis. See
+ * `docs/ui-lab/gate-c-w3-candidates/` for the full review record and the disclosed production-
+ * integration gap — this fixture does not call a real Assistant Coach loader.
+ */
+export default function C07OnPage() {
+  return (
+    <div className="mx-auto max-w-[900px] px-4 py-8" data-ui-lab-ready="true">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <Link href="/dev/ui-lab/gate-c/c07-assistant-coach-fallback" className="text-[12px] text-[var(--text-muted)] hover:underline">
+          &larr; C07
+        </Link>
+        <AppearanceControl />
+      </div>
+      <h1 className="mb-1 text-[13px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+        C07-ON &middot; Material contextual synthesis
+      </h1>
+      <p className="mb-4 break-words text-[12px] text-[var(--text-muted)]">
+        Promote and Dismiss on this candidate are simulated: no Server Action is called, and no
+        player-development record is written.
+      </p>
+      <GateCW3TodayMount
+        commandCentre={commandCentre}
+        liveNow={liveNow}
+        projection={projection}
+        selectionDecisions={selectionDecisions}
+        assistantCoachContext={assistantCoachContext}
+        simulateAssistantCoachActions
+        nowIso={nowIso}
+      />
+    </div>
+  );
+}

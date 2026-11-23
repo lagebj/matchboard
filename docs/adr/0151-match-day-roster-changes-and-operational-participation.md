@@ -1,7 +1,23 @@
 # ADR-0151: Match-day roster changes and operational participation
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-09-23  
+
+**Status note (Gate C W3, register C08, 2026-11-22):** this ADR's document still said "Proposed"
+despite decisions 1-3 being fully implemented and live — `HelperProvenance`/
+`MatchHelperAssignment.provenance`, `addLeagueMatchGuestAction`'s `skipRoundRegistration`, and the
+3-path Match Details "Add player" action (`AddPlayerDialog`) all exist in production code.
+Confirmed shipped and flipped to Accepted as a same-branch documentation correction; no behavior
+changed by this status edit. Building C08 against these real components also surfaced and fixed
+one real gap decision 2 did not anticipate: the guest-add paths had no cancelled-match guard,
+unlike decision 1's real-Player path (`assertLeagueMatchHelperEligible()`) — see
+`league-match-guest-actions.ts`'s `requireMatchNotCancelled()`. A separate, larger gap — decision
+5's effective-roster/operational-participation model is not yet wired into the LIVE-reporting
+pre-match package (`getLiveMatchPreMatchPackageAction`), so a guest added via this ADR's paths is
+not yet selectable in live event recording — is disclosed, not fixed, in
+`docs/ui-lab/gate-c-w3-candidates/BLOCKERS.md` and filed as
+[issue #842](https://github.com/lagebj/matchboard/issues/842); it is a real client-wide capability
+addition, not a status-document correction.
 
 ## Context
 
