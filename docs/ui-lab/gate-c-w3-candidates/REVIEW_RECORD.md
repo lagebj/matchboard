@@ -218,10 +218,24 @@ of writing a more precise network assertion (finding 15) — not investigated fu
 unrelated to this PR's own changes and outside this remediation's scope; noted here only because
 it is the reason finding 15's original assertion needed correcting, not as a new disclosed gap.
 
+## Review pass 7 — final green CI run and committed attestation
+
+The CI run on the pass-6 commit (`20401088`, workflow run `45133382324`) completed fully green:
+`npm run build`, lint, typecheck, node/real-DB tests, policy verify, and the full Gate C
+Playwright suite (164/164, covering W1/W2/W3 together) all passed, and the capture job produced
+real evidence for all 80 Gate C W3 screenshots (8 scenarios × 5 viewports × 2 themes).
+
+`capture-attestation.json` is now committed, built from that real artifact: downloaded via
+`gh run download`, every one of its 80 Gate C W3 file hashes independently recomputed with
+`sha256sum` and cross-checked against the capture script's own self-reported per-file sha256 log
+lines — zero mismatches. `approvalStatus` is `"CANDIDATE"`; no approval is recorded, consistent
+with `candidate_manifest.json`'s `approval: null` on every scenario.
+
+The "Visual Authority Gate" status check on this commit correctly reports failure
+(`AWAITING_APPROVAL`) — this is the expected, routine pre-approval state (confirmed by
+independent review pass 4), not a defect; it clears once the owner posts `/visual-approve`.
+
 ## Not yet done
 
-- A final CI run reflecting this record's own latest commit, confirming passes 5-6's fixes, and
-  `capture-attestation.json` committed from that specific run (never fabricated locally, never
-  reused from an earlier, now-superseded run).
 - Owner `/visual-approve` or `/visual-reject`, and merge — neither ever performed by this agent,
   under any framing.

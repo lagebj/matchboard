@@ -18,9 +18,11 @@ when ON."
   (`e2e/ui-lab-gate-c.spec.ts`) pass, including explicit assertions that ON's Promote/Dismiss
   controls produce a truthful simulated success with zero real network requests fired (proving
   the real, session-requiring Server Actions are never invoked — see
-  `C07_PRODUCTION_INTEGRATION_GAP.md`'s remediation finding). CI capture evidence: pending the
-  final CI run of this remediation — `capture-attestation.json` is committed only from a real
-  completed run, in a follow-up commit, never fabricated locally.
+  `C07_PRODUCTION_INTEGRATION_GAP.md`'s remediation finding). CI capture evidence: real, committed
+  — `capture-attestation.json` is built from the first fully green CI run
+  (`ui-lab-review-45133382324-1`, commit `20401088`), with every one of its 80 Gate C W3 hashes
+  independently re-verified against the real downloaded files (`sha256sum`), not copied from the
+  workflow's own self-report.
 - **Deviation from register:** none — the register's own viewport/theme requirement (desktop +
   mobile) is exceeded, not merely met.
 - **Owner-review readiness:** CANDIDATE, pending owner `/visual-approve`.
@@ -44,9 +46,9 @@ action, existing validation, accurate consequence."
   end-to-end against the real Server Action — but no authenticated browser journey connects the
   two. `C08_OPERATIONAL_ACCEPTANCE.md` marks every one of these PARTIAL, not PASS, for exactly
   this reason.
-- **Owner-review readiness:** CANDIDATE, pending CI capture + owner `/visual-approve`. A visual
-  approval of these 3 fixtures would be an approval of their *display*, not of the real quick-add
-  operational workflow.
+- **Owner-review readiness:** CANDIDATE, CI capture complete (`capture-attestation.json`),
+  pending owner `/visual-approve`. A visual approval of these 3 fixtures would be an approval of
+  their *display*, not of the real quick-add operational workflow.
 
 ## C08-D/E — no fixture route, no CI visual-review evidence, no browser-level evidence
 
@@ -71,5 +73,7 @@ Per `BLOCKERS.md`, `AddPlayerDialog` cannot be meaningfully fixture-mounted, so 
 ## Regression assessment
 
 Full pre-existing Gate C/Today test suite (22 component test files / 105 tests before this wave;
-176 files / 1129 tests across the whole component suite after) passes unmodified. Full node
-(real-DB) test suite passes. `npm run typecheck` and `npm run lint` are clean (no new warnings).
+176 files / 1133 tests across the whole component suite after this wave's final commit) passes
+unmodified. Full node (real-DB) test suite passes. `npm run typecheck` and `npm run lint` are
+clean (no new warnings). CI's full Gate C Playwright suite (covering W1/W2/W3 together) passed
+164/164 on the final capture run (`ui-lab-review-45133382324-1`).
