@@ -1117,6 +1117,34 @@ const scenarios = [
     route: "gate-c/c08-same-day-quick-add/planning-closed",
     extraViewports: gcW3ExtraSmokeViewports,
   },
+  // Gate D W1 (D01 Overview position evidence, D02 Evidence position-dot consolidation, D04
+  // Matches minute coverage) — CANDIDATE, not approved. Fixture-driven only. Registered from the
+  // first commit, per the same B5/R7 lesson every prior gate's wave already applied. See
+  // docs/ui-lab/gate-d-w1-candidates/SOURCE_RECONCILIATION.md and WAVE_SCOPE.md for scope.
+  {
+    slug: "gate-d-w1-d01-agreeing-positions",
+    route: "gate-d/d01-overview-position-evidence/agreeing-positions",
+  },
+  {
+    slug: "gate-d-w1-d01-diverging-positions",
+    route: "gate-d/d01-overview-position-evidence/diverging-positions",
+  },
+  {
+    slug: "gate-d-w1-d02-populated-evidence",
+    route: "gate-d/d02-evidence-dot-consolidation/populated-evidence",
+  },
+  {
+    slug: "gate-d-w1-d02-sparse-evidence",
+    route: "gate-d/d02-evidence-dot-consolidation/sparse-evidence",
+  },
+  {
+    slug: "gate-d-w1-d04-full-coverage",
+    route: "gate-d/d04-matches-coverage/full-coverage",
+  },
+  {
+    slug: "gate-d-w1-d04-partial-coverage",
+    route: "gate-d/d04-matches-coverage/partial-coverage",
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },

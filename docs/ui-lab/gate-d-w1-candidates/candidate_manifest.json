@@ -1,0 +1,137 @@
+{
+  "programmeRevision": "0.169.15",
+  "baseCommitSha": "43af5f186a2f7888b987cda532cfa4b9db41e5aa",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-d/. Not a production implementation, not an authorization, not a security proof. Scope and authority sources: docs/ui-lab/gate-d-w1-candidates/SOURCE_RECONCILIATION.md.",
+  "note": "Gate D W1 — D01 (Player Detail Overview, position evidence), D02 (Player Detail Evidence, position-dot consolidation), D04 (Player Detail Matches, minute coverage). D03/D06 (Assistant Coach cross-source hypothesis) deferred to Wave 2. D07/D08/D09 (mutation/approval review) deferred, blocked by an unresolved authority conflict: ADR-0139 auto-promotes a player's primary position with no coach approval step, which contradicts the Gate D source contract's (04_ASSISTANT_COACH_AND_PLAYER_MUTATIONS.md) requirement of explicit coach approval for primary-position changes — see SOURCE_RECONCILIATION.md §4. A second authority conflict was discovered during D01's implementation and is disclosed in VISUAL_VS_CURRENT.md: the register's D01/D08 acceptance question assumes a 14-role profile vocabulary distinct from the 24-sided tactical vocabulary, but ADR-0154 (Accepted) deliberately unified declaration, tactical slots, and evidence into one 24-code vocabulary — no second vocabulary exists to avoid conflating. D01's candidates therefore demonstrate the real distinction that exists (provenance + support-band/confidence) rather than the one the register assumes; this needs owner resolution before any wave can claim D01/D08 fully satisfied against the register as written. No production code was changed. scripts/ui-lab-visual-review.mjs was edited to register the six new routes for CI capture (consistent with every prior gate's wave, though outside this pass's strict directory scope — see CHANGED_FILES.md). capture-attestation.json is not yet included; it requires a real CI capture run. All candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved.",
+  "candidates": [
+    {
+      "scenarioId": "GATE-D-W1-D01-AGREEING",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d01-agreeing-positions",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/player/player-current-story-card.tsx",
+        "src/components/touchline/player/player-position-map-widget.tsx",
+        "src/components/touchline/pitch/touchline-position-map.tsx",
+        "src/components/players/player-position-profile.tsx",
+        "src/app/dev/ui-lab/gate-d/shared/player-position-profile-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/d01-overview-position-evidence/agreeing-positions/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D01", "XR-P01", "XR-P04", "XR-V01"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D01-AGREEING",
+      "dataContractRef": "docs/adr/0154-canonical-tactical-position-model.md; docs/adr/0157-contextual-coach-workspace-convergence.md (slice C5)",
+      "baselineAssetRef": "No new production code — display-only fixture of already-shipped, unmodified components.",
+      "knownGaps": [
+        "The register's acceptance question assumes a 14-role profile vocabulary distinct from the 24-sided tactical vocabulary; no such second vocabulary exists in production (ADR-0154 unified them). See VISUAL_VS_CURRENT.md.",
+        "The position editor's save action is simulated (disclosed on-page) — no Server Action is called, no player record is written."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D01-DIVERGING",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d01-diverging-positions",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/player/player-current-story-card.tsx",
+        "src/components/touchline/player/player-position-map-widget.tsx",
+        "src/components/touchline/pitch/touchline-position-map.tsx",
+        "src/components/players/player-position-profile.tsx",
+        "src/app/dev/ui-lab/gate-d/shared/player-position-profile-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/d01-overview-position-evidence/diverging-positions/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D01", "XR-P01", "XR-P04", "XR-V01"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D01-DIVERGING",
+      "dataContractRef": "docs/adr/0154-canonical-tactical-position-model.md; docs/adr/0139 (automatic position-profile evolution); docs/adr/0157-contextual-coach-workspace-convergence.md (slice C5)",
+      "baselineAssetRef": "No new production code — display-only fixture of already-shipped, unmodified components.",
+      "knownGaps": [
+        "Same vocabulary-assumption mismatch as GATE-D-W1-D01-AGREEING — see VISUAL_VS_CURRENT.md.",
+        "The position editor's save action is simulated (disclosed on-page) — no Server Action is called, no player record is written."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D02-POPULATED",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d02-populated-evidence",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/lib/touchline/presentation/player-evidence-view-model.ts",
+        "src/components/touchline/evidence/evidence-story.tsx",
+        "src/components/touchline/viz/sparkline.tsx",
+        "src/components/touchline/viz/stacked-distribution.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/evidence-groups.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/populated-evidence/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D02", "XR-P03", "XR-A03"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D02-POPULATED",
+      "dataContractRef": "docs/adr/0155 step B6 (DerivedTrend); docs/adr/0157-contextual-coach-workspace-convergence.md (slice C5)",
+      "baselineAssetRef": "No new production code — display-only fixture of already-shipped, unmodified components.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D02-SPARSE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d02-sparse-evidence",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/lib/touchline/presentation/player-evidence-view-model.ts",
+        "src/components/touchline/evidence/evidence-story.tsx",
+        "src/components/touchline/viz/stacked-distribution.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/evidence-groups.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/sparse-evidence/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D02", "XR-P03", "XR-A03"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D02-SPARSE",
+      "dataContractRef": "docs/adr/0155 step B6 (DerivedTrend); docs/adr/0157-contextual-coach-workspace-convergence.md (slice C5)",
+      "baselineAssetRef": "No new production code — display-only fixture of already-shipped, unmodified components.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D04-FULL",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d04-full-coverage",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/player/player-match-timeline.tsx",
+        "src/app/dev/ui-lab/gate-d/d04-matches-coverage/full-coverage/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D04"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D04-FULL",
+      "dataContractRef": "04_PLAYER_DETAIL_CONTRACT.md §5 (Matches tab)",
+      "baselineAssetRef": "No new production code — display-only fixture of an already-shipped, unmodified component.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D04-PARTIAL",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d04-partial-coverage",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/player/player-match-timeline.tsx",
+        "src/app/dev/ui-lab/gate-d/d04-matches-coverage/partial-coverage/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": ["D04"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D04-PARTIAL",
+      "dataContractRef": "04_PLAYER_DETAIL_CONTRACT.md §5 (Matches tab)",
+      "baselineAssetRef": "No new production code — display-only fixture of an already-shipped, unmodified component.",
+      "knownGaps": [],
+      "approval": null
+    }
+  ]
+}
