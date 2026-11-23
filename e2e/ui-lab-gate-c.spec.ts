@@ -504,11 +504,13 @@ test.describe("Gate C W3 — C07: OFF/ON priority parity, no duplicate panels", 
   test("ON's promote/dismiss controls are real, keyboard-reachable buttons", async ({ page }) => {
     await page.goto(`${BASE}/c07-assistant-coach-fallback/on`);
     const promote = page.getByRole("button", { name: /promote to development focus/i });
+    const dismiss = page.getByRole("button", { name: /^dismiss$/i });
     await expect(promote).toBeVisible();
-    await page.keyboard.press("Tab");
-    // Focus order reaches the real interactive controls somewhere on the page — not asserting a
-    // specific tab-stop count (that would couple this test to unrelated page chrome), only that
-    // the control is a real, focusable button, not inert text pretending to be one.
+    await expect(dismiss).toBeEnabled();
+    // Promote is correctly disabled until a development focus is recorded — never a fake-enabled
+    // control. Typing into the real focus field (not asserted as a fixture bypass) enables it.
+    await expect(promote).toBeDisabled();
+    await page.getByLabel("Development focus to record if promoted").fill("Composure under pressure");
     await expect(promote).toBeEnabled();
   });
 });

@@ -12,6 +12,9 @@
   helper.
 - `src/app/(app)/matches/league-match-guest-actions.ts` — added `requireMatchNotCancelled()` (real
   defect fix, register C08-D).
+- `src/components/ai/assistant-coach-hypothesis-panel.tsx` — added `w-full min-w-0` to the
+  development-focus `<input>` (real pre-existing layout defect, found by CI's real-browser
+  Playwright run at 320px, see `REVIEW_RECORD.md` pass 2).
 - `docs/adr/0151-match-day-roster-changes-and-operational-participation.md` — status corrected
   from "Proposed" to "Accepted"; status note recording the correction and the disclosed gap.
 

@@ -108,7 +108,7 @@ function HypothesisCard({ hypothesis }: { hypothesis: AssistantCoachHypothesisVi
         </label>
         <input
           id={`assistant-coach-focus-${hypothesis.id}`}
-          className="rounded-md border border-[var(--border-soft)] bg-[var(--background)] px-2 py-1 text-sm text-[var(--foreground)]"
+          className="w-full min-w-0 rounded-md border border-[var(--border-soft)] bg-[var(--background)] px-2 py-1 text-sm text-[var(--foreground)]"
           value={focus}
           maxLength={MAX_FOCUS_LENGTH}
           onChange={(event) => setFocus(event.target.value)}

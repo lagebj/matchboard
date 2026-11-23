@@ -42,6 +42,30 @@ Findings from this self-review pass, in the order discovered:
    current behavior so the gap cannot silently regress further or be silently "fixed" by accident
    without the test flipping to alert whoever does fix it.
 
+## Review pass 2 — real CI (PR #843's first run)
+
+CI genuinely independently caught two findings this agent's own local verification could not —
+Playwright against a real browser (`next dev` build, not jsdom) in CI, where this devcontainer's
+own HMR/hydration limitation blocks running Playwright locally (see memory note
+`project_devcontainer_hmr_websocket_blocks_playwright`):
+
+6. **Real defect: `AssistantCoachHypothesisPanel`'s development-focus `<input>` has no width
+   constraint.** Inside a flex column, a plain `<input>` keeps its browser-default intrinsic
+   width and refuses to shrink below it, overflowing a 320px viewport by 21px
+   (`c07-assistant-coach-fallback/on @ 320px`). Pre-existing in production code (this component
+   already ships on Player Detail) — never triggered before because this wave is the first to
+   mount it inside a narrow (320px) context-rail column. **Fixed**: `w-full min-w-0` added to the
+   input's className.
+7. **Test defect (this agent's own new Playwright test): asserted the Promote button as enabled
+   without ever recording a development focus.** The button is correctly disabled until the real
+   focus `<input>` has text — the test's own assumption was wrong, not the production behavior.
+   **Fixed**: the test now types into the real field first, and additionally asserts the
+   pre-fill disabled state explicitly (stronger than the original intent).
+
+Both fixes verified locally (full component suite, 176 files / 1129 tests, clean;
+`npm run typecheck`/`lint` clean) and pushed in a follow-up commit; awaiting the next CI run for
+final confirmation, since Playwright itself cannot be run locally in this environment.
+
 ## Verification run (this branch, after all fixes above)
 
 - `npm run typecheck` — clean.
