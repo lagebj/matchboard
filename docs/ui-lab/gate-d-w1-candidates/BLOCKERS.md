@@ -171,12 +171,15 @@ implementation pass, but without it CI's capture job has no route to screenshot 
 situation every prior gate's wave (including Gate C W3) resolved the same way. Reviewed and
 accepted as consistent with established precedent; not a new pattern.
 
-## 6. No capture-attestation.json yet
+## 6. `capture-attestation.json` — DONE (2026-11-24)
 
-`capture-attestation.json` requires a real CI capture run against this branch's pushed commit.
-It does not exist yet and must not be fabricated. It will be added once this PR's "Capture
-fixture-backed UI Lab views" CI job completes successfully, following the same byte/sha256
-verification discipline as Gate C W3.
+Added after a real CI "Capture fixture-backed UI Lab views" run against commit `1069fdb3e` (the
+branch tip after the self-discovered D01-DIVERGING fix in §8 above). All 78 screenshots
+independently downloaded via `gh run download`, every SHA-256 recomputed directly from the
+downloaded bytes, and cross-checked against the capture script's own self-reported per-file
+sha256 log line — zero mismatches, zero missing files. The Gate D Playwright suite (86 tests)
+also passed in full on this exact CI run. Two prior capture runs (pre-remediation and
+post-remediation-but-pre-self-discovered-fix) are superseded, not reused.
 
 ## 7. No visual approval has been assumed
 
