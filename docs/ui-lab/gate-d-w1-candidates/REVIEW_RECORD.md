@@ -77,18 +77,62 @@ implementer, and no shared context with the first review either) against this ex
 
 `READY_FOR_OWNER_REVIEW`
 
-## What remains outside this review's scope
+## Third independent review — post-remediation, against the owner's 10-question brief (2026-11-24)
 
-- `capture-attestation.json` — requires a real CI "Capture fixture-backed UI Lab views" run against
-  the pushed branch HEAD (now covering all 11 candidates), not yet performed as of this review.
-  Will be added once CI completes and screenshot hashes are independently verified against the
-  actual artifact bytes.
-- Visual/design approval — not performed, not assumed, not requested from either review. The owner
-  reviews the real CI captures once available and posts `/visual-approve` or `/visual-reject`
-  themselves; no coding agent does this.
-- The two authority conflicts from the first review are now resolved **as decisions** (ADR-0160),
-  not yet as production implementation. D07/D08's actual review/approval UI, persistence, and the
-  14-role projection module remain required future work — this review confirms that distinction is
-  honestly disclosed throughout the package, not that the capability itself now exists.
-- D07's manual-edit/lock + attribute-level-rebase state (ADR-0160 §5) remains explicitly deferred,
-  not built in this wave (`BLOCKERS.md` §4).
+The product owner found five acceptance-fidelity defects in the then-pushed implementation (see
+`BLOCKERS.md` §8 for the full account): D01 disclosed rather than demonstrated the approved
+14-role experience; D02 showed exact shares instead of profile-level consolidation; D07's
+cumulative-materiality fixture violated ADR-0160 §4's own math; D08's "conflicting" note actually
+supported the proposal; D09's coverage was partial. All five were fixed, a dedicated 86-test Gate D
+Playwright suite was added, and — found independently during this session's own screenshot
+inspection, not in the owner's brief — a sixth, self-discovered defect (D01-DIVERGING's
+`currentStory` headline contradicting its own "no automatic mutation" disclosure) was also fixed.
+
+A third independent review (fresh agent, no shared context with the implementer or either prior
+review) was performed against the owner's exact 10-question verification brief.
+
+### The 10 questions and their independent answers
+
+| # | Question | Independent finding |
+|---|---|---|
+| 1 | Does D01 now show the approved 14-role profile experience? | Confirmed — `ProfileRoleSummary` genuinely uses the real, pre-existing (PR #777) `collapseTacticalToProfile`; the self-discovered `currentStory` fix verified correct, no remaining contradiction. |
+| 2 | Does D02 genuinely consolidate without double counting? | Confirmed by manual arithmetic and test inspection — CB 58+25=83, CDM→DM 17, both levels sum to 100, asserted by real tests not render-only checks. |
+| 3 | Does D07 enforce correct cumulative-threshold semantics? | Confirmed — baseline 6/applied 7/proposed 8 verified against ADR-0160 §4's text and `materiality-policy.ts`'s actual function output, computed independently. |
+| 4 | Does D07 cover manual-edit precedence truthfully? | Confirmed — attribute-level rebase, independent unrelated-attribute progression, lock/unlock; `prisma/schema.prisma` grepped directly, confirmed no fabricated schema. |
+| 5 | Does D08-CONFLICT contain genuine contradiction? | Confirmed via the reviewer's own independent football-domain judgment, not a restatement of the fix claim. |
+| 6 | Does D09 preserve provenance and distinguish active/superseded? | Confirmed — `supersededAt` and `validateExtractionSemantics` traced to their real call sites and real schema; the disclosed source-text gap verified true by schema grep. |
+| 7 | Are all simulated actions disclosed? | Confirmed — every interactive surface has on-page + code-comment disclosure; every handler inspected directly, none calls a real Server Action. |
+| 8 | Do real browser tests demonstrate the interactions? | Confirmed by actually running the suite locally against a real dev server: 86/86 passed. |
+| 9 | Does Visual Authority evidence correspond to the final commit? | Confirmed — `reviewedBranchHeadSha` matches the branch tip at the time of attestation; 78 entries = 13×6 verified; the one-commit-ahead relationship (attestation commit itself isn't screenshotted) correctly understood as the expected pattern, not staleness. |
+| 10 | Does the package distinguish implemented vs. missing-in-production honestly? | Confirmed — `VISUAL_VS_CURRENT.md`'s classification table checked for internal consistency and cross-checked against `BLOCKERS.md`; no overclaim found. |
+
+### Validation (independently re-run)
+
+`npm run typecheck` (clean), `npm run lint` (clean, 3 pre-existing unrelated warnings),
+`npx vitest run gate-d` (14 files/27 tests), `npm run test:components -- --run gate-d` (14
+files/64 tests), full `npm run test:components` (190 files/1197 tests), and
+`npx playwright test --project=ui-lab-gate-d` against a locally started dev server (86/86 passed)
+— every number matched the documentation's own claims exactly, no discrepancy found anywhere.
+
+### Findings
+
+- **BLOCKING**: none. **MAJOR**: none.
+- **MINOR**: one — `SCENARIO_REGISTER.md`'s per-scenario viewport columns listed only "desktop,
+  mobile" when the real capture script and attestation both also capture a third, universal
+  `narrow` (320×720) viewport (6 captures per scenario, not 4) — a pre-existing, repo-wide
+  convention this doc simply hadn't mentioned. **Fixed** in this package (all 13 scenario rows and
+  their prose now name `narrow` explicitly).
+
+### Third reviewer's overall verdict
+
+`READY_FOR_OWNER_REVIEW`
+
+## What remains outside every review's scope
+
+- Visual/design approval — not performed, not assumed, not requested from any review. The owner
+  reviews the real CI captures and posts `/visual-approve` or `/visual-reject` themselves; no
+  coding agent does this.
+- ADR-0160's policy is a decision, not yet a production implementation. D07/D08's actual
+  review/approval UI, persistence, and the 14-role projection module remain required future work —
+  `VISUAL_VS_CURRENT.md`'s acceptance-classification table and all three reviews confirm this
+  distinction is honestly disclosed throughout, not that the capability itself now exists.
