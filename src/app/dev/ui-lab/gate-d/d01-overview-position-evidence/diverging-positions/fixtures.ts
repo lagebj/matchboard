@@ -17,8 +17,8 @@ import { playerPositionOptions, optionalPlayerPositionOptions } from "@/lib/play
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-D-W1-D01-DIVERGING",
   fixtureId: "gate-d-w1-d01-diverging-positions",
-  fixtureVersion: 2,
-  fixtureSha256: "fd0b4d60cbc11b77c5f98f26ababef555fa5531644f8938ac22b52d9f2e6a0f2",
+  fixtureVersion: 3,
+  fixtureSha256: "e98b2cf0295c0268a621273f455b297881975b93f93e8788f0c926bd0680fd10",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: "2026-11-23T09:00:00.000Z",
   viewerTimeZone: "Europe/Oslo",
@@ -41,9 +41,20 @@ export const effectivePositions: TouchlinePositionMapEntry[] = [
   { positionCode: "RWB", positionLabel: "Right Wing Back", rank: 3, supportBand: "LIMITED", confidence: "LOW" },
 ];
 
+/**
+ * Deliberately NOT a `POSITION_EVOLUTION`-sourced story here (found and fixed during this
+ * remediation's own screenshot inspection): the real `selectPlayerCurrentStory()`
+ * (`player-current-story.ts`) only emits that source/headline shape when
+ * `input.positionEvolution` is populated, which in today's production reality (pre-ADR-0160)
+ * means ADR-0139's automatic write has *already happened* — the headline literally narrates a
+ * completed mutation. Pairing that headline with a still-`CB` `player.primaryPosition` and this
+ * candidate's own "no automatic primary-position mutation occurs" disclosure would be internally
+ * contradictory on the same page. An `OPPORTUNITY`-sourced headline (same source the sibling
+ * `agreeing-positions` fixture uses) makes no claim about the primary position at all.
+ */
 export const currentStory: PlayerCurrentStory = {
-  text: "Recorded primary position updated to Right Back based on recent match evidence (previously Centre Back).",
-  source: "POSITION_EVOLUTION",
+  text: "Recent opportunities have been consistent: 4 of 5 eligible rounds.",
+  source: "OPPORTUNITY",
 };
 
 /** The exact raw record `identity.fixtureSha256` is a hash of — tests recompute, never copy. */

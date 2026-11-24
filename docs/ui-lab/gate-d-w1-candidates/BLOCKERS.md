@@ -140,6 +140,20 @@ scenario), a new `capture-attestation.json` from that run, a dedicated Gate D Pl
 a second independent review specifically against the remediation brief's 10 verification
 questions.
 
+**Self-discovered sixth defect, found during capture-screenshot inspection (2026-11-24, not in the
+owner's original remediation brief):** `GATE-D-W1-D01-DIVERGING`'s `currentStory` fixture used the
+real production `POSITION_EVOLUTION`-sourced headline ("Recorded primary position updated to Right
+Back... (previously Centre Back)") — but that exact copy, in `selectPlayerCurrentStory()`, is only
+ever emitted when a position change has *already been applied* (today's pre-ADR-0160 production
+reality). Pairing it with `player.primaryPosition: "CB"` (still declared) and the new
+`ProfileRoleSummary`'s own "no automatic primary-position mutation occurs" disclosure produced a
+visibly self-contradictory screenshot — caught only by actually looking at the rendered capture,
+not by any test. Fixed by switching the fixture to an `OPPORTUNITY`-sourced headline (matching the
+sibling `agreeing-positions` fixture's own convention), which makes no claim about the primary
+position at all. `fixtureVersion` bumped 2→3; `fixtureSha256` recomputed. This is exactly the kind
+of defect §10 of the remediation brief asked us to catch by inspecting actual screenshots rather
+than trusting that files exist.
+
 ## 9. Browser-level (Playwright) coverage was missing
 
 The original wave had component tests and a successful CI capture, but no dedicated

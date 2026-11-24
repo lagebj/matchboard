@@ -227,6 +227,18 @@ None, same as every prior pass. No schema, service, or `src/app/(app)/**` file t
 - No new `capture-attestation.json` is produced by this remediation pass alone — a fresh CI capture
   run against the remediation commit is still required (see `BLOCKERS.md`).
 
+### Self-discovered fix (2026-11-24, during capture-screenshot inspection)
+
+- `d01-overview-position-evidence/diverging-positions/fixtures.ts` — `currentStory` changed from a
+  real production `POSITION_EVOLUTION`-sourced headline (which only applies after a position
+  change has already been written, contradicting this candidate's own "no automatic mutation"
+  disclosure) to an `OPPORTUNITY`-sourced one making no claim about the primary position.
+  `fixtureVersion` 2→3, `fixtureSha256` recomputed.
+- `d01-overview-position-evidence/diverging-positions/__tests__/page.test.tsx` — updated assertion
+  to match, plus a negative assertion that the old contradictory headline no longer renders.
+- Not in the owner's remediation brief — found only by looking at the actual CI-captured
+  screenshot, exactly the kind of check §10 asked for.
+
 ### Cleanup pass (remediation)
 
 `npm run typecheck` (clean), `npm run lint` (clean — same 3 pre-existing unrelated warnings),

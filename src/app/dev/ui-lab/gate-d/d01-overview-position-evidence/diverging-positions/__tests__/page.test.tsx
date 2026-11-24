@@ -13,13 +13,10 @@ function renderPage() {
 }
 
 describe("Gate D W1 — D01 diverging positions", () => {
-  it("renders the position-evolution current-story headline, naming both the previous and new position", () => {
+  it("renders a current-story headline that makes no claim about the primary position having already changed (fixed 2026-11-24 — the prior POSITION_EVOLUTION-sourced headline contradicted this page's own 'no automatic mutation' disclosure)", () => {
     renderPage();
-    expect(
-      screen.getByText(
-        "Recorded primary position updated to Right Back based on recent match evidence (previously Centre Back).",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Recent opportunities have been consistent: 4 of 5 eligible rounds.")).toBeInTheDocument();
+    expect(screen.queryByText(/Recorded primary position updated/)).not.toBeInTheDocument();
   });
 
   it("declared primary (Centre Back) still renders even though evidence now favours a different position — the declaration is never silently overwritten by evidence", () => {

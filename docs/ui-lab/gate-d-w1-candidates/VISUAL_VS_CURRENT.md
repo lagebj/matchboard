@@ -30,6 +30,15 @@ and an exact-tactical drill-down. `GATE-D-W1-D01-AGREEING` shows both profile ro
 statement that no automatic primary-position mutation occurs. `fixtureVersion` bumped to 2 on
 both (rendering changed; underlying fixture data and `fixtureSha256` did not).
 
+**Self-discovered fix (2026-11-24, found during screenshot inspection)**: `GATE-D-W1-D01-DIVERGING`'s
+`currentStory` fixture originally used real production's `POSITION_EVOLUTION`-sourced headline
+("Recorded primary position updated to Right Back... (previously Centre Back)") — copy that
+production only emits once a position change has *already* been written. Shown next to the new
+"no automatic mutation occurs" disclosure, the rendered page visibly contradicted itself. Fixed to
+an `OPPORTUNITY`-sourced headline (the same source the sibling `agreeing-positions` fixture uses),
+which makes no claim about the primary position. `fixtureVersion` bumped 2→3; `fixtureSha256`
+recomputed.
+
 ## D02 — Player Detail Evidence, position-dot consolidation
 
 **Already in production, unmodified**: `buildPlayerEvidenceViewModel`, `EvidenceStory`,
