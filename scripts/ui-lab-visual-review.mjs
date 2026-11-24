@@ -1156,6 +1156,12 @@ const scenarios = [
     slug: "gate-d-w1-d07-pending-material-approval",
     route: "gate-d/d07-attribute-evolution-review/pending-material-approval",
   },
+  // 2026-11-24 remediation: the previously-deferred manual-edit/attribute-level-rebase state
+  // (ADR-0160 §5), added per the owner's remediation brief.
+  {
+    slug: "gate-d-w1-d07-manual-edit-rebase",
+    route: "gate-d/d07-attribute-evolution-review/manual-edit-rebase",
+  },
   {
     slug: "gate-d-w1-d08-strong-evidence",
     route: "gate-d/d08-primary-position-proposal/strong-evidence",
@@ -1167,6 +1173,13 @@ const scenarios = [
   {
     slug: "gate-d-w1-d09-superseded-lineage",
     route: "gate-d/d09-evidence-lineage/superseded-lineage",
+  },
+  // 2026-11-24 remediation: the real validateExtractionSemantics rejection behavior (an
+  // unresolvable player reference discards the whole extraction, never a kept-but-ambiguous
+  // observation) — added per the owner's remediation brief's D09 coverage requirement.
+  {
+    slug: "gate-d-w1-d09-ambiguous-reference-rejected",
+    route: "gate-d/d09-evidence-lineage/ambiguous-reference-rejected",
   },
 ];
 const viewports = [

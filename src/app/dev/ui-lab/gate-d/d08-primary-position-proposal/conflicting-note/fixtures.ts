@@ -2,18 +2,21 @@ import type { FixtureIdentity } from "@/app/dev/ui-lab/gate-a/shared/fixture-ide
 import type { PositionProposal } from "../shared/position-proposal-review";
 
 /**
- * Gate D register D08, conflicting-note state: the evidence engine identifies real-back (`RB`)
- * support overtaking the declared right-wing-back (`RWB`) primary, but a recorded coach
- * observation raises a qualitative concern the deterministic engine cannot see. ADR-0160 §1
- * requires the coach to review evidence and confidence before deciding — a conflicting note does
- * not block the proposal from being shown, it is additional context for the coach's own
- * judgment, never a reason to auto-suppress or auto-apply either way.
+ * Gate D register D08, conflicting-note state (corrected 2026-11-24 — the prior version's note
+ * actually supported the proposal instead of conflicting with it, failing to demonstrate a
+ * genuine evidence conflict). The evidence engine identifies real-back (`RB`) support overtaking
+ * the declared right-wing-back (`RWB`) primary from quantitative match data, but a specific coach
+ * observation raises real doubt about whether `RB` is actually the right fit — a recurring
+ * defensive concern directly relevant to the proposed role, not a restatement of the same
+ * conclusion. ADR-0160 §1 requires the coach to review evidence and confidence before deciding —
+ * a conflicting note does not block the proposal from being shown, and the system does not
+ * silently resolve the conflict in either direction; it is the coach's own judgment call.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-D-W1-D08-CONFLICT",
   fixtureId: "gate-d-w1-d08-conflicting-note",
-  fixtureVersion: 1,
-  fixtureSha256: "2174a68750e2d0a4ea678074750c5ab9cf8247b7aea007145ccd915fb2587976",
+  fixtureVersion: 2,
+  fixtureSha256: "1cf7c624b7b2900c9223571e15e44b9d31913a3c4366883a6fb900b69d81c4e1",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: "2026-11-23T09:00:00.000Z",
   viewerTimeZone: "Europe/Oslo",
@@ -30,7 +33,7 @@ export const proposal: PositionProposal = {
     "Confidence is lower than the strong-evidence example — fewer qualifying matches",
   ],
   conflictingNote:
-    "Coach observation, 7 Nov: \"Less comfortable overlapping as a wing-back lately — seems to prefer staying tucked in, but that could be match-specific instruction rather than a real preference.\"",
+    "Coach observation, 7 Nov: \"Beaten in behind twice defending 1v1 in the right-back channel this match — struggled to track the runner once pulled inside. Worth watching before trusting RB as his best fit.\"",
 };
 
 /** The exact raw record `identity.fixtureSha256` is a hash of — tests recompute, never copy. */

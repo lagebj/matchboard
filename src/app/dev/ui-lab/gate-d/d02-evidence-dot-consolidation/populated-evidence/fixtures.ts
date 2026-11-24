@@ -4,16 +4,18 @@ import type { PlayerEvidenceStoryData } from "@/lib/touchline/presentation/playe
 /**
  * Gate D register D02 ("Player Detail / Evidence — profile-level dot consolidation without
  * losing exact sided drill-down or double-counting"). Populated state: all four groups have
- * real, established evidence. The `POSITION` story's `positionShares` is the real consolidation
- * mechanism already in production (`StackedDistribution` over the exact sided codes,
- * `EvidenceStory`'s `sample` line keeping the match count visible) — each exact code keeps its
- * own named share (never merged into a single anonymous "defender" bucket) and the shares sum to
- * 100, so nothing is double-counted.
+ * real, established evidence. The `POSITION` story's exact `positionShares` (CB 58% / RCB 25% /
+ * CDM 17%) now render through `ConsolidatedPositionEvidence` (remediation, 2026-11-24): a real
+ * 24-to-14 profile-level aggregation (CB 83% / DM 17%, via `collapseTacticalToProfile`) as the
+ * primary view, with the exact breakdown kept accessible as a drill-down — not the exact-only
+ * view this fixture originally shipped with, which did not satisfy D02's actual "profile-level
+ * consolidation" acceptance question (it showed exact codes only). See
+ * `shared/consolidated-position-evidence.tsx` for the data-truth disclosure on `positionShares`.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-D-W1-D02-POPULATED",
   fixtureId: "gate-d-w1-d02-populated-evidence",
-  fixtureVersion: 1,
+  fixtureVersion: 2,
   fixtureSha256: "7e7b17701e86c1336b0797be6ee51bcd48e47b9bb5809a496e8cefc393a6efa2",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: "2026-11-23T09:00:00.000Z",

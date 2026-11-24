@@ -46,4 +46,22 @@ describe("Gate D W1 — D01 agreeing positions", () => {
     renderPage();
     expect(screen.getByText(/simulated: no Server Action is called/i)).toBeInTheDocument();
   });
+
+  it("demonstrates the approved 14-role profile experience (ADR-0160 §6), with declared and evidence-derived profile roles agreeing", () => {
+    renderPage();
+    expect(screen.getByText("Player-profile role (directional)")).toBeInTheDocument();
+    expect(screen.getByText("Declared and evidence-derived profile roles agree.")).toBeInTheDocument();
+    // Declared "CB" and derived "CB" both appear as profile-level labels, distinct from the
+    // real production mount's exact-code rendering above.
+    expect(screen.getByText(/Declared:/).closest("span")).toHaveTextContent("CB");
+    expect(screen.getByText(/Evidence-derived:/).closest("span")).toHaveTextContent("CB");
+  });
+
+  it("keeps the exact tactical evidence accessible via drill-down, not merged away", () => {
+    renderPage();
+    const details = screen.getByText("Exact tactical evidence").closest("details");
+    expect(details).not.toBeNull();
+    expect(details).toHaveTextContent("RCB");
+    expect(details).toHaveTextContent("CDM");
+  });
 });

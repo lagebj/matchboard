@@ -23,9 +23,9 @@ export default function D09SupersededLineagePage() {
       </h1>
       <p className="mb-4 text-[12px] text-[var(--text-muted)]">
         Exposes real supersession machinery (ADR-0152) that no production UI currently surfaces to
-        a coach.
+        a coach. Edit and Retract below are simulated.
       </p>
-      <EvidenceLineageDisplay entries={entries} />
+      <EvidenceLineageDisplay entries={entries} interactive />
     </div>
   );
 }

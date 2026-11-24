@@ -25,8 +25,11 @@ describe("Gate D W1 — D02 populated evidence", () => {
   it("consolidates the Position story's exact sided codes into one profile-level visual without losing them or double-counting", () => {
     renderPage();
     expect(screen.getByText("Centre Back is the dominant actual position")).toBeInTheDocument();
-    // Each exact code keeps its own named share in the legend; nothing is merged into an
-    // anonymous bucket, and the shares sum to 100 — no double-counting.
+    // Primary view: profile-level consolidation (CB = CB+RCB = 58+25, DM = CDM = 17).
+    expect(screen.getByText("CB 83%")).toBeInTheDocument();
+    expect(screen.getByText("DM 17%")).toBeInTheDocument();
+    // Exact breakdown remains accessible via the drill-down — not removed, not duplicated into
+    // the profile-level total (profile shares above already sum to 100 on their own).
     expect(screen.getByText("CB 58%")).toBeInTheDocument();
     expect(screen.getByText("RCB 25%")).toBeInTheDocument();
     expect(screen.getByText("CDM 17%")).toBeInTheDocument();

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Surface } from "@/components/ui/surface";
 import { SectionHeader } from "@/components/ui/section-header";
+import { cumulativeDelta, requiresCoachApproval, APPROVAL_CUMULATIVE_TRIGGER } from "./materiality-policy";
 
 /**
  * Directional design candidate for ADR-0160 §4's "coach approval mandatory when the proposed
@@ -14,6 +15,13 @@ import { SectionHeader } from "@/components/ui/section-header";
  * policy, not a mount of an existing production component — unlike `AssessmentHistoryDisplay`,
  * which mirrors a real one. See `VISUAL_VS_CURRENT.md` and `BLOCKERS.md` for the disclosure.
  *
+ * `currentAppliedValue` and `proposedValue` are deliberately separate fields — the proposal is
+ * NOT yet applied. A prior version of this fixture collapsed three individually-eligible
+ * one-point automatic steps (6→7→8→9) into a single pending proposal of 9, which contradicted
+ * ADR-0160 §4's own math (cumulative movement crosses the two-point approval trigger at the
+ * *second* step, not the third) — corrected 2026-11-24. See `materiality-policy.ts` for the one
+ * shared, independently-tested threshold calculation this component and its fixtures both use.
+ *
  * Accept/reject are simulated: no Server Action is called, no `AssessmentChange` row is written.
  */
 export type MaterialApprovalProposal = {
@@ -21,8 +29,10 @@ export type MaterialApprovalProposal = {
   attributeLabel: string;
   baselineValue: number;
   baselineSource: "COACH_ESTABLISHED" | "COACH_APPROVED";
+  /** The last value actually applied automatically — real, already written, not pending. */
+  currentAppliedValue: number;
+  /** The new candidate value awaiting a coach decision — NOT yet applied. */
   proposedValue: number;
-  cumulativeAutomaticDelta: number;
   matchCount: number;
   confidence: number;
   evidenceSummary: string[];
@@ -30,6 +40,10 @@ export type MaterialApprovalProposal = {
 
 export function MaterialApprovalReview({ proposal }: { proposal: MaterialApprovalProposal }) {
   const [decision, setDecision] = useState<"PENDING" | "ACCEPTED" | "REJECTED">("PENDING");
+
+  const appliedDelta = cumulativeDelta(proposal.baselineValue, proposal.currentAppliedValue);
+  const cumulativeIfAccepted = cumulativeDelta(proposal.baselineValue, proposal.proposedValue);
+  const approvalRequired = requiresCoachApproval(proposal.baselineValue, proposal.proposedValue);
 
   const simulatedAccept = async () => {
     setDecision("ACCEPTED");
@@ -43,12 +57,36 @@ export function MaterialApprovalReview({ proposal }: { proposal: MaterialApprova
       <div className="p-4">
         <SectionHeader
           title={`${proposal.attributeLabel} — approval required`}
-          description={`Proposed change moves ${proposal.cumulativeAutomaticDelta >= 0 ? "+" : ""}${proposal.cumulativeAutomaticDelta} points from the last coach-established baseline (ADR-0160 §4: ≥2 cumulative points requires explicit approval).`}
+          description={`Accepting this proposal would move ${cumulativeIfAccepted >= 0 ? "+" : ""}${cumulativeIfAccepted} points from the coach-established baseline — ADR-0160 §4 requires explicit approval once cumulative movement reaches ${APPROVAL_CUMULATIVE_TRIGGER} or more points.`}
         />
+        <dl className="mt-3 grid grid-cols-3 gap-2 text-xs text-[var(--text-muted)]">
+          <div>
+            <dt className="uppercase tracking-wide">Baseline</dt>
+            <dd className="font-mono text-sm text-[var(--foreground)]" data-testid="baseline-value">
+              {proposal.baselineValue}
+            </dd>
+          </div>
+          <div>
+            <dt className="uppercase tracking-wide">Current (applied)</dt>
+            <dd className="font-mono text-sm text-[var(--foreground)]" data-testid="current-applied-value">
+              {proposal.currentAppliedValue}
+            </dd>
+          </div>
+          <div>
+            <dt className="uppercase tracking-wide">Proposed (pending)</dt>
+            <dd className="font-mono text-sm text-[var(--foreground)]" data-testid="proposed-value">
+              {proposal.proposedValue}
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
+          Already applied automatically: {appliedDelta >= 0 ? "+" : ""}
+          {appliedDelta} from baseline (within the one-point automatic cap). This pending proposal
+          would bring cumulative movement to {cumulativeIfAccepted >= 0 ? "+" : ""}
+          {cumulativeIfAccepted}, {approvalRequired ? "crossing" : "staying under"} the
+          {` ${APPROVAL_CUMULATIVE_TRIGGER}`}-point approval trigger.
+        </p>
         <div className="mt-3 flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-          <span className="font-mono">
-            {proposal.baselineValue} → {proposal.proposedValue}
-          </span>
           <span className="text-xs text-[var(--text-muted)]">
             {proposal.matchCount} matches · confidence {proposal.confidence.toFixed(2)}
           </span>
@@ -73,7 +111,9 @@ export function MaterialApprovalReview({ proposal }: { proposal: MaterialApprova
           </div>
         ) : (
           <p className="mt-4 text-sm font-medium" data-testid="decision-result">
-            {decision === "ACCEPTED" ? "Accepted (simulated — no record written)." : "Rejected (simulated — no record written)."}
+            {decision === "ACCEPTED"
+              ? `Accepted (simulated — would apply ${proposal.proposedValue} as the new current value; no record written).`
+              : `Rejected (simulated — current value remains ${proposal.currentAppliedValue}; no record written).`}
           </p>
         )}
         <p className="mt-3 text-[11px] text-[var(--text-muted)]">

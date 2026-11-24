@@ -25,6 +25,12 @@ supports §4.4 of the mission brief.
 
 ### D01 — Player Detail / Overview
 
+> **Update, 2026-11-24 (remediation)**: an owner review found that disclosing the mismatch below
+> was not sufficient — the candidate must demonstrate the approved 14-role profile experience
+> (ADR-0160 §6, adopted 2026-11-23), not only the real 24-code production mount. Corrected:
+> `ProfileRoleSummary` now shows declared/evidence-derived profile roles directly, reusing the
+> real `collapseTacticalToProfile()`. See `VISUAL_VS_CURRENT.md` and `DATA_TRUTH_AND_FIXTURES.md`.
+
 `buildPlayerOverviewViewModel` (`src/lib/touchline/presentation/player-overview-view-model.ts`)
 combines participation, opportunity, pre-resolved `effectivePositions`, active development
 focus, latest observation, recent matches, and a `currentStory` selector attributed in code to
@@ -43,6 +49,15 @@ vocabulary, declared vs. evidence-derived distinguished by provenance and suppor
 mismatch explicitly disclosed rather than papered over.
 
 ### D02 — Player Detail / Evidence
+
+> **Update, 2026-11-24 (remediation)**: an owner review found the POSITION story's exact-sided
+> breakdown was not profile-level consolidation. Deeper investigation found production's real
+> `buildEvidenceStories()` never populates `positionShares` at all — the claim below that
+> production evidence here is `ALREADY_IMPLEMENTED_AND_VERIFIED` is corrected: the trend/
+> confidence/provenance semantics remain verified, but the POSITION share breakdown specifically
+> was a real-rendering-path-but-unpopulated slot, not a verified populated example. Corrected:
+> added a real 24-to-14 consolidation (`consolidateExactSharesByProfile`) as the primary view,
+> exact breakdown as drill-down. See `VISUAL_VS_CURRENT.md` and `DATA_TRUTH_AND_FIXTURES.md`.
 
 `buildPlayerEvidenceViewModel` (`src/lib/touchline/presentation/player-evidence-view-model.ts`)
 groups stories into `OPPORTUNITY | POSITION | MATCH_CONTEXT | TREND`. Verified directly in this
@@ -101,6 +116,14 @@ way.
 > **Update, 2026-11-23**: the policy question below is resolved by ADR-0160 (owner decision).
 > Reclassified to `MISSING_PRODUCTION_CAPABILITY`: the decided policy's review/approval UI and
 > persistence do not exist in production yet. See `WAVE_SCOPE.md`'s Wave 1 extension.
+>
+> **Update, 2026-11-24 (remediation)**: the implemented `GATE-D-W1-D07-MATERIAL` candidate was
+> found to contradict ADR-0160 §4's own cumulative-materiality math and has been corrected (see
+> `DATA_TRUTH_AND_FIXTURES.md` and `VISUAL_VS_CURRENT.md`). The manual-edit/lock + attribute-
+> level-rebase state (§5), previously deferred, is now implemented as `GATE-D-W1-D07-REBASE`.
+> D07's classification remains `MISSING_PRODUCTION_CAPABILITY` for the real review/approval and
+> per-attribute rebase machinery — only the UI Lab candidate's own fidelity to the decided policy
+> was corrected, not the production gap itself.
 
 **Original classification (preserved): `BLOCKED_BY_POLICY_OR_AUTHORITY`.** This scenario's acceptance question
 ("threshold-based, source-linked review; audit; undo when authorised") requires a believable
@@ -116,6 +139,13 @@ authorized surface (`02_AUTHORITY_SCOPE_AND_APPROVALS.md`). Deferred, not implem
 > Reclassified to `MISSING_PRODUCTION_CAPABILITY`: the decided policy's proposal/review UI,
 > persistence, and the 14-role profile-projection function do not exist in production yet. See
 > `WAVE_SCOPE.md`'s Wave 1 extension.
+>
+> **Correction, 2026-11-24**: the implemented `GATE-D-W1-D08-CONFLICT` fixture initially did not
+> satisfy its own acceptance intent — its "conflicting" coach note actually agreed with the
+> proposed role rather than contradicting it. Corrected to a genuinely contrary observation; see
+> `VISUAL_VS_CURRENT.md` and `DATA_TRUTH_AND_FIXTURES.md`. This is a defect in the candidate's
+> fixture content, not a further classification change — `MISSING_PRODUCTION_CAPABILITY` above
+> still stands for the review/approval interaction itself.
 
 **Original classification (preserved): `BLOCKED_BY_POLICY_OR_AUTHORITY`, on two independent grounds.** The scenario's
 acceptance question requires "coach approval; no exact-history write" (the ADR-0139 conflict,
@@ -133,6 +163,16 @@ both are present. Deferred, not implemented, not silently reinterpreted to match
 > `IMPLEMENTED_WITH_PRESENTATION_GAP`**: the supersession/provenance data model is real; what's
 > unverified is whether a production UI already surfaces that lineage to a coach, which is what
 > D09's candidate (see `WAVE_SCOPE.md`'s Wave 1 extension) now investigates and demonstrates.
+>
+> **Expansion, 2026-11-24**: the original candidate covered only explicit/tentative/superseded.
+> Expanded with interactive Edit/Retract (reproducing the real resubmission/retraction mechanism
+> locally) and a new scenario for the real ambiguous-reference-rejection behavior (zero
+> observations, not a kept-but-ambiguous one). One disclosed gap remains:
+> `IMPLEMENTED_WITH_PRESENTATION_GAP` still applies, but specifically for "does a production UI
+> surface this" — the real schema also has no field for the original raw submitted text (only
+> each observation's structured `statement`), so full byte-identical source-wording preservation
+> cannot be demonstrated from real data as it exists today; this is now explicit rather than
+> implied.
 
 **Original classification (preserved): `PARTIALLY_IMPLEMENTED`, with a secondary
 `BLOCKED_BY_POLICY_OR_AUTHORITY` dependency** — this coupling to D07/D08 is now known to be

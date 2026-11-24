@@ -8,7 +8,8 @@ import { AppearanceControl } from "@/components/touchline";
  * `shared/evidence-lineage-display.tsx` for the disclosure.
  */
 const STATES = [
-  { href: "/dev/ui-lab/gate-d/d09-evidence-lineage/superseded-lineage", id: "LINEAGE", title: "Original, superseded, and active versions" },
+  { href: "/dev/ui-lab/gate-d/d09-evidence-lineage/superseded-lineage", id: "LINEAGE", title: "Original, superseded, and active versions (interactive Edit/Retract)" },
+  { href: "/dev/ui-lab/gate-d/d09-evidence-lineage/ambiguous-reference-rejected", id: "AMBIGUOUS", title: "Ambiguous reference — rejected, zero observations" },
 ];
 
 export default function D09IndexPage() {

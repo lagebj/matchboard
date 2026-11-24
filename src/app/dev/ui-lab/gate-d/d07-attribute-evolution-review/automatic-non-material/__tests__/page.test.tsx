@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
+import { isAutomaticallyEligibleByDistance } from "../../shared/materiality-policy";
 
 const { default: D07AutomaticNonMaterialPage } = await import("../page");
 
@@ -28,5 +29,9 @@ describe("Gate D W1 extension — D07 automatic non-material change", () => {
     renderPage();
     expect(screen.getByText("passing")).toBeInTheDocument();
     expect(screen.getByText(/4 matches, confidence 0.82/)).toBeInTheDocument();
+  });
+
+  it("the 6→7 step is within ADR-0160 §4's automatic distance bounds, by the same pure check the D07-MATERIAL state uses to decide it is NOT automatic (contrast case)", () => {
+    expect(isAutomaticallyEligibleByDistance(6, 6, 7)).toBe(true);
   });
 });

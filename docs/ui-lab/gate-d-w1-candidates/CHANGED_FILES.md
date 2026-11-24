@@ -124,12 +124,115 @@ None, same as above. ADR-0160 explicitly forbids schema/service changes in this 
   built in this pass — it would have required a third fixture/component pair without adding much
   beyond what the automatic/material pair already demonstrates about materiality policy, and the
   wave was already substantial. Recorded as deferred in `BLOCKERS.md`, not silently dropped.
+  **Superseded by the 2026-11-24 remediation below** — this state was built after all.
 - `AssessmentHistoryPanel`'s internal `fetch()` made it unmountable as fixture-driven props
   directly; resolved by mirroring its rendering contract (`AssessmentHistoryDisplay`), consistent
   with D02's established `EvidenceGroups` precedent rather than inventing a new strategy.
 - D08/D07's review/approval surfaces are genuinely new design (no production equivalent) and are
   explicitly labeled "directional" throughout, following Gate A's own precedent for the same
   situation, rather than being presented as if they were real-component mounts like D01/D02/D04.
+
+---
+
+## Remediation (2026-11-24): owner review findings
+
+An owner review of the pushed PR found five acceptance-fidelity defects (two P1, two P2, plus
+browser-test and capture-evidence gaps). Fixed across three parallel, file-disjoint passes.
+
+### Production code
+
+None, same as every prior pass. No schema, service, or `src/app/(app)/**` file touched.
+
+### UI Lab — D01/D02 (profile-level presentation)
+
+- `src/app/dev/ui-lab/gate-d/d01-overview-position-evidence/shared/profile-role-summary.tsx` —
+  new. Directional `ProfileRoleSummary`, reuses `collapseTacticalToProfile`. Mounted alongside
+  (not replacing) the existing real 24-code production components.
+- `d01-overview-position-evidence/{agreeing-positions,diverging-positions}/{fixtures.ts,page.tsx,__tests__/page.test.tsx}`
+  — updated: `fixtureVersion` 1→2, `ProfileRoleSummary` mounted, new assertions.
+- `src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/position-profile-consolidation.ts`
+  — new. Real `consolidateExactSharesByProfile()`, the actual 24-to-14 aggregation D02 required.
+- `src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/consolidated-position-evidence.tsx`
+  — new. Two-level presentation (profile-level primary, exact-level `<details>` drill-down).
+- `src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/__tests__/profile-consolidation.test.tsx`
+  — new, 7 tests (mapping correctness, both totals=100%, no duplication, sparse/single-code edge,
+  absent-vs-recorded-zero, drill-down accessibility).
+- `d02-evidence-dot-consolidation/shared/evidence-groups.tsx`,
+  `{populated-evidence,sparse-evidence}/fixtures.ts` — updated: `fixtureVersion` 1→2, POSITION
+  group now routes through the new consolidation.
+
+### UI Lab — D07 (materiality math, manual-edit/rebase state)
+
+- `d07-attribute-evolution-review/pending-material-approval/fixtures.ts` — corrected: baseline 6 /
+  current-applied 7 / proposed 8 (was baseline 6 / proposed 9, three uncontrolled automatic steps).
+  `fixtureVersion` 1→2.
+- `d07-attribute-evolution-review/shared/material-approval-review.tsx` — updated: the proposal type
+  now separates `currentAppliedValue` from `proposedValue` explicitly, so a pending proposal can
+  never be misread as already applied.
+- `d07-attribute-evolution-review/shared/materiality-policy.ts` — new. Pure, independently-tested
+  module (`cumulativeDelta`, `requiresCoachApproval`, `isAutomaticallyEligibleByDistance`,
+  `canResumeAutomationAfterManualEdit`) backing both D07 states' numbers with real test coverage
+  instead of inspection alone.
+- `d07-attribute-evolution-review/shared/__tests__/materiality-policy.test.ts` — new.
+- `d07-attribute-evolution-review/shared/attribute-rebase-panel.tsx` — new. Directional state
+  machine for ADR-0160 §5 (the previously-deferred manual-edit/lock/attribute-rebase state).
+- `d07-attribute-evolution-review/manual-edit-rebase/{fixtures.ts,page.tsx,__tests__/*}` — new.
+- `d07-attribute-evolution-review/{automatic-non-material,pending-material-approval}/__tests__/page.test.tsx`,
+  `page.tsx` (D07 index) — updated for the corrected values and new state link.
+
+### UI Lab — D08 (genuine conflict fixture)
+
+- `d08-primary-position-proposal/conflicting-note/fixtures.ts` — corrected: the coach note now
+  reports a recurring defensive concern directly relevant to the proposed role, instead of
+  restating support for it. `fixtureVersion` 1→2.
+
+### UI Lab — D09 (full lineage coverage)
+
+- `d09-evidence-lineage/shared/evidence-lineage-display.tsx` — updated: added simulated,
+  interactive Edit/Retract (reproducing `recordDeterministicExtraction()`'s real resubmission/
+  retraction semantics locally — edit supersedes-and-adds, retract supersedes-with-nothing-added).
+- `d09-evidence-lineage/superseded-lineage/page.tsx`, `__tests__/page.test.tsx` — updated with
+  Edit/Retract assertions.
+- `d09-evidence-lineage/shared/rejected-extraction-display.tsx` — new. Demonstrates the real
+  `validateExtractionSemantics` rejection behavior.
+- `d09-evidence-lineage/ambiguous-reference-rejected/{fixtures.ts,page.tsx,__tests__/*}` — new.
+- `d09-evidence-lineage/page.tsx` — updated, new route link.
+
+### CI tooling
+
+- `scripts/ui-lab-visual-review.mjs` — 2 new route registrations (`gate-d-w1-d07-manual-edit-rebase`,
+  `gate-d-w1-d09-ambiguous-reference-rejected`), batched centrally after all three remediation
+  passes landed, same established pattern.
+
+### Documentation
+
+- D01/D02/D07/D08/D09 sections of `SCENARIO_REGISTER.md`, `DATA_TRUTH_AND_FIXTURES.md`,
+  `VISUAL_VS_CURRENT.md`, `INTERACTION_AND_STATE_AUDIT.md`, `CURRENT_STATE_AUDIT.md`, `WAVE_SCOPE.md`
+  — extended with dated 2026-11-24 remediation notes; original findings preserved, not rewritten.
+- `VISUAL_VS_CURRENT.md` — new "Acceptance classification" section (PASS/PARTIAL/BLOCKED/FAIL per
+  scenario, design/production/operational distinguished, per the owner's remediation brief §11).
+- `candidate_manifest.json` — `fixtureVersion` bumped for every corrected fixture (D01×2, D02×2,
+  D07-MATERIAL, D08-CONFLICT); two new entries (`GATE-D-W1-D07-REBASE`, `GATE-D-W1-D09-AMBIGUOUS`);
+  `knownGaps` updated per scenario; top-level `note` extended. 13 candidates total.
+- `BLOCKERS.md`, `REVIEW_RECORD.md`, this file — updated centrally after the three remediation
+  passes (see below / their own files).
+
+### Judgment calls
+
+- D09: a dedicated byte-identical "original source text" field does not exist in the real schema;
+  this was disclosed as a gap rather than fabricated (see `DATA_TRUTH_AND_FIXTURES.md`).
+  "Source-wording preservation" is demonstrated at the structured-observation-statement level.
+- D09: a separate standalone "retraction" scenario was considered and rejected as redundant with
+  `GATE-D-W1-D09-LINEAGE`'s own interactive Retract control.
+- No new `capture-attestation.json` is produced by this remediation pass alone — a fresh CI capture
+  run against the remediation commit is still required (see `BLOCKERS.md`).
+
+### Cleanup pass (remediation)
+
+`npm run typecheck` (clean), `npm run lint` (clean — same 3 pre-existing unrelated warnings),
+`npx vitest run gate-d` (default config: 14 files / 27 tests), `npm run test:components -- --run gate-d`
+(14 files / 64 tests — 91 Gate D tests total), full `npm run test:components` (190 files / 1197
+tests passing, no regressions — up from 187/1171).
 
 ### Cleanup pass (extension)
 

@@ -94,13 +94,59 @@ real supersession machinery already in production (`qualitative-evidence-service
 `supersededAt` marking on resubmission — ADR-0152's governed-learning loop), D09 is added to this
 wave's scope as a candidate exposing that existing lineage, not a new supersession model.
 
-- **D07's manual-edit/lock + attribute-level-rebase state** (ADR-0160 §5) is explicitly deferred
-  out of this wave, not built hastily. This wave's two D07 candidates (automatic-non-material,
-  pending-material-approval) cover the materiality threshold (§4); the attribute-level rebase
-  mechanic (§5) — including the real schema gap it depends on
-  (`Player.evidenceCutoverAt` is player-wide today, not per attribute) — is left for whichever
-  wave takes up the actual implementation work, since fixturing it truthfully would mean
-  presenting a schema shape that doesn't exist yet as if it were a settled detail.
+- **D07's manual-edit/lock + attribute-level-rebase state** (ADR-0160 §5) was deferred as of
+  2026-11-23. **Update, 2026-11-24**: built after all, per the owner's remediation brief, as
+  `GATE-D-W1-D07-REBASE` — a directional state machine (no real schema; the real
+  `Player.evidenceCutoverAt`-is-player-wide gap is disclosed, not fabricated into a fictional
+  per-attribute column).
+
+## 8. Remediation (2026-11-24): five acceptance-fidelity defects found and fixed
+
+An owner review of the pushed PR (commit `77385c745`) found specific defects in the implemented
+candidates, not in the overall approach. All five are fixed; none required relaxing an acceptance
+contract. See `VISUAL_VS_CURRENT.md`'s "Acceptance classification" table for the full
+design/production/operational breakdown per scenario.
+
+1. **D01 disclosed a mismatch instead of demonstrating the approved experience.** The original
+   candidates mounted the real 24-code production components and disclosed that the 14-role tier
+   doesn't exist in production — true, but insufficient: D01's acceptance question requires
+   *demonstrating* the approved 14-role experience, not just disclosing its absence. Fixed by
+   adding a directional `ProfileRoleSummary` alongside the unmodified production mount.
+2. **D02 showed exact shares, not profile-level consolidation.** The original fixture displayed
+   CB 58% / RCB 25% / CDM 17% — a valid exact breakdown, but not the profile-level aggregation
+   (CB 83% / DM 17%) D02's own name and acceptance question require. Fixed with a real, tested
+   24-to-14 aggregation, keeping the exact breakdown accessible via drill-down. Also surfaced a
+   deeper finding in the process: production's real `buildEvidenceStories()` never populates
+   `positionShares` with any data at all — recorded in `VISUAL_VS_CURRENT.md`, not previously known.
+3. **D07's material-approval fixture violated ADR-0160 §4's own math.** Three automatic one-point
+   steps (6→7→8→9) reached +3 cumulative before requiring approval; the policy requires approval
+   at +2. Fixed: baseline 6 → current-applied 7 (the one legitimate automatic step) → proposed 8
+   (correctly pending approval at +2 cumulative), backed by a new independently-tested
+   `materiality-policy.ts` module.
+4. **D08's "conflicting" note didn't conflict.** The note ("prefers staying tucked in") actually
+   supported the proposed `RWB→RB` move. Fixed with a note raising a genuine, position-relevant
+   defensive concern that creates real tension with the proposal.
+5. **D09's coverage was partial.** Added simulated Edit/Retract interactions and a new
+   `GATE-D-W1-D09-AMBIGUOUS` scenario demonstrating the real `validateExtractionSemantics`
+   rejection rule (an unresolvable player reference discards the whole extraction, never a
+   kept-but-ambiguous observation). One gap remains genuinely disclosed, not fabricated: the real
+   schema has no field for the original raw submitted source text, only each observation's
+   structured `statement` — "source-wording preservation" is demonstrated at that level, not as a
+   byte-identical original-submission record.
+
+**Still required, not yet done** (see §6, §9, §10 below): a fresh CI capture run against the
+remediation commit (the prior capture, from commit `77385c745`, is now stale for every corrected
+scenario), a new `capture-attestation.json` from that run, a dedicated Gate D Playwright suite, and
+a second independent review specifically against the remediation brief's 10 verification
+questions.
+
+## 9. Browser-level (Playwright) coverage was missing
+
+The original wave had component tests and a successful CI capture, but no dedicated
+Playwright/browser-level assertions for any Gate D interaction (simulated accept/reject/defer/
+edit/retract, `next-action` header absence, responsive overflow). Required by the owner's
+remediation brief §8; being added as part of this remediation pass — see `CHANGED_FILES.md` for
+the exact new spec file once it lands.
 
 ## 5. Scope deviation — `scripts/ui-lab-visual-review.mjs`
 

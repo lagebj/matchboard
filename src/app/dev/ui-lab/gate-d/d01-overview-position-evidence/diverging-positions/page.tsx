@@ -1,14 +1,19 @@
 import Link from "next/link";
+import type { CanonicalTacticalPosition } from "@/domain/positions/roles";
 import { AppearanceControl } from "@/components/touchline";
 import { PlayerCurrentStoryCard } from "@/components/touchline/player/player-current-story-card";
 import { PlayerPositionMapWidget } from "@/components/touchline/player/player-position-map-widget";
 import { PlayerPositionProfileMount } from "../../shared/player-position-profile-mount";
+import { ProfileRoleSummary } from "../shared/profile-role-summary";
 import { player, positionOptions, optionalPositionOptions, effectivePositions, currentStory } from "./fixtures";
 
 /**
  * Gate D W1 — D01, declared and evidence-derived positions diverge. See the sibling
- * `agreeing-positions/page.tsx` for the shared mount notes and the disclosed
- * vocabulary-assumption mismatch (`docs/ui-lab/gate-d-w1-candidates/VISUAL_VS_CURRENT.md`).
+ * `agreeing-positions/page.tsx` for the shared mount notes. `ProfileRoleSummary` (remediation,
+ * 2026-11-24) demonstrates the approved 14-role profile experience with declared profile `CB`
+ * diverging from the evidence-derived profile `RB` — the two differ at the profile level, not
+ * only at the exact tactical-code level, and the summary explicitly states no automatic
+ * primary-position mutation occurs.
  */
 export default function D01DivergingPositionsPage() {
   return (
@@ -30,6 +35,7 @@ export default function D01DivergingPositionsPage() {
         <PlayerCurrentStoryCard story={currentStory} />
         <PlayerPositionMapWidget positions={effectivePositions} />
         <PlayerPositionProfileMount player={player} positionOptions={positionOptions} optionalPositionOptions={optionalPositionOptions} />
+        <ProfileRoleSummary declaredTactical={player.primaryPosition as CanonicalTacticalPosition} effectivePositions={effectivePositions} />
       </div>
     </div>
   );

@@ -2,18 +2,24 @@ import type { FixtureIdentity } from "@/app/dev/ui-lab/gate-a/shared/fixture-ide
 import type { MaterialApprovalProposal } from "../shared/material-approval-review";
 
 /**
- * Gate D register D07, material-approval state: three prior automatic one-point increases
- * (6→7→8→9, each individually within ADR-0160 §4's per-proposal cap) have accumulated to +3 from
- * the last coach-established baseline of 6 — crossing the ≥2 cumulative-point approval trigger.
- * ADR-0160 §4 is explicit that materiality considers cumulative drift, not only the current
- * proposal's own capped delta, so this state requires explicit coach approval even though no
- * single proposal in the chain exceeded one point.
+ * Gate D register D07, material-approval state (corrected 2026-11-24 — the prior version showed
+ * three automatic one-point increases, 6→7→8→9, reaching a pending proposal of 9 before
+ * requiring approval. That contradicted ADR-0160 §4's own math: cumulative movement from baseline
+ * crosses the two-point approval trigger at the *second* step, not the third, so a third
+ * automatic step to 9 could never have legitimately happened).
+ *
+ * Corrected state: baseline 6 (coach-established). One automatic one-point increase legitimately
+ * applied (6→7 — within the automatic cap, confidence/match-count eligible). The evidence engine
+ * now proposes a further one-point step, 7→8 — individually within the per-proposal cap, but
+ * cumulative movement from baseline (6→8 = +2) crosses ADR-0160 §4's two-point approval trigger,
+ * so this step requires explicit coach approval rather than applying automatically. 8 is NOT yet
+ * applied; 7 remains the real current value until the coach decides.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-D-W1-D07-MATERIAL",
   fixtureId: "gate-d-w1-d07-pending-material-approval",
-  fixtureVersion: 1,
-  fixtureSha256: "0274d0a223af818241c655630f89ef0f3a0ca1c1a79969aa8947daaeba855567",
+  fixtureVersion: 2,
+  fixtureSha256: "521dca006f2e7371489cf295ef1ff05f3f4b7cdef61c0c57fbd02886ea09dcfe",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: "2026-11-23T09:00:00.000Z",
   viewerTimeZone: "Europe/Oslo",
@@ -25,15 +31,15 @@ export const proposal: MaterialApprovalProposal = {
   attributeLabel: "Positioning",
   baselineValue: 6,
   baselineSource: "COACH_ESTABLISHED",
-  proposedValue: 9,
-  cumulativeAutomaticDelta: 3,
-  matchCount: 9,
-  confidence: 0.88,
+  currentAppliedValue: 7,
+  proposedValue: 8,
+  matchCount: 3,
+  confidence: 0.79,
   evidenceSummary: [
-    "+1 point after match vs. Askim IF (3 matches, confidence 0.74)",
-    "+1 point after match vs. Mysen IL (3 matches, confidence 0.79)",
-    "+1 point after match vs. Trøgstad/Båstad (3 matches, confidence 0.88)",
-    "Cumulative change since baseline: +3 points — exceeds the 2-point approval trigger (ADR-0160 §4)",
+    "Baseline 6 established by the coach.",
+    "+1 point applied automatically after 3 matches (confidence 0.74) — within the automatic cap.",
+    "A further +1 point is now proposed after 3 more matches (confidence 0.79).",
+    "Cumulative change since baseline if accepted: +2 points — crosses the 2-point approval trigger (ADR-0160 §4).",
   ],
 };
 

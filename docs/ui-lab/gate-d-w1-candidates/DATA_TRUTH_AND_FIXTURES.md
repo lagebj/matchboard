@@ -20,16 +20,17 @@ independently recomputed from that fixture's own `rawRecordsForHash` in a siblin
   documented "already-resolved, never re-run the selector" convention for this field), rather
   than re-implementing the selector's priority logic for a UI Lab fixture.
 
-**Disclosed data-truth limitation**: the register's acceptance question for D01 (XR-P01/XR-P04)
-describes a "14-role profile vocabulary" that must never be conflated with the 24-sided tactical
-vocabulary. No such second vocabulary exists in production — `playerPositionValues` (declared
-positions) and `TouchlinePositionMapEntry.positionCode` (evidence-derived positions) are both
-drawn from the same `CANONICAL_TACTICAL_POSITIONS` 24-code set (ADR-0154, Accepted, which
-explicitly unified five previously-incompatible position vocabularies into one, specifically
-including declaration and evidence). The fixtures therefore demonstrate the real distinction
-that exists in this codebase — provenance (declared vs. evidence-derived) and support-band/
-confidence, never a second code system — rather than fabricating a vocabulary split that isn't
-there. See `VISUAL_VS_CURRENT.md` for the full disclosure.
+**Remediation (2026-11-24)**: an owner review correctly found that disclosing the (now-resolved,
+see `SOURCE_RECONCILIATION.md` §4b) 14-role-vocabulary mismatch was not sufficient — D01 must
+*demonstrate* the approved profile experience, not only disclose that production lacks it. Added
+`ProfileRoleSummary` (`shared/profile-role-summary.tsx`, directional, both states): declared
+profile role and evidence-derived profile role are each computed via
+`collapseTacticalToProfile()` (reused from Gate A's `a12-profile-editor` directional study, the
+one real mapping authority in this repo — not reimplemented) over `player.primaryPosition` and
+the top-ranked `effectivePositions` entry, with the full exact-tactical breakdown kept accessible
+via a `<details>` drill-down. No fixture *data* changed (same `player`/`effectivePositions`
+values); only the rendering layer gained this component, so `fixtureVersion` bumped to 2 while
+`fixtureSha256` (a hash of the data, not the rendering) is unchanged.
 
 ## D02 — `d02-evidence-dot-consolidation/{populated,sparse}-evidence/fixtures.ts`
 
@@ -42,15 +43,39 @@ there. See `VISUAL_VS_CURRENT.md` for the full disclosure.
   sparse fixture uses `null` throughout, never a fabricated label.
 - The `POSITION`/`MATCH_CONTEXT` stories' `positionShares` use real position/context codes
   (`CB`/`RCB`/`CDM`, `CORE`/`SUPPORT`/`DEVELOPMENT`) with shares summing to 100 — no double-
-  counting, every exact code individually named in the legend (never merged into an anonymous
-  bucket).
+  counting.
 - The sparse fixture's `MATCH_CONTEXT` group has zero stories — `EvidenceGroups` (this wave's
   thin wrapper around the production rendering block) then omits that group entirely, matching
   the real Evidence tab's own `if (stories.length === 0) return null` — not a fabricated empty
   state.
 
-**No disclosed data-truth limitation for D02** — the register's acceptance question matches what
-the real `buildPlayerEvidenceViewModel`/`EvidenceStory`/`StackedDistribution` stack already does.
+**Remediation (2026-11-24) — corrected data-truth disclosure**: an owner review correctly found
+the POSITION story's exact-sided breakdown (CB 58% / RCB 25% / CDM 17%) was not profile-level
+consolidation, which is D02's actual acceptance question. Investigating further (not merely
+fixing the symptom) found the deeper truth: production's real `buildEvidenceStories()`
+(`src/lib/touchline/presentation/player-detail-production-adapter.ts`) **never populates
+`positionShares` at all** — grep confirms zero occurrences in that file. Its real POSITION story
+shows only a single top-position headline (e.g. "Centre Back leads recorded position support"),
+no percentage breakdown of any kind. `positionShares` is a real, type-level field already wired
+to the real `StackedDistribution` component (via the real page's rendering block), but no live
+production data source currently feeds it — the original "already in production" framing of this
+section was too strong; it was real-rendering-path-but-unpopulated, not real-and-populated.
+
+Added `consolidateExactSharesByProfile()` (`shared/position-profile-consolidation.ts`) — a real,
+deterministic 24-to-14 aggregation reusing `collapseTacticalToProfile()` (Gate A, no second
+mapping table) — and `ConsolidatedPositionEvidence`, which renders the profile-level result
+(CB 83% / DM 17%) as the primary `StackedDistribution`, with the exact breakdown (CB 58% / RCB
+25% / CDM 17%) kept in a `<details>` drill-down, not dropped. A new
+`__tests__/profile-consolidation.test.tsx` independently asserts: every exact code maps to its
+correct profile role; profile-level and exact-level totals each sum to 100; no exact code
+contributes to more than one profile bucket; the single-code sparse case still consolidates
+correctly; a profile with zero contributing exact codes is absent from the result (never
+fabricated as an observed zero, distinct from a genuinely-recorded zero-percent exact code, which
+still contributes). `fixtureVersion` bumped to 2 on both states; `fixtureSha256` unchanged (no
+fixture data changed, only the rendering).
+
+**Revised classification**: not `ALREADY_IMPLEMENTED_AND_VERIFIED` as previously recorded for
+this section — see `VISUAL_VS_CURRENT.md`.
 
 ## D04 — `d04-matches-coverage/{full,partial}-coverage/fixtures.ts`
 
@@ -63,7 +88,7 @@ the real `buildPlayerEvidenceViewModel`/`EvidenceStory`/`StackedDistribution` st
 
 **No disclosed data-truth limitation for D04.**
 
-## D07 — `d07-attribute-evolution-review/{automatic-non-material,pending-material-approval}/fixtures.ts`
+## D07 — `d07-attribute-evolution-review/{automatic-non-material,pending-material-approval,manual-edit-rebase}/fixtures.ts`
 
 - `automatic-non-material`: `AssessmentChangeEntry[]`, the same shape
   `src/components/players/player-assessment-history-panel.tsx` (`AssessmentHistoryPanel`) already
@@ -75,13 +100,29 @@ the real `buildPlayerEvidenceViewModel`/`EvidenceStory`/`StackedDistribution` st
   rendering block over fixture input" strategy D02's `EvidenceGroups` already uses, not a new
   pattern. The one-point change, 4-match, 0.82-confidence fixture satisfies every ADR-0160 §4
   automatic condition.
-- `pending-material-approval`: `MaterialApprovalProposal`, a new type — **disclosed**: no
-  production schema or component for a pending attribute-approval review exists today
-  (`AssessmentChange` always represents an already-applied change; its `decidedAt`/`decidedBy`
-  fields are only ever set by `recordManualRebase()`, never used to distinguish "pending" from
-  "automatically applied"). The fixture encodes a genuine cumulative-drift example (three prior
-  automatic +1 changes totalling +3 from baseline) using ADR-0160 §4's actual decided thresholds,
-  not placeholder numbers.
+- `pending-material-approval`: `MaterialApprovalProposal` — **corrected 2026-11-24**. The prior
+  fixture showed baseline 6 with three automatic one-point increases (6→7→8→9) reaching a pending
+  proposal of 9, which contradicted ADR-0160 §4's own math: cumulative movement crosses the
+  2-point approval trigger at the *second* step, so a third automatic step to 9 could never
+  legitimately occur. Corrected fixture: baseline 6 (coach-established), current applied value 7
+  (one legitimately-automatic step), proposed value 8 (pending — NOT applied), cumulative-if-
+  accepted +2. The type now separates `currentAppliedValue` from `proposedValue` explicitly,
+  rather than one `baselineValue`/`proposedValue` pair that could be misread as already applied.
+  **Disclosed**: no production schema or component for a pending attribute-approval review
+  exists today (`AssessmentChange` always represents an already-applied change; it has no
+  pending/decided distinction). The threshold math itself (`materiality-policy.ts`) is a new,
+  shared, independently-unit-tested pure module with no production equivalent — it exists only so
+  this directional candidate's own numbers are internally consistent and verifiably correct
+  against ADR-0160 §4, not because a production module of this name exists.
+- `manual-edit-rebase` (new, 2026-11-24, previously deferred): `AttributeRebaseRow[]` — **fully
+  disclosed as directional**: today's `Player.evidenceCutoverAt` (confirmed directly in
+  `src/lib/evidence/player-evidence-service.ts` and ADR-0092) is a single player-wide timestamp;
+  there is no per-attribute cutover column, no lock field, and no production UI for any of this.
+  The fixture models four attribute rows (manually-edited-pending-reaccumulation, manually-edited-
+  eligible-to-resume, unaffected-independent-progression, and locked) as an explicit synthetic
+  state machine — it does not imply or invent a specific database schema for the undecided
+  persistence shape; that remains a production-implementation gap, recorded in `BLOCKERS.md`, not
+  resolved by this candidate.
 
 ## D08 — `d08-primary-position-proposal/{strong-evidence,conflicting-note}/fixtures.ts`
 
@@ -97,27 +138,57 @@ the real `buildPlayerEvidenceViewModel`/`EvidenceStory`/`StackedDistribution` st
   underlying evidence to prove the proposal still targets the unsided profile role (`CM`), per
   that contract's own mandatory verification example #6.
 
-## D09 — `d09-evidence-lineage/superseded-lineage/fixtures.ts`
+**Correction, 2026-11-24**: `conflicting-note`'s prior fixture content did not actually conflict
+with its own proposal (the note's wording supported the proposed role rather than contradicting
+it). Replaced with a genuinely contrary observation (`fixtureVersion: 2`, `fixtureSha256`
+independently recomputed, verified by its sibling test) — see `VISUAL_VS_CURRENT.md` for the full
+before/after.
 
-- `EvidenceLineageEntry[]` — **disclosed**: no existing production component surfaces qualitative-
-  evidence supersession lineage to a coach; every real read helper in
-  `qualitative-evidence-service.ts` (`ACTIVE_RUN_FILTER`) returns only non-superseded
+## D09 — `d09-evidence-lineage/{superseded-lineage,ambiguous-reference-rejected}/fixtures.ts`
+
+- `EvidenceLineageEntry[]` (`superseded-lineage`) — **disclosed**: no existing production
+  component surfaces qualitative-evidence supersession lineage to a coach; every real read helper
+  in `qualitative-evidence-service.ts` (`ACTIVE_RUN_FILTER`) returns only non-superseded
   observations. The fixture is built directly from the real field shapes
   (`QualitativeEvidenceObservation`'s `statement`/`explicitness`/`createdAt`) and the real
   `supersededAt` semantics (`recordDeterministicExtraction()` marks a prior run superseded on
   resubmission, never deletes or rewrites it) — per the owner's decision #6, this exposes existing
-  lineage rather than inventing a new supersession model.
+  lineage rather than inventing a new supersession model. **Expanded 2026-11-24**: the display is
+  now interactive (`EvidenceLineageDisplay`'s `interactive` prop) — simulated Edit and Retract
+  locally reproduce the real resubmission/retraction mechanism (edit supersedes the active entry
+  and adds a new active one; retract supersedes it with nothing replacing it, matching the
+  service's own doc comment: "safe to call with zero observations (e.g. a coach retracted a claim
+  on resubmit)... it just leaves nothing active to replace it with"). No real resubmission call,
+  no database write.
+- `RejectedExtractionSubmission` (`ambiguous-reference-rejected`, new 2026-11-24) — **disclosed**:
+  models the real `extractionResponseSchema`/`validateExtractionSemantics` rule
+  (`qualitative-evidence-extraction-contract.ts`) that a PLAYER/PAIR-scoped claim with no
+  resolvable `playerRef` rejects the **entire** extraction response, producing zero observations.
+  This is a different kind of fixture than a lineage entry — it represents a submission that never
+  became an observation at all, which is the real, honest behavior, not an invented
+  "ambiguous-but-kept" tier that doesn't exist in the actual contract.
+
+**Disclosed gap carried across both D09 fixtures**: `QualitativeEvidenceExtractionRun` (the real
+Prisma model) persists only a `sourceFingerprint` and `inputChars`/`outputChars` counts — never
+the raw originally-submitted free text. The closest the real schema gets to "original wording" is
+each `QualitativeEvidenceObservation.statement` (the structured claim derived from that text).
+Neither fixture claims to show a byte-identical copy of the coach's original submission as a
+separate persisted field, because no such field exists in the real persistence model today — a
+true original-source view would require the specific `sourceType`'s own storage (e.g. a match
+debrief record), which this module does not read.
 
 ## Running all Gate D tests
 
-Gate D's 56 tests live under two different vitest configs and both must be run to exercise all of
-them: `npm run test:components -- --run gate-d` (the default components config, `src/**/*.test.tsx`
-only) runs the 11 `page.test.tsx` render-verification suites (38 tests), but **not** the 11
-`fixtures.test.ts` hash-integrity suites (11 tests) — those are `.test.ts`, not `.test.tsx`, and
-only match the project's default `vitest.config.ts`. Run `npx vitest run gate-d` (default config)
-to exercise the hash tests, or `npm test` if it already covers both configs. Running only
-`test:components` silently skips the fixture-hash verification — it will not fail, it just won't
-execute those 11 tests.
+Gate D's 91 tests (as of the 2026-11-24 remediation) live under two different vitest configs and
+both must be run to exercise all of them: `npm run test:components -- --run gate-d` (the default
+components config, `src/**/*.test.tsx` only) runs 64 render-verification tests, but **not** the
+hash-integrity `fixtures.test.ts` suites (27 tests) — those are `.test.ts`, not `.test.tsx`, and
+only match the project's default `vitest.config.ts`. (One exception: D02's new
+`profile-consolidation.test.tsx` mixes pure-function and render assertions in one file and is
+itself `.test.tsx`, so it runs under the components config, not the default one — counted among
+the 64.) Run `npx vitest run gate-d` (default config) to exercise the hash tests, or `npm test` if
+it already covers both configs. Running only `test:components` silently skips the fixture-hash
+verification — it will not fail, it just won't execute those tests.
 
 ## Fixture-identity convention
 

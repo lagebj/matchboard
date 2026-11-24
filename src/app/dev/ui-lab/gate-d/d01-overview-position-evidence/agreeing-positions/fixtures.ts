@@ -5,24 +5,24 @@ import { playerPositionOptions, optionalPlayerPositionOptions } from "@/lib/play
 
 /**
  * Gate D register D01 ("Player Detail / Overview — declared + actual position evidence").
- * State: declared positions and evidence-derived (`effectivePositions`) positions agree.
+ * State: declared positions and evidence-derived (`effectivePositions`) positions agree, both at
+ * the exact tactical level and (via `ProfileRoleSummary`, remediation 2026-11-24) at the
+ * ADR-0160 §6 profile level.
  *
  * `positionOptions`/`optionalPositionOptions` are the real production option lists
  * (`CANONICAL_TACTICAL_POSITIONS`, ADR-0154) — not a separate fixture-only vocabulary.
  *
- * Note for Gate D source reconciliation: the register's acceptance question (XR-P01/XR-P04)
- * assumes a 14-role "profile" vocabulary distinct from the 24-sided tactical vocabulary.
- * Production (ADR-0154, Accepted) does not have two vocabularies — declared positions,
- * evidence-derived positions, and tactical slots all share one 24-code vocabulary
- * (`CANONICAL_TACTICAL_POSITIONS`) by deliberate design; they are distinguished by provenance
- * (declaration vs. evidence) and support-band/confidence, never by a second code system. This
- * fixture demonstrates the real distinction that exists, not the one the register assumes — see
- * `docs/ui-lab/gate-d-w1-candidates/VISUAL_VS_CURRENT.md` for the full disclosure.
+ * History: this fixture originally disclosed a mismatch between the register's "14-role profile
+ * vocabulary" acceptance question and the (at-the-time-undecided) production architecture. The
+ * owner has since decided (ADR-0160 §6) to adopt the 14-role profile tier — see
+ * `docs/ui-lab/gate-d-w1-candidates/SOURCE_RECONCILIATION.md` §4b for that resolution. This page
+ * now demonstrates the approved profile experience directly (`ProfileRoleSummary`) in addition
+ * to the real 24-code production mount below; see `VISUAL_VS_CURRENT.md`.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-D-W1-D01-AGREEING",
   fixtureId: "gate-d-w1-d01-agreeing-positions",
-  fixtureVersion: 1,
+  fixtureVersion: 2,
   fixtureSha256: "e4da0916c9cb0098ccb390b69a29bf67452428989980a10657ddb4068c61fd18",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: "2026-11-23T09:00:00.000Z",

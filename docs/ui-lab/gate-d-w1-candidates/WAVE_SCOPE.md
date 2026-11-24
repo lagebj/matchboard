@@ -71,9 +71,12 @@ does not already exist, that specific gap must be disclosed rather than assumed 
 - **D07** (attribute evolution review): a non-material automatic example (≤1 point, ≥3 matches,
   confidence ≥0.7, auto-applied, shown as `AUTOMATIC` in the real history presentation) and a
   material example (≥2 cumulative points from baseline, pending coach review — before/after,
-  evidence, confidence, accept/reject, clearly simulated). A manual-edit/lock state demonstrating
-  attribute-level (not player-level) rebase is valuable if it fits within the wave's bound; defer
-  it explicitly if not, rather than build it hastily.
+  evidence, confidence, accept/reject, clearly simulated). **Remediated 2026-11-24**: a
+  manual-edit/lock state demonstrating attribute-level (not player-level) rebase, originally
+  deferred here, is now implemented (`GATE-D-W1-D07-REBASE`) after a dedicated remediation pass —
+  see `CURRENT_STATE_AUDIT.md`'s 2026-11-24 update and `DATA_TRUTH_AND_FIXTURES.md`. The material
+  example's cumulative-threshold math was also corrected in the same pass after an owner review
+  found it contradicted ADR-0160 §4.
 - **D08** (primary position proposal): a proposal with strong, unambiguous evidence, and a proposal
   with a conflicting note (echoing D01's divergence fixture, now framed as a formal reviewable
   proposal) — both must target a 14-role profile code (never a sided/central tactical code like
@@ -85,6 +88,16 @@ does not already exist, that specific gap must be disclosed rather than assumed 
   qualitative-evidence types and the real supersession field if a presentable real component
   exists; disclose plainly if it has to be assembled from real data shapes without an existing
   display component.
+
+### Remediation, 2026-11-24
+
+The first implementation pass against this scope shipped two defects, corrected in a follow-up
+commit: D08-CONFLICT's coach note agreed with its own proposal instead of conflicting with it
+(corrected to a genuinely contrary observation); D09 covered only superseded/active and was
+missing interactive edit/retract and the real ambiguous-reference-rejection behavior (both added).
+See `VISUAL_VS_CURRENT.md` and `DATA_TRUTH_AND_FIXTURES.md` for the exact corrections and
+`CURRENT_STATE_AUDIT.md` for the updated classifications. The scoping decisions above are
+unchanged; only the fixture content and D09's state coverage were corrected.
 
 ### What remains unchanged from the original Wave 1 decision
 
@@ -103,6 +116,9 @@ persisted proposal — UI Lab only, exactly like the rest of this wave.
 - `src/lib/touchline/presentation/player-evidence-view-model.ts` — D02 data shape.
 - `src/components/touchline/evidence/evidence-story.tsx` — D02 presentation.
 - `src/components/touchline/player/player-match-timeline.tsx` — D04.
+- `src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts` (`collapseTacticalToProfile`) —
+  the one real 14-role mapping authority, reused by both D01's `ProfileRoleSummary` and D02's
+  `consolidateExactSharesByProfile` (added 2026-11-24 remediation, see `DATA_TRUTH_AND_FIXTURES.md`).
 
 ## Data and fixture dependencies
 
@@ -147,10 +163,15 @@ per the mission brief §7.
 
 - D01: Does Player Detail Overview combine declared and actual position evidence into one
   identity-and-development story without ever rendering a 14-role profile code as if it were a
-  sided/central tactical code (XR-P01, XR-P04, XR-V01)?
+  sided/central tactical code (XR-P01, XR-P04, XR-V01)? **Remediated 2026-11-24**: answered
+  directly by `ProfileRoleSummary`, which renders real 14-role profile labels (via
+  `collapseTacticalToProfile`) alongside the exact-tactical drill-down — the original candidate
+  only disclosed that the 14-role tier didn't exist, it didn't demonstrate it.
 - D02: Does the Evidence tab consolidate position-evidence dots at the profile level without
   losing the ability to drill into exact sided data or silently double-counting evidence
-  (XR-P03, XR-A03)?
+  (XR-P03, XR-A03)? **Remediated 2026-11-24**: answered directly by `ConsolidatedPositionEvidence`
+  (profile-level primary view + exact drill-down, both independently verified to sum to 100%
+  with no double-counting) — the original candidate showed only the exact level.
 - D04: Does the Matches tab make unknown/unrecorded minute coverage visible rather than implying
   full coverage by omission?
 

@@ -36,4 +36,11 @@ describe("Gate D W1 — D01 diverging positions", () => {
     expect(screen.getByText("Primary")).toBeInTheDocument();
     expect(screen.getByText("Secondary")).toBeInTheDocument();
   });
+
+  it("demonstrates the approved 14-role profile experience diverging at the profile level, not only the exact-code level, and discloses no automatic mutation occurs", () => {
+    renderPage();
+    expect(screen.getByText("Player-profile role (directional)")).toBeInTheDocument();
+    expect(screen.getByText(/Declared profile role \(CB\) and the evidence-derived role \(RB\) differ\./)).toBeInTheDocument();
+    expect(screen.getByText(/no automatic primary-position mutation occurs/)).toBeInTheDocument();
+  });
 });

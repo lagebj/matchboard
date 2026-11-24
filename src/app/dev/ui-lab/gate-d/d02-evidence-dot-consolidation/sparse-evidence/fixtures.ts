@@ -8,11 +8,16 @@ import type { PlayerEvidenceStoryData } from "@/lib/touchline/presentation/playe
  * than a fabricated value. The Match context group has no qualifying story at all and is
  * omitted entirely by `EvidenceGroups` — matching the real Evidence tab's own
  * `if (stories.length === 0) return null` behavior, not a fabricated "no data" card.
+ *
+ * Remediation (2026-11-24): the single `LM` exact share now also renders through
+ * `ConsolidatedPositionEvidence` — with only one exact code, the profile-level view is trivially
+ * `LM 100%` (no other code shares its profile group), exercising the "no evidence to consolidate
+ * beyond one code" edge of the real aggregation function rather than only the populated case.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-D-W1-D02-SPARSE",
   fixtureId: "gate-d-w1-d02-sparse-evidence",
-  fixtureVersion: 1,
+  fixtureVersion: 2,
   fixtureSha256: "8ddbc8c2bcb574fabc4ccf84b0220c798aec7a10ae6f08be244a7e9f9c84ff99",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: "2026-11-23T09:00:00.000Z",
