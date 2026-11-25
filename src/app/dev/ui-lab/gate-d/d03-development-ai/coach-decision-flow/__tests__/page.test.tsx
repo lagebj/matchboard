@@ -39,7 +39,7 @@ describe("Gate D W2 — D03 coach decision flow", () => {
     renderPage();
     const dismissButtons = screen.getAllByRole("button", { name: /^dismiss$/i });
     await user.click(dismissButtons[1]!);
-    expect(screen.queryByText(/Amir Haile's event rate while trailing/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Amir Haile's recorded event rate while trailing/)).not.toBeInTheDocument();
   });
 
   it("a simulated Promote failure leaves the hypothesis pending with a visible error, not silently discarded", async () => {
@@ -54,6 +54,32 @@ describe("Gate D W2 — D03 coach decision flow", () => {
     expect(await screen.findByText(CONFIRM_ERROR_MESSAGE)).toBeInTheDocument();
     // The hypothesis itself is still visible and still actionable — a failed decision did not
     // silently remove it.
-    expect(screen.getByText(/Amir Haile's co-presence with Jonas Berg/)).toBeInTheDocument();
+    expect(screen.getByText(/Amir Haile's recorded shared pitch time with Jonas Berg/)).toBeInTheDocument();
+  });
+
+  it("each hypothesis has its own distinctly titled, ungrouped-free source inspector", () => {
+    renderPage();
+    expect(screen.getByText("Cited sources — left-midfield exposure hypothesis")).toBeInTheDocument();
+    expect(screen.getByText("Cited sources — event-rate-while-trailing hypothesis")).toBeInTheDocument();
+    expect(screen.getByText("Cited sources — co-presence hypothesis")).toBeInTheDocument();
+  });
+
+  it("the left-midfield exposure hypothesis's inspector resolves both of its cited observations, not just one", () => {
+    renderPage();
+    expect(screen.getByText(/Received several passes in wide left areas/)).toBeInTheDocument();
+    expect(screen.getByText(/Looked increasingly comfortable receiving in wide left areas/)).toBeInTheDocument();
+  });
+
+  it("the event-rate hypothesis's source states a real rate (numerator, denominator, units, comparison windows)", () => {
+    renderPage();
+    expect(screen.getByText(/2 across 108 recorded trailing minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/3 across 126 recorded trailing minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/a rate of 1 per 54 minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/a rate of 1 per 42 minutes/)).toBeInTheDocument();
+  });
+
+  it("the co-presence hypothesis's source never claims partnership quality, only shared minutes", () => {
+    renderPage();
+    expect(screen.getByText(/does not establish partnership quality or combination effectiveness/)).toBeInTheDocument();
   });
 });

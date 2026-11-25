@@ -3,7 +3,7 @@ import { AppearanceControl, TouchlineWidget, WidgetHeader } from "@/components/t
 import { PlayerDevelopmentTimeline } from "@/components/touchline/player/player-development-timeline";
 import { AssistantCoachHypothesisMount } from "../../w2-shared/assistant-coach-hypothesis-mount";
 import { EvidenceSourceInspector } from "../../w2-shared/evidence-source-detail";
-import { developmentInput, cycleInsight, hypothesis, sources } from "./fixtures";
+import { developmentInput, cycleInsight, cycleWindowWeeks, hypothesis, sources } from "./fixtures";
 
 /**
  * Gate D W2 — D03, grounded longitudinal hypothesis with an existing coach focus. Reuses the
@@ -47,7 +47,9 @@ export default function D03GroundedPage() {
         <TouchlineWidget>
           <WidgetHeader eyebrow="Assistant Coach &middot; Learning cycle" title={cycleInsight.title} />
           <p className="mt-2 text-[13px] text-[var(--text-soft)]">{cycleInsight.body}</p>
-          <p className="mt-2 text-[12px] text-[var(--text-muted)]">Based on the five-week window {cycleInsight.windowLabel}.</p>
+          <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+            Based on the {cycleWindowWeeks}-week window {cycleInsight.windowLabel}.
+          </p>
         </TouchlineWidget>
 
         <AssistantCoachHypothesisMount hypotheses={[hypothesis]} simulateActions />

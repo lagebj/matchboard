@@ -22,13 +22,13 @@ describe("Gate D W2 — D06 source inspection + coach confirmation", () => {
     expect(details.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("expanding one source reveals its own real detail, distinguishing recorded vs derived provenance", async () => {
+  it("expanding one source reveals its own real detail, correctly classified by kind (derived trend, not a generic measurement)", async () => {
     const user = userEvent.setup();
     renderPage();
     const summary = screen.getByText("Centre forward role minutes, previous 3 vs. latest 3 matches");
     await user.click(summary);
     expect(screen.getByText(/15 across the previous 3 matches/)).toBeVisible();
-    expect(screen.getByText("Derived measurement")).toBeVisible();
+    expect(screen.getByText("Derived trend")).toBeVisible();
   });
 
   it("Promote is disabled until a development focus is typed, then succeeds without a real Server Action", async () => {

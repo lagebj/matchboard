@@ -3,6 +3,37 @@
 No production code (anything outside `src/app/dev/ui-lab/`, `e2e/`, `scripts/`, and
 `docs/ui-lab/`) is touched by this wave.
 
+## Remediation round (owner review of PR #847, 2026-11-25) — modified
+
+- `src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx` — pill label now derived from
+  `EvidenceRef.kind` (seven real kinds), not `FixtureSourceProvenance` (finding P1 #2).
+- `src/app/dev/ui-lab/gate-d/w2-shared/__tests__/evidence-source-detail.test.tsx` — **new**,
+  exhaustive per-kind label test.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/coach-decision-flow/fixtures.ts` — added a full
+  `EvidenceSourceMap` backing all four previously-unbacked refs, plus a second left-midfield
+  observation (finding P1 #1); `fixtureVersion` bumped to 2.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/coach-decision-flow/page.tsx` — added one
+  `EvidenceSourceInspector` per hypothesis, distinctly titled.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/coach-decision-flow/__tests__/{fixtures,page}.test.tsx`
+  — extensive new evidence-integrity and source-inspection coverage.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/grounded-longitudinal-hypothesis/fixtures.ts` —
+  renamed `trend-jonas-giveaway-rate` → `trend-jonas-giveaway-count`, reworded as a count with an
+  exposure-normalization caveat (finding P2 #3); added `cycleWindowWeeks` computed from real date
+  boundaries (finding P2 #4); `fixtureVersion` bumped to 2.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/grounded-longitudinal-hypothesis/page.tsx` — uses
+  `cycleWindowWeeks` instead of a hardcoded "five-week" literal.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/grounded-longitudinal-hypothesis/__tests__/{fixtures,page}.test.tsx`
+  — new rate/count and week-duration assertions.
+- `src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/{coherent-synthesis,genuine-contradiction,source-inspection-confirmation}/__tests__/page.test.tsx`
+  — updated for the new kind-based pill labels.
+- `e2e/ui-lab-gate-d.spec.ts` — updated existing D03/D06 assertions for the new labels/wording;
+  added coverage for D03-DECISION-FLOW's per-hypothesis source inspectors, D06-CONTRADICTION's
+  correct human-assessment classification, D03-GROUNDED's count-not-rate wording, and its correct
+  six-week duration.
+- `docs/ui-lab/gate-d-w2-candidates/{DATA_TRUTH_AND_FIXTURES,EVIDENCE_AND_HYPOTHESIS_CONTRACT,SCENARIO_REGISTER,VISUAL_VS_CURRENT,INTERACTION_AND_STATE_AUDIT,BLOCKERS,REVIEW_RECORD,CHANGED_FILES,candidate_manifest.json,capture-attestation.json}`
+  — updated to record the four findings as genuine history and describe their corrections (not
+  rewritten to imply the problems never existed).
+
 ## New — shared UI Lab infrastructure (affects production code: no)
 
 - `src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts` — fixture-only

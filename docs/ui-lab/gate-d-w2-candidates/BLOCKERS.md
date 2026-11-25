@@ -1,5 +1,28 @@
 # Gate D W2 — Blockers
 
+## Evidence-fidelity findings from owner review — resolved (2026-11-25)
+
+The owner's review of this PR's first version (CI-green, 42 captures attested) found four real
+defects this wave's own independent review and self-review had not caught:
+
+- **P1** — D03-DECISION-FLOW cited evidence (`trend-amir-lm-minutes`, `obs-amir-lm-comfort`,
+  `trend-amir-trailing-rate`, `trend-amir-copresence`) with **no backing `EvidenceSourceMap`** —
+  the fixture had no `sources` export at all, and no test called `resolveEvidenceSource` against
+  it. This is a genuine gap in this wave's own evidence-integrity discipline, not previously
+  disclosed as a known limitation.
+- **P1** — `evidence-source-detail.tsx`'s pill label was derived from `FixtureSourceProvenance`
+  (RECORDED/DERIVED) rather than `EvidenceRef.kind`, so a `HUMAN_ASSESSMENT` (a coach's own
+  judgement) rendered identically to a canonical fact ("Recorded fact").
+- **P2** — D03-GROUNDED labelled a raw per-window count (5 giveaways, then 2) a "rate" with no
+  exposure denominator.
+- **P2** — D03-GROUNDED's page stated a "five-week window" for a range that is actually six weeks.
+
+All four are corrected — see `DATA_TRUTH_AND_FIXTURES.md`'s own "Remediation" section for the full
+technical account, `EVIDENCE_AND_HYPOTHESIS_CONTRACT.md` for the corrected knowledge-class
+framing, and the fresh independent review (`REVIEW_RECORD.md`) for verification that the
+corrections hold and introduced no new defect. This is recorded as a genuine finding against this
+wave's own earlier claims, not retroactively erased.
+
 ## Resolved before implementation
 
 - **D06's missing XR citation** (`SOURCE_RECONCILIATION.md`) — not a blocker: documented as a
@@ -48,6 +71,15 @@ machinery is not triggered by any D03/D06 fixture (neither register row's accept
 asks for a position/attribute proposal); where a fixture cites position evidence, it uses the
 real `collapseTacticalToProfile()` mapping correctly (verified by test) rather than conflicting
 with ADR-0160 §6.
+
+## Capture evidence superseded by this remediation
+
+The previous `capture-attestation.json` (CI run 45643162459) attested screenshots of the
+pre-remediation rendering for D03-GROUNDED, D03-DECISION-FLOW, D06-COHERENT, and D06-CONTRADICTION
+(all four render `EvidenceSourceInspector`, whose pill labels changed) and D06-SOURCE-INSPECTION
+(same shared component). Those screenshots no longer represent the current code and are not reused
+as evidence — see `capture-attestation.json`'s own updated content for the fresh, independently
+re-verified CI run this remediation triggered.
 
 ## No unresolved source requirements beyond the disclosed D06 XR gap above
 

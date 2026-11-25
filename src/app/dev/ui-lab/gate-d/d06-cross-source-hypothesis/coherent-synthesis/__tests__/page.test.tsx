@@ -23,10 +23,16 @@ describe("Gate D W2 — D06 coherent cross-source synthesis", () => {
     expect(screen.getAllByText(/Recorded position, 11 Oct 2026/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it("distinguishes recorded facts from derived measurements in the source inspector", () => {
+  it("classifies each source by its real kind — recorded position, coach observation, and derived trend are never conflated", () => {
     renderPage();
-    expect(screen.getAllByText("Recorded fact")).toHaveLength(3);
-    expect(screen.getAllByText("Derived measurement")).toHaveLength(1);
+    // Remediation (owner review of PR #847): the pill label is kind-derived, not provenance-
+    // derived — a QUALITATIVE_OBSERVATION never renders as "Recorded fact" just because the
+    // fixture happened to mark its provenance RECORDED.
+    expect(screen.getAllByText("Recorded position")).toHaveLength(2);
+    expect(screen.getAllByText("Coach observation")).toHaveLength(1);
+    expect(screen.getAllByText("Derived trend")).toHaveLength(1);
+    expect(screen.queryByText("Recorded fact")).not.toBeInTheDocument();
+    expect(screen.queryByText("Derived measurement")).not.toBeInTheDocument();
   });
 
   it("discloses that the source inspector is a UI Lab directional presentation, not production", () => {

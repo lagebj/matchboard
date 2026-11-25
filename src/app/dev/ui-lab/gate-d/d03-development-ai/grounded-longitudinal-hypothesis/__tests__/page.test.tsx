@@ -44,9 +44,21 @@ describe("Gate D W2 — D03 grounded longitudinal hypothesis", () => {
   it("the source inspector resolves every cited ref to real fixture detail, expandable via keyboard-accessible <details>", async () => {
     const user = userEvent.setup();
     renderPage();
-    const summary = screen.getByText("Defensive-third giveaway rate, previous 3 vs. latest 3 matches");
+    const summary = screen.getByText("Recorded defensive-third giveaways, previous 3 vs. latest 3 matches");
     await user.click(summary);
     expect(screen.getByText(/5 across the previous 3 matches/)).toBeVisible();
+  });
+
+  it("describes recorded giveaways as a count, never as an unlabelled rate, with the exposure caveat visible", () => {
+    renderPage();
+    expect(screen.queryByText(/giveaway rate/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/not an exposure-adjusted performance rate/)).toBeInTheDocument();
+  });
+
+  it("states the correct six-week learning-cycle duration, matching the fixture's own date boundaries", () => {
+    renderPage();
+    expect(screen.getByText(/Based on the 6-week window 30 Aug – 11 Oct 2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/five-week/)).not.toBeInTheDocument();
   });
 
   it("Promote is disabled until a development focus is typed, then succeeds without a real Server Action", async () => {
@@ -57,6 +69,6 @@ describe("Gate D W2 — D03 grounded longitudinal hypothesis", () => {
     await user.type(screen.getByLabelText("Development focus to record if promoted"), "Keep tracking composure under pressure");
     expect(promote).toBeEnabled();
     await user.click(promote);
-    expect(screen.queryByText(/Jonas Berg's defensive-third giveaway rate decreased/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Jonas Berg's recorded defensive-third giveaways decreased/)).not.toBeInTheDocument();
   });
 });

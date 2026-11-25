@@ -30,4 +30,28 @@ describe("Gate D W2 — D06 genuine cross-source contradiction", () => {
     expect(details).not.toBeNull();
     expect(details).toHaveTextContent(/needs another full season at right-back/);
   });
+
+  it("classifies every source by its real kind — the earlier assessment and later observation are both coach judgments, never a generic 'Recorded fact'", () => {
+    renderPage();
+    // Every cited ref's label also appears in the panel's own plain-text Supporting/Contradicting
+    // line, so each lookup below matches two elements — the <details> ancestor is what
+    // disambiguates the inspector's own copy from the panel's.
+    function detailsFor(textMatch: string | RegExp): HTMLDetailsElement {
+      const matches = screen.getAllByText(textMatch);
+      const found = matches.map((el) => el.closest("details")).find((d): d is HTMLDetailsElement => d !== null);
+      if (!found) throw new Error(`No <details> ancestor found for ${String(textMatch)}`);
+      return found;
+    }
+
+    expect(detailsFor("Coach assessment, 20 Sep 2026")).toHaveTextContent("Coach assessment");
+    expect(detailsFor(/Coach observation, 11 Oct 2026/)).toHaveTextContent("Coach observation");
+    expect(detailsFor(/Recorded position, 11 Oct 2026/)).toHaveTextContent("Recorded position");
+    expect(detailsFor("Centre-back role minutes, previous 3 vs. latest 3 matches")).toHaveTextContent("Derived trend");
+    expect(screen.queryByText("Recorded fact")).not.toBeInTheDocument();
+  });
+
+  it("does not resolve the later observation as superseding the earlier assessment — both remain visible and unreconciled", () => {
+    renderPage();
+    expect(screen.getByText(/does not assume the later note simply supersedes/)).toBeInTheDocument();
+  });
 });

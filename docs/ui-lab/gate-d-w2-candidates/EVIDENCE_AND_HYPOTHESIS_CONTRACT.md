@@ -7,19 +7,29 @@ and components enforce to prevent unsupported hypotheses.
 
 ## The four classes, as this wave presents them
 
-1. **Canonical observation / fact.** A qualitative coach observation, a human assessment, a match
-   event, an actual position interval. Represented in a fixture as a `FixtureSourceRecord` with
-   `provenance: "RECORDED"`. Never duplicated — a hypothesis cites it by `EvidenceRef`, it does
-   not copy its content into the hypothesis's own statement as if restated as new information.
-2. **Derived measurement / trend.** A deterministic computation over canonical facts (role
-   exposure minutes, event rate, co-presence). Represented as `provenance: "DERIVED"`. Always
-   states its own comparison window, units, and coverage in its `detail`/`coverage` fields — never
-   a bare number.
+**Remediation (owner review of PR #847, finding P1 #2):** this section previously grouped
+`HUMAN_ASSESSMENT` into class 1 ("canonical fact") purely because its fixture record happens to
+have `provenance: "RECORDED"` (the fixture didn't compute it) — the same conflation the code had
+in `evidence-source-detail.tsx`'s old provenance-based pill label. A coach's formal assessment is
+a human judgement, not a canonical fact, regardless of how the fixture obtained it. Corrected
+below: class membership is now determined by `EvidenceRef.kind`, never by `FixtureSourceProvenance`.
+
+1. **Canonical observation / fact.** A match event, an actual position interval, a match context
+   record, or a qualitative coach observation (`MATCH_EVENT`, `ACTUAL_POSITION_INTERVAL`,
+   `MATCH_CONTEXT`, `QUALITATIVE_OBSERVATION`) — recorded, never duplicated. A hypothesis cites it
+   by `EvidenceRef`; it does not copy its content into the hypothesis's own statement as if
+   restated as new information.
+2. **Derived measurement / trend.** A deterministic computation over canonical facts
+   (`DERIVED_MEASUREMENT`, `DERIVED_TREND` — role exposure minutes, event rate, co-presence).
+   Represented as `provenance: "DERIVED"`. Always states its own comparison window, units, and
+   coverage in its `detail`/`coverage` fields — never a bare number.
 3. **Coach assessment / existing development focus.** An explicit, already-confirmed human
-   judgement — in D03's fixtures, the active `developmentThread`'s own `focus`/`rationale`, shown
-   in its own `TouchlineWidget`, visually and textually separated from the hypothesis card below
-   it ("This is the coach's own existing, already-confirmed development focus — distinct from the
-   Assistant Coach hypothesis below").
+   judgement — represented by `HUMAN_ASSESSMENT`-kind evidence (e.g. D06-CONTRADICTION's "Coach
+   assessment, 20 Sep 2026", labelled distinctly from a `QUALITATIVE_OBSERVATION` even though both
+   happen to be `provenance: "RECORDED"`), as well as, in D03's fixtures, the active
+   `developmentThread`'s own `focus`/`rationale`, shown in its own `TouchlineWidget`, visually and
+   textually separated from the hypothesis card below it ("This is the coach's own existing,
+   already-confirmed development focus — distinct from the Assistant Coach hypothesis below").
 4. **Assistant Coach hypothesis.** An interpretation that may combine evidence classes 1–2 and
    cite class 3, but is never itself promoted to class 1–3 without an explicit coach action. The
    real `AssistantCoachHypothesisPanel`'s own fixed disclaimer ("This is an AI hypothesis, not a
@@ -63,6 +73,16 @@ source record" — the exact failure mode the mission brief names.
 - **Contradictory evidence is never hidden to protect a hypothesis's own narrative.**
   D03-GROUNDED and D06-CONTRADICTION both disclose their contradicting refs explicitly, and the
   latter's hypothesis statement names both disagreeing sources rather than picking a winner.
+- **A count is never labelled a rate without a defined numerator, denominator, and units.**
+  Added by remediation (finding P2 #3): D03-GROUNDED's defensive-third giveaways are two raw
+  per-window counts (5, then 2) with no exposure denominator — labelled and worded as a count, not
+  a rate, with an explicit "not an exposure-adjusted performance rate" caveat. Where a fixture does
+  state a real rate (D03-DECISION-FLOW's event-rate-while-trailing hypothesis), the source states
+  the numerator, denominator, units, and both comparison windows explicitly.
+- **Minutes played and shared pitch time are never interpreted as improved ability or partnership
+  quality.** D03-DECISION-FLOW's left-midfield-exposure hypothesis states explicitly that
+  increased minutes are "not a demonstrated improvement in ability on its own"; its co-presence
+  hypothesis states explicitly that shared minutes do "not establish partnership quality."
 
 ## Coach confirmation boundary
 

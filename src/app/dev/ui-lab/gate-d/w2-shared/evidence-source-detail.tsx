@@ -1,10 +1,39 @@
 import type { EvidenceRef } from "@/lib/development-context/types";
-import { StatusPill } from "@/components/ui/status-pill";
-import { resolveEvidenceSources, type EvidenceSourceMap, type FixtureSourceProvenance } from "./evidence-source-types";
+import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
+import { resolveEvidenceSources, type EvidenceSourceMap } from "./evidence-source-types";
 
-const PROVENANCE_LABEL: Record<FixtureSourceProvenance, string> = {
-  RECORDED: "Recorded fact",
-  DERIVED: "Derived measurement",
+/**
+ * Remediation (owner review of PR #847): the pill label was previously derived from
+ * `FixtureSourceProvenance` ("Recorded fact" / "Derived measurement") — correct for a canonical
+ * record but wrong for a `HUMAN_ASSESSMENT` or `QUALITATIVE_OBSERVATION`, both of which are
+ * `provenance: "RECORDED"` (the fixture didn't compute them) while still being a coach's own
+ * judgment, not an objective fact (ADR-0155/ADR-0157's knowledge-hierarchy classes A vs. C). A
+ * coach assessment labelled "Recorded fact" risks reading as objectively established. The label
+ * is now derived from `EvidenceRef.kind` directly, never from `provenance` — `provenance` still
+ * describes how the fixture obtained the record (kept on `FixtureSourceRecord` for that reason,
+ * see `evidence-source-types.ts`), not what kind of claim its content makes.
+ */
+const KIND_LABEL: Record<EvidenceRef["kind"], string> = {
+  MATCH_EVENT: "Recorded match event",
+  ACTUAL_POSITION_INTERVAL: "Recorded position",
+  QUALITATIVE_OBSERVATION: "Coach observation",
+  HUMAN_ASSESSMENT: "Coach assessment",
+  MATCH_CONTEXT: "Recorded match context",
+  DERIVED_MEASUREMENT: "Derived measurement",
+  DERIVED_TREND: "Derived trend",
+};
+
+/** Three-tier visual grouping matching ADR-0155/ADR-0157's own classes: canonical fact (A),
+ * coach judgment (C), derived measurement (B) — never a fourth tier here, since a source record
+ * is never itself an AI hypothesis (class D). */
+const KIND_PILL_VARIANT: Record<EvidenceRef["kind"], StatusPillVariant> = {
+  MATCH_EVENT: "neutral",
+  ACTUAL_POSITION_INTERVAL: "neutral",
+  MATCH_CONTEXT: "neutral",
+  QUALITATIVE_OBSERVATION: "info",
+  HUMAN_ASSESSMENT: "info",
+  DERIVED_MEASUREMENT: "development",
+  DERIVED_TREND: "development",
 };
 
 /**
@@ -36,9 +65,7 @@ export function EvidenceSourceInspector({
           <summary className="cursor-pointer text-[12px] font-medium text-[var(--foreground)]">{source.label}</summary>
           <div className="mt-2 flex flex-col gap-1.5 text-[11px] text-[var(--text-muted)]">
             <div className="flex flex-wrap items-center gap-2">
-              <StatusPill size="sm" variant={source.provenance === "RECORDED" ? "neutral" : "development"}>
-                {PROVENANCE_LABEL[source.provenance]}
-              </StatusPill>
+              <StatusPill size="sm" variant={KIND_PILL_VARIANT[source.kind]}>{KIND_LABEL[source.kind]}</StatusPill>
               {source.occurredAt ? <span>{source.occurredAt}</span> : null}
             </div>
             <p className="text-[var(--foreground)]">{source.detail}</p>

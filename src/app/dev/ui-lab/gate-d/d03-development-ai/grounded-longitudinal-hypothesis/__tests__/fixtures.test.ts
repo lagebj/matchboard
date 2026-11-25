@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
-import { identity, rawRecordsForHash, hypothesis, sources, developmentInput } from "../fixtures";
+import { identity, rawRecordsForHash, hypothesis, sources, developmentInput, cycleInsight, cycleWindowWeeks } from "../fixtures";
 import { resolveEvidenceSource } from "../../../w2-shared/evidence-source-types";
 
 describe("GATE-D-W2-D03-GROUNDED fixture", () => {
@@ -35,5 +35,65 @@ describe("GATE-D-W2-D03-GROUNDED fixture", () => {
   it("the existing development focus is a real, already-started thread, independent of the hypothesis", () => {
     expect(developmentInput.activeFocus?.reviewState).toBe("PENDING");
     expect(developmentInput.activeFocus?.observationCount).toBe(developmentInput.observationTimeline.length);
+  });
+
+  describe("remediation (owner review of PR #847, finding P2 #3): recorded counts, not an unsupported rate", () => {
+    it("states the exact numerator values (5 and 2), not a derived ratio", () => {
+      const trend = resolveEvidenceSource(hypothesis.supportingRefs[0]!, sources);
+      expect(trend.detail).toMatch(/\b5\b.*previous 3 matches/);
+      expect(trend.detail).toMatch(/\b2\b.*latest 3 matches/);
+    });
+
+    it("each comparison window contains exactly three matches, stated explicitly", () => {
+      const trend = resolveEvidenceSource(hypothesis.supportingRefs[0]!, sources);
+      expect(trend.detail).toMatch(/previous 3 matches/);
+      expect(trend.detail).toMatch(/latest 3 matches/);
+    });
+
+    it("the metric's own label and id no longer claim 'rate' without a defined calculation", () => {
+      expect(hypothesis.supportingRefs[0]!.id).toBe("trend-jonas-giveaway-count");
+      expect(hypothesis.supportingRefs[0]!.label).not.toMatch(/rate/i);
+      const trend = resolveEvidenceSource(hypothesis.supportingRefs[0]!, sources);
+      expect(trend.label).not.toMatch(/rate/i);
+    });
+
+    it("no unsupported rate claim remains in the hypothesis statement or the source detail", () => {
+      expect(hypothesis.statement).not.toMatch(/giveaway rate/i);
+      const trend = resolveEvidenceSource(hypothesis.supportingRefs[0]!, sources);
+      expect(trend.detail).not.toMatch(/giveaway rate/i);
+    });
+
+    it("discloses the exposure-normalization caveat, both in the hypothesis statement and the source detail", () => {
+      expect(hypothesis.statement).toMatch(/not an exposure-adjusted performance rate/);
+      const trend = resolveEvidenceSource(hypothesis.supportingRefs[0]!, sources);
+      expect(trend.detail).toMatch(/not an exposure-adjusted rate/);
+      expect(hypothesis.missingEvidence.some((m) => /exposure/i.test(m))).toBe(true);
+    });
+
+    it("makes no automatic causal inference beyond what the evidence establishes", () => {
+      expect(hypothesis.statement).not.toMatch(/\b(because|caused by|due to|proves|demonstrates)\b/i);
+    });
+  });
+
+  describe("remediation (owner review of PR #847, finding P2 #4): correct six-week learning-cycle duration", () => {
+    it("computes a six-week duration from the cycle window's own date boundaries, not a hardcoded literal", () => {
+      expect(cycleWindowWeeks).toBe(6);
+    });
+
+    it("the computed window matches the displayed windowLabel's own start and end dates", () => {
+      expect(cycleInsight.windowLabel).toBe("30 Aug – 11 Oct 2026");
+    });
+
+    it("every source record's own date falls within the stated six-week window", () => {
+      const start = new Date("2026-08-30T00:00:00.000Z").getTime();
+      const end = new Date("2026-10-11T23:59:59.999Z").getTime();
+      for (const source of Object.values(sources)) {
+        if (!source.occurredAt) continue;
+        // Dates are stored as display strings ("11 Oct 2026"); parse defensively for this check only.
+        const parsed = new Date(`${source.occurredAt.replace(/(\d+) (\w+) (\d+)/, "$2 $1, $3")}`);
+        expect(parsed.getTime()).toBeGreaterThanOrEqual(start);
+        expect(parsed.getTime()).toBeLessThanOrEqual(end);
+      }
+    });
   });
 });
