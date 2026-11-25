@@ -216,7 +216,9 @@ test.describe("D09 — full lineage coverage: explicit/tentative/edit/retract/am
 test.describe("D03 — Development/AI: grounded hypothesis, sparse no-hypothesis state, coach decision flow", () => {
   test("grounded: the existing development focus and the Assistant Coach hypothesis are visibly distinct", async ({ page }) => {
     await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
-    await expect(page.getByText("Composure under pressure in the defensive third")).toBeVisible();
+    // The focus name appears twice (the Development focus widget's own title, and quoted inside
+    // the hypothesis statement's prose) — both real, not a duplicate-rendering bug.
+    await expect(page.getByText("Composure under pressure in the defensive third").first()).toBeVisible();
     await expect(page.getByText(/This is the coach's own existing, already-confirmed development focus/)).toBeVisible();
     await expect(page.getByText("Assistant Coach hypotheses")).toBeVisible();
   });
@@ -235,7 +237,9 @@ test.describe("D03 — Development/AI: grounded hypothesis, sparse no-hypothesis
 
   test("sparse: renders the honest no-hypothesis state, never generic padding advice", async ({ page }) => {
     await page.goto(`${BASE}/d03-development-ai/sparse-no-hypothesis`);
-    await expect(page.getByText("No defensible hypothesis")).toBeVisible();
+    // exact:true disambiguates from the page's own h1 ("...no defensible hypothesis"), which
+    // Playwright's default case-insensitive substring match would otherwise also match.
+    await expect(page.getByText("No defensible hypothesis", { exact: true })).toBeVisible();
     await expect(page.getByText(/we recommend|you should focus on/i)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /promote to development focus/i })).toHaveCount(0);
   });
@@ -255,7 +259,9 @@ test.describe("D03 — Development/AI: grounded hypothesis, sparse no-hypothesis
     await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
     const requests = collectServerActionRequests(page);
 
-    await page.getByRole("button", { name: /^dismiss$/i }).first().click();
+    // Three hypotheses render in order (confirm-demo, dismiss-demo, error-demo) — dismiss-demo's
+    // own Dismiss button is the second one, not the first.
+    await page.getByRole("button", { name: /^dismiss$/i }).nth(1).click();
     await expect(page.getByText(/Amir Haile's event rate while trailing/)).toHaveCount(0);
     expect(requests).toHaveLength(0);
   });
@@ -277,7 +283,16 @@ test.describe("D06 — cross-source hypothesis: coherent synthesis, genuine cont
   test("coherent: cites three distinct evidence kinds, with exact 24-code tactical precision preserved", async ({ page }) => {
     await page.goto(`${BASE}/d06-cross-source-hypothesis/coherent-synthesis`);
     await expect(page.getByText(/Noah Fjeld's on-pitch exposure has shifted/)).toBeVisible();
-    await expect(page.getByText("Recorded fact")).not.toHaveCount(0);
+    // The provenance pill text lives inside each source's collapsed <details> — expand all of
+    // them before asserting visibility, matching the real browser's own collapsed-by-default
+    // rendering (unlike a jsdom component test, Playwright correctly treats unexpanded <details>
+    // content as not visible).
+    const summaries = page.locator("details summary");
+    const summaryCount = await summaries.count();
+    for (let i = 0; i < summaryCount; i++) {
+      await summaries.nth(i).click();
+    }
+    await expect(page.getByText("Recorded fact").first()).toBeVisible();
     await expect(page.getByText("Derived measurement")).toBeVisible();
   });
 
