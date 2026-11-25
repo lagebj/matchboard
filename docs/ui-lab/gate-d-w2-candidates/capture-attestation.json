@@ -1,24 +1,25 @@
 {
-  "description": "Gate D W2 (register D03 Player Detail Development/AI, D06 Player intelligence cross-source hypothesis) UI Lab visual-review evidence. Seven candidates, 42 captures (6 viewport/theme combinations each). Captured after a fix to e2e/ui-lab-gate-d.spec.ts (4 real Playwright-vs-jsdom matching discrepancies found and corrected by this exact CI run; see docs/ui-lab/gate-d-w2-candidates/REVIEW_RECORD.md).",
-  "sourceCommitSha": "b0ec36f9415b4423db0ca5fb8717c3a0ba55d0fc",
-  "generatedAt": "2026-11-25T14:56:23.592Z",
+  "description": "Gate D W2 (register D03 Player Detail Development/AI, D06 Player intelligence cross-source hypothesis) UI Lab visual-review evidence. Seven candidates, 42 captures (6 viewport/theme combinations each). This attestation reflects the final CI run on this PR's branch head (a docs-only commit after the fixture/component-affecting commit); see knownLimitations for two captures whose bytes differ from the immediately preceding run despite zero code changes, visually confirmed as imperceptible rendering non-determinism.",
+  "sourceCommitSha": "40bdff676716ec25394f19e41322c1ce1653357b",
+  "generatedAt": "2026-11-25T15:39:44.840Z",
   "environment": {
     "node": "v24.22.3",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45635807186",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45643162459",
   "ciArtifact": {
-    "id": 15033647592,
-    "name": "ui-lab-review-45635807186-1",
-    "expiresAt": "2026-12-02T14:56:23.000Z"
+    "id": 15038426743,
+    "name": "ui-lab-review-45643162459-1",
+    "expiresAt": "2026-12-02T15:39:45.000Z"
   },
-  "reviewedBranchHeadSha": "bd6768d8a9764614d2fbeccd32f696ce5ad5f639",
+  "reviewedBranchHeadSha": "beea036d19bc45c6fee35f0cf17f10599927b8ba",
   "knownLimitations": [
-    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — same precedent as every prior wave (confirmed: this exact SHA is not reachable in the local repository, consistent with a synthetic, unfetched merge ref). reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run.",
-    "All 42 Gate D W2 capture hashes recorded below were independently re-verified in this session: the real CI artifact (ui-lab-review-45635807186-1) was downloaded via `gh run download`, and every sha256 recomputed directly from the downloaded PNG bytes against the manifest's own recorded value — zero mismatches, zero missing files.",
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger checkout SHA for this run; reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run (unlike the prior capture run on this PR, this one's checkout SHA was not a synthetic merge commit distinct from the branch head — both matched this run).",
+    "All 42 Gate D W2 capture hashes recorded below were independently re-verified in this session: the real CI artifact (ui-lab-review-45643162459-1) was downloaded via the GitHub CLI, and every sha256 recomputed directly from the downloaded PNG bytes against the manifest's own recorded value — zero mismatches, zero missing files.",
+    "Two of the 42 captures (gate-d-w2-d03-coach-decision-flow-narrow-dark.png, gate-d-w2-d06-source-inspection-confirmation-mobile-dark.png) have different byte-level hashes from the immediately preceding CI run on this same PR (commit bd6768d8a, zero fixture/component changes between the two commits — only documentation changed). Both pairs were downloaded and visually compared side by side in this session: no perceptible visual difference was found; the size delta is a handful of bytes, consistent with headless-Chromium anti-aliasing/PNG-encoding jitter between runs rather than a real rendering regression. Disclosed rather than silently reconciled — the hashes below are this run's own real, independently-verified values, not retroactively forced to match the prior run.",
     "This run captures only the \"initial\" interaction state for every Gate D W2 scenario, matching scripts/ui-lab-visual-review.mjs's registration — every simulated Promote/Dismiss/failure/source-expansion interaction is instead verified by the dedicated e2e/ui-lab-gate-d.spec.ts Playwright suite, not by a captured post-interaction screenshot state.",
-    "The Gate D Playwright acceptance suite passed in full on this exact CI run after one fix commit (4 tests failed on the prior run for real Playwright-vs-jsdom text-matching differences the local devcontainer could not surface; corrected and re-verified green by this run — see REVIEW_RECORD.md and the PR's own commit history).",
+    "The Gate D Playwright acceptance suite passed in full on this exact CI run.",
     "No PASS recorded anywhere in this wave's documentation should be read as evidence that EvidenceSourceInspector or NoDefensibleHypothesis are production capabilities — see VISUAL_VS_CURRENT.md's design/production/verified table. This capture is design-acceptance evidence only."
   ],
   "approvalStatus": "CANDIDATE",
@@ -257,7 +258,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-coach-decision-flow-narrow-dark.png",
-      "sha256": "eff6d519c92858cb5d671d9bb853da5fe1e32fe376a9e5e0283e6461482154dd"
+      "sha256": "08621719a099821a817b5e405d9a20d94f35e0f9757238bc30b55f1aacf9335a"
     },
     {
       "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
@@ -521,7 +522,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d06-source-inspection-confirmation-mobile-dark.png",
-      "sha256": "70d3d13628516bae39a4e34f889f655d109f89f608fcdd2360b437235a75ce96"
+      "sha256": "bc05aad6e63f396ba0ba97aa5bcfd78e8fdc7178420335960e4f0ebdaf9996f5"
     },
     {
       "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
