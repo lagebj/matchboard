@@ -1,25 +1,25 @@
 {
-  "description": "Gate D W1 (register D01/D02/D04/D07/D08/D09 — Player Intelligence) UI Lab visual-review evidence, captured after the 2026-11-24 remediation (five owner-identified acceptance-fidelity fixes, a new 86-test Gate D Playwright suite) AND one additional self-discovered fix found during this attestation's own screenshot inspection: GATE-D-W1-D01-DIVERGING's currentStory fixture previously used real production's POSITION_EVOLUTION-sourced headline (\"Recorded primary position updated to Right Back...\"), which only applies once a position change has already been written — contradicting that same candidate's own 'no automatic mutation occurs' disclosure. Fixed to an OPPORTUNITY-sourced headline. Two prior capture runs (commits 77385c745 pre-remediation, and f2288e5f9 post-remediation-but-pre-self-discovered-fix) are both superseded and not reused. See docs/ui-lab/gate-d-w1-candidates/REVIEW_RECORD.md and BLOCKERS.md for the full account.",
-  "sourceCommitSha": "97f61bfc2e5c1a1b9d5fce49ff590d56dc1d8208",
-  "generatedAt": "2026-11-24T14:10:00.000Z",
+  "description": "Gate D W1 (register D01/D02/D04/D07/D08/D09 — Player Intelligence) UI Lab visual-review evidence, captured after a second remediation pass (2026-11-25): D07's manual-edit-rebase fixture corrected to use real RatingAttributeKey values (oneVOneAttacking/effort, not finishing/workRate) and to separate the coach-authoritative baseline from an automatically-applied value (no more baselineSource: \"AUTOMATIC\"); D09's on-page copy corrected to stop overstating original-source-text preservation; two stale candidate_manifest.json descriptions fixed. Three prior capture runs (pre-remediation, post-first-remediation, post-self-discovered-D01-fix) are all superseded for the two scenarios that changed again (GATE-D-W1-D07-REBASE, GATE-D-W1-D09-LINEAGE) and not reused; the other 11 scenarios are unchanged since the prior attestation. See docs/ui-lab/gate-d-w1-candidates/REVIEW_RECORD.md and BLOCKERS.md §11–§12 for the full account.",
+  "sourceCommitSha": "d35401b350ff43b431dfa8d85a00738480215739",
+  "generatedAt": "2026-11-25T08:00:00.000Z",
   "environment": {
     "node": "v24.22.3",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45406221401",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45568890061",
   "ciArtifact": {
-    "id": 14927383005,
-    "name": "ui-lab-review-45406221401-1",
-    "expiresAt": "2026-12-01T14:02:54Z"
+    "id": 15001734779,
+    "name": "ui-lab-review-45568890061-1",
+    "expiresAt": "2026-12-02T07:52:22Z"
   },
-  "reviewedBranchHeadSha": "1069fdb3efcbff7bdf7d96ee09bccdea9d6d1928",
+  "reviewedBranchHeadSha": "a9c6f2fa1a8cab0be306dfca28bd51ddc01bbbf5",
   "knownLimitations": [
-    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head, confirmed via the capture job's own checkout step log: \"Merge 1069fdb3efcbff7bdf7d96ee09bccdea9d6d1928 into 43af5f186a2f7888b987cda532cfa4b9db41e5aa\"), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run.",
-    "GitHub Actions artifact retention is temporary (expires 2026-12-01) — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
-    "All 78 Gate D W1 capture hashes recorded below were independently re-verified in this session: the real CI artifact was downloaded via `gh run download`, every SHA-256 recomputed directly from the downloaded PNG bytes, and cross-checked against the capture script's own self-reported per-file sha256 log line — zero mismatches, zero missing files. The fixed GATE-D-W1-D01-DIVERGING screenshot was also visually inspected and confirmed internally consistent (declared CB, evidence-derived RB, no contradictory current-story claim).",
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head, confirmed via the capture job's own checkout step log: \"Merge a9c6f2fa1a8cab0be306dfca28bd51ddc01bbbf5 into 43af5f186a2f7888b987cda532cfa4b9db41e5aa\"), not the branch-tip commit — same precedent as every prior wave. reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run.",
+    "GitHub Actions artifact retention is temporary (expires 2026-12-02) — a durable GitHub Release has not been attempted, same disclosed gap as every prior wave.",
+    "All 78 Gate D W1 capture hashes recorded below were independently re-verified in this session: the real CI artifact was downloaded via `gh run download`, every SHA-256 recomputed directly from the downloaded PNG bytes, and cross-checked against the capture script's own self-reported per-file sha256 log line — zero mismatches, zero missing files. GATE-D-W1-D07-REBASE and GATE-D-W1-D09-LINEAGE's screenshots were also visually inspected and confirmed to show the corrected attribute labels/baseline-vs-applied display and the corrected provenance wording respectively.",
     "This run captures only the \"initial\" interaction state for every Gate D scenario, matching scripts/ui-lab-visual-review.mjs's registration — every simulated accept/reject/defer/edit/retract/unlock interaction is instead verified by the dedicated e2e/ui-lab-gate-d.spec.ts Playwright suite, not by a captured post-interaction screenshot state.",
-    "The Gate D Playwright acceptance suite (86 tests) passed in full on this exact CI run, confirmed via the job's own log (\"86 passed (36.8s)\").",
+    "The Gate D Playwright acceptance suite (86 tests) passed in full on this exact CI run, confirmed via the job's own log (\"86 passed (37.1s)\").",
     "No PASS recorded anywhere in this wave's documentation should be read as evidence that ADR-0160's mutation/approval policy is implemented in production — see VISUAL_VS_CURRENT.md's acceptance-classification table. This capture is design-acceptance evidence only."
   ],
   "approvalStatus": "CANDIDATE",
@@ -666,7 +666,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w1-d07-manual-edit-rebase-desktop-dark.png",
-      "sha256": "eb5b18a194812e43087e2a0417d7afc36659a49adc43f70bd6971c3990373b6b"
+      "sha256": "5bc46ff7b4248709a2e9cc8d0345a4b2b0851b829ec5b2b07d36c813a62f459a"
     },
     {
       "scenarioId": "GATE-D-W1-D07-REBASE",
@@ -678,7 +678,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w1-d07-manual-edit-rebase-desktop-light.png",
-      "sha256": "47e9a4634a042493696ee0ae0883af504a21de285e826f01886543ce9293634c"
+      "sha256": "4c98f57c741db0560fc182416769fdaa1cb9ffbf655d2716971117c3b783ff63"
     },
     {
       "scenarioId": "GATE-D-W1-D07-REBASE",
@@ -690,7 +690,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w1-d07-manual-edit-rebase-mobile-dark.png",
-      "sha256": "de1f6f5bfe89ca6fa2a17da13c2812249fb52b7065156d40123c0df85c7a8e61"
+      "sha256": "1d079b24ea06674b08aeaece0346c7cac58590e5cca952c0090488368cb16e29"
     },
     {
       "scenarioId": "GATE-D-W1-D07-REBASE",
@@ -702,7 +702,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w1-d07-manual-edit-rebase-mobile-light.png",
-      "sha256": "c700cdc4b68fb5302f28fcbce6ccfe828de6df3a8820214a853e92fa422ea73b"
+      "sha256": "362319eeab162273b8d8f05f3e5a55085f8115518887e85b53b96ee9e1b97f2f"
     },
     {
       "scenarioId": "GATE-D-W1-D07-REBASE",
@@ -714,7 +714,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w1-d07-manual-edit-rebase-narrow-dark.png",
-      "sha256": "634e00ab67db67bc07a33503558c34af9f2aeac93585527983f10365415176aa"
+      "sha256": "cf7acff6b20789bc82a1e26854a30be927ea1cb3c417dfab7b6536043f43d54f"
     },
     {
       "scenarioId": "GATE-D-W1-D07-REBASE",
@@ -726,7 +726,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w1-d07-manual-edit-rebase-narrow-light.png",
-      "sha256": "874d0b88e8b82e63bc9b292a36b13f99ca7f811cedc8448ddb0dc9dc2611de02"
+      "sha256": "7c7ce2ed77ebff7b8cdde6b59d9fdebfe192f1600a89910ef07677382c978722"
     },
     {
       "scenarioId": "GATE-D-W1-D08-STRONG",
@@ -882,7 +882,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w1-d09-superseded-lineage-desktop-dark.png",
-      "sha256": "f56fc0d2fc501bd98600ebabffc205a7e1b301231fe117672bd64eea50ef2aa4"
+      "sha256": "de76b05adad4ccc69ef4070959b8f3d2567c2874596891331b63e023c6c4b367"
     },
     {
       "scenarioId": "GATE-D-W1-D09-LINEAGE",
@@ -894,7 +894,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w1-d09-superseded-lineage-desktop-light.png",
-      "sha256": "890e6a9fccd346ac36d94231abbc9dab0983024c6e3e727de075ffe7e8c7c080"
+      "sha256": "f067953e5eb216254a836461da47b73115cfc9bd70cb2bfaed82180fdad63fc3"
     },
     {
       "scenarioId": "GATE-D-W1-D09-LINEAGE",
@@ -906,7 +906,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w1-d09-superseded-lineage-mobile-dark.png",
-      "sha256": "755a8a050c49334f197ed67833dec98717d385971d06abfcbe1073db3f4d44ac"
+      "sha256": "81f0b9f6a10cb24bfd824ca24610ee00d07d011219e704c7333e5d1c932f17ce"
     },
     {
       "scenarioId": "GATE-D-W1-D09-LINEAGE",
@@ -918,7 +918,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w1-d09-superseded-lineage-mobile-light.png",
-      "sha256": "85c27e5eeef427021b21ffdc0a77c64c7cc9875cc94fcc46e1484cb6ccdd99ff"
+      "sha256": "5090d5970d8b64ba659478467f6d27b41593e7fc338a8d7c8fa0b754fdb2adba"
     },
     {
       "scenarioId": "GATE-D-W1-D09-LINEAGE",
@@ -930,7 +930,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w1-d09-superseded-lineage-narrow-dark.png",
-      "sha256": "3e5c70ff65fd2df502d86dc162af56d41d04e01bd36f117905a2e610876f7b0c"
+      "sha256": "f049413090ef530fa6fc77477a06101526bd273e489e563bbae49cb5cd755869"
     },
     {
       "scenarioId": "GATE-D-W1-D09-LINEAGE",
@@ -942,7 +942,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w1-d09-superseded-lineage-narrow-light.png",
-      "sha256": "1c504efe82d34fcf96025107519bffd2ea0220d7e3e77f8525b235bd3c62e47f"
+      "sha256": "0c5ab1ad05cb76a85912f68a2fc53f24ef4c4fd82bda44781827d559a63b745f"
     },
     {
       "scenarioId": "GATE-D-W1-D09-AMBIGUOUS",

@@ -220,10 +220,13 @@ underlying fixture data and hash unchanged). A fresh CI capture is required for 
 existing `capture-attestation.json` can be considered current for them — see the updated status
 below.
 
-## 12. `capture-attestation.json` — requires a fresh run after this pass
+## 12. `capture-attestation.json` — DONE (2026-11-25)
 
-The attestation committed in §6 covers commit `1069fdb3e`, before this second remediation pass.
-`GATE-D-W1-D07-REBASE` and `GATE-D-W1-D09-LINEAGE` both render differently now (new values, new
-disclosure text) — their existing attested screenshots are stale and must not be reused. A new CI
-capture run against this pass's final commit is required, with the same independent sha256
-verification discipline as every prior attestation in this wave.
+Updated after a real CI "Capture fixture-backed UI Lab views" run (run `45568890061`) against
+commit `a9c6f2fa1` (this second remediation pass's final commit). All 78 screenshots independently
+downloaded, every SHA-256 recomputed from the raw bytes and cross-checked against the capture
+script's own self-reported log — zero mismatches, zero missing files. `GATE-D-W1-D07-REBASE` and
+`GATE-D-W1-D09-LINEAGE` were additionally visually inspected and confirmed to show the corrected
+attribute labels/baseline-vs-applied display and the corrected provenance wording, respectively.
+The Gate D Playwright suite (86 tests) passed in full on this same CI run. All three prior capture
+runs are superseded for these two scenarios and not reused.
