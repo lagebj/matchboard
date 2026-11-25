@@ -31,27 +31,28 @@ describe("Gate D W1 extension — D07 manual-edit precedence and attribute-level
 
   it("allows automation to resume for an attribute with sufficient post-edit evidence (≥3 matches, confidence ≥0.7)", () => {
     renderPage();
-    expect(screen.getByTestId("resume-status-finishing")).toHaveTextContent(/Eligible to resume/);
+    expect(screen.getByTestId("resume-status-oneVOneAttacking")).toHaveTextContent(/Eligible to resume/);
   });
 
-  it("an unrelated attribute's baseline and progression are unaffected by another attribute's manual edit", () => {
+  it("an unrelated attribute's coach baseline stays fixed even though automation has already moved its applied value", () => {
     renderPage();
     expect(screen.getByTestId("baseline-speed")).toHaveTextContent("6");
-    expect(screen.getByTestId("rebase-row-speed")).toHaveTextContent(/independent automatic evidence progression/);
+    expect(screen.getByTestId("applied-speed")).toHaveTextContent("7");
+    expect(screen.getByTestId("rebase-row-speed")).toHaveTextContent(/coach baseline used for cumulative materiality stays at/);
     // Speed shows no manual-edit history at all, confirming Passing's edit did not touch it.
     expect(screen.getByTestId("rebase-row-speed")).not.toHaveTextContent(/Manually edited/);
   });
 
   it("a locked attribute blocks automation regardless of how much qualifying evidence exists", () => {
     renderPage();
-    expect(screen.getByTestId("resume-status-workRate")).toHaveTextContent("Locked");
+    expect(screen.getByTestId("resume-status-effort")).toHaveTextContent("Locked");
   });
 
   it("unlocking is simulated and only changes local component state, not a real persisted lock", async () => {
     renderPage();
     const unlockButton = screen.getByRole("button", { name: "Unlock (simulated)" });
     await userEvent.click(unlockButton);
-    expect(screen.getByTestId("resume-status-workRate")).toHaveTextContent(/Eligible to resume/);
+    expect(screen.getByTestId("resume-status-effort")).toHaveTextContent(/Eligible to resume/);
   });
 
   it("discloses that lock/unlock is simulated with no real persistence", () => {

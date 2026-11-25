@@ -114,15 +114,33 @@ this section — see `VISUAL_VS_CURRENT.md`.
   shared, independently-unit-tested pure module with no production equivalent — it exists only so
   this directional candidate's own numbers are internally consistent and verifiably correct
   against ADR-0160 §4, not because a production module of this name exists.
-- `manual-edit-rebase` (new, 2026-11-24, previously deferred): `AttributeRebaseRow[]` — **fully
-  disclosed as directional**: today's `Player.evidenceCutoverAt` (confirmed directly in
-  `src/lib/evidence/player-evidence-service.ts` and ADR-0092) is a single player-wide timestamp;
-  there is no per-attribute cutover column, no lock field, and no production UI for any of this.
-  The fixture models four attribute rows (manually-edited-pending-reaccumulation, manually-edited-
-  eligible-to-resume, unaffected-independent-progression, and locked) as an explicit synthetic
-  state machine — it does not imply or invent a specific database schema for the undecided
-  persistence shape; that remains a production-implementation gap, recorded in `BLOCKERS.md`, not
-  resolved by this candidate.
+- `manual-edit-rebase` (new, 2026-11-24, previously deferred; **corrected 2026-11-25**,
+  `fixtureVersion: 2`): `AttributeRebaseRow[]` — **fully disclosed as directional**: today's
+  `Player.evidenceCutoverAt` (confirmed directly in `src/lib/evidence/player-evidence-service.ts`
+  and ADR-0092) is a single player-wide timestamp; there is no per-attribute cutover column, no
+  lock field, and no production UI for any of this. The fixture models four attribute rows
+  (manually-edited-pending-reaccumulation, manually-edited-eligible-to-resume, unaffected-
+  independent-progression, and locked) as an explicit synthetic state machine — it does not imply
+  or invent a specific database schema for the undecided persistence shape; that remains a
+  production-implementation gap, recorded in `BLOCKERS.md`, not resolved by this candidate.
+
+  **Correction 2026-11-25 (two defects fixed)**: (1) the prior fixture used `attributeKey:
+  "finishing"` and `"workRate"` — neither is a real `RatingAttributeKey`
+  (`src/lib/ratings/player-rating.ts`'s actual 12-attribute domain:
+  `ballControl/passing/firstTouch/oneVOneAttacking/positioning/oneVOneDefending/decisionMaking/
+  effort/teamplay/concentration/speed/strength`). Replaced with `oneVOneAttacking`/`effort`,
+  labelled with their real production display strings
+  (`src/components/players/player-attributes-panel.tsx`'s `RATING_LABELS`:
+  "1v1 Att." / "Effort"). `AttributeRebaseRow.attributeKey` is now typed `RatingAttributeKey`
+  (imported, not duplicated), so an invalid key fails to typecheck rather than being a silent
+  runtime risk. (2) `baselineSource` previously accepted `"AUTOMATIC"` for the `speed` row — this
+  let an automatic adjustment appear to *be* the authoritative baseline, which ADR-0160 §4 defines
+  as always coach-established/approved; repeated automatic steps could otherwise have silently
+  redefined the approval baseline and bypassed the cumulative-materiality threshold. Fixed by
+  splitting the row into `coachBaselineValue` (stays 6, `baselineSource: "COACH_ESTABLISHED"`) and
+  a new `currentAppliedValue` (7, the one legitimate automatic step) — the UI now shows both
+  distinctly, demonstrating that automation can move the applied value without ever touching the
+  baseline.
 
 ## D08 — `d08-primary-position-proposal/{strong-evidence,conflicting-note}/fixtures.ts`
 
@@ -176,6 +194,13 @@ Neither fixture claims to show a byte-identical copy of the coach's original sub
 separate persisted field, because no such field exists in the real persistence model today — a
 true original-source view would require the specific `sourceType`'s own storage (e.g. a match
 debrief record), which this module does not read.
+
+**Correction 2026-11-25**: this disclosure was already accurate in this document, but
+`EvidenceLineageDisplay`'s own on-page copy had drifted from it — it read "The coach's original
+wording is preserved," overstating exactly the distinction this section draws. Corrected to
+"Previous extracted observation wording is retained when a newer extraction supersedes it. The
+original coach-submitted source is not shown here," matching this disclosure exactly. No fixture
+data changed; `GATE-D-W1-D09-LINEAGE`'s `fixtureVersion` bumped 1→2 to mark the rendering change.
 
 ## Running all Gate D tests
 

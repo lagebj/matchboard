@@ -184,5 +184,46 @@ post-remediation-but-pre-self-discovered-fix) are superseded, not reused.
 ## 7. No visual approval has been assumed
 
 Every candidate's `approval` field in `candidate_manifest.json` is `null`. No `/visual-approve`
-or `/visual-reject` comment has been or will be posted by this agent. All eleven candidates
-(D01/D02/D04's original six, plus D07/D08/D09's five) are `CANDIDATE`, pending the owner's review.
+or `/visual-reject` comment has been or will be posted by this agent. All 13 candidates are
+`CANDIDATE`, pending the owner's review.
+
+## 11. Second remediation pass (2026-11-25): attribute-domain, baseline-semantics, and D09-wording fixes
+
+A second owner review of the first remediation found four more findings, all fixed, none
+requiring reopening ADR-0160 or any prior acceptance-fidelity correction:
+
+1. **D07 invalid attribute identifiers**: `manual-edit-rebase/fixtures.ts` used `finishing`/
+   `workRate`, neither a real `RatingAttributeKey` (`src/lib/ratings/player-rating.ts`). Replaced
+   with `oneVOneAttacking`/`effort` (real domain values, real production labels), and
+   `AttributeRebaseRow.attributeKey` is now typed `RatingAttributeKey` (imported from production,
+   not duplicated) so an invalid key fails to typecheck.
+2. **D07 baseline semantics**: the same fixture allowed `baselineSource: "AUTOMATIC"` on the
+   `speed` row — letting an automatic adjustment look like it had redefined the authoritative
+   materiality baseline, which ADR-0160 §4 defines as always coach-established/approved. Fixed by
+   splitting `baselineValue` into `coachBaselineValue` (fixed, coach-authoritative) and a new
+   `currentAppliedValue` (the attribute's present value including any eligible automatic step) —
+   the UI now shows both, so automation can move the applied value without ever silently resetting
+   the approval baseline.
+3. **D09 overstated provenance**: `EvidenceLineageDisplay`'s on-page copy said "the coach's
+   original wording is preserved" — the real schema only preserves each extraction's structured
+   `statement`, not the coach's raw submitted text (a distinction `DATA_TRUTH_AND_FIXTURES.md`
+   already disclosed correctly; only the on-page UI text had drifted from it). Corrected to name
+   the actual distinction explicitly.
+4. **Two stale manifest entries**: `GATE-D-W1-D02-SPARSE`'s `knownGaps` described the *populated*
+   fixture's percentages (copy-paste residue); `GATE-D-W1-D07-REBASE`'s `knownGaps` implied Manual
+   Edit and Lock are interactive controls when only Unlock is. Both corrected to describe what
+   each candidate actually does.
+
+`fixtureVersion` bumped for `GATE-D-W1-D07-REBASE` (1→2, data and rendering both changed, hash
+recomputed) and `GATE-D-W1-D09-LINEAGE` (1→2, rendering changed via the shared display component,
+underlying fixture data and hash unchanged). A fresh CI capture is required for both before the
+existing `capture-attestation.json` can be considered current for them — see the updated status
+below.
+
+## 12. `capture-attestation.json` — requires a fresh run after this pass
+
+The attestation committed in §6 covers commit `1069fdb3e`, before this second remediation pass.
+`GATE-D-W1-D07-REBASE` and `GATE-D-W1-D09-LINEAGE` both render differently now (new values, new
+disclosure text) — their existing attested screenshots are stale and must not be reused. A new CI
+capture run against this pass's final commit is required, with the same independent sha256
+verification discipline as every prior attestation in this wave.

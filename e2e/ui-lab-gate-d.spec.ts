@@ -123,10 +123,11 @@ test.describe("D07 — correct cumulative-materiality semantics (pending vs. app
     await expect(page.getByRole("button", { name: "Reject", exact: true })).toHaveCount(0);
   });
 
-  test("manual-edit-rebase: an unrelated attribute's own evidence progression is unaffected by another attribute's manual edit", async ({ page }) => {
+  test("manual-edit-rebase: an unrelated attribute's coach baseline stays fixed even though automation already moved its applied value", async ({ page }) => {
     await page.goto(`${BASE}/d07-attribute-evolution-review/manual-edit-rebase`);
     await expect(page.getByTestId("baseline-passing")).toHaveText("9");
     await expect(page.getByTestId("baseline-speed")).toHaveText("6");
+    await expect(page.getByTestId("applied-speed")).toHaveText("applied 7");
     await expect(page.getByTestId("resume-status-speed")).not.toContainText("Locked");
   });
 
@@ -134,11 +135,11 @@ test.describe("D07 — correct cumulative-materiality semantics (pending vs. app
     await page.goto(`${BASE}/d07-attribute-evolution-review/manual-edit-rebase`);
     const requests = collectServerActionRequests(page);
 
-    await expect(page.getByTestId("resume-status-workRate")).toContainText("Locked");
-    const unlockButton = page.getByTestId("rebase-row-workRate").getByRole("button", { name: "Unlock (simulated)" });
+    await expect(page.getByTestId("resume-status-effort")).toContainText("Locked");
+    const unlockButton = page.getByTestId("rebase-row-effort").getByRole("button", { name: "Unlock (simulated)" });
     await unlockButton.click();
-    await expect(page.getByTestId("resume-status-workRate")).not.toContainText("Locked");
-    await expect(page.getByTestId("resume-status-workRate")).toContainText("Eligible to resume");
+    await expect(page.getByTestId("resume-status-effort")).not.toContainText("Locked");
+    await expect(page.getByTestId("resume-status-effort")).toContainText("Eligible to resume");
     expect(requests).toHaveLength(0);
   });
 });

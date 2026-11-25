@@ -252,3 +252,74 @@ tests passing, no regressions — up from 187/1171).
 `npx vitest run gate-d` (default config: 11 files / 11 tests passing, fixture-hash integrity),
 `npm run test:components -- --run gate-d` (11 files / 38 tests passing), full
 `npm run test:components` (187 files / 1171 tests passing, no regressions — up from 182/1154).
+
+---
+
+## Second remediation pass (2026-11-25): attribute-domain, baseline-semantics, D09-wording fixes
+
+### Production code
+
+None. No file under `src/app/(app)/**`, a domain service, or the Prisma schema was touched. This
+pass only imports a real production *type* (`RatingAttributeKey` from
+`src/lib/ratings/player-rating.ts`) into UI Lab code — it does not modify that file.
+
+### UI Lab (dev-only, production-disabled)
+
+- `src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/attribute-rebase-panel.tsx` —
+  `AttributeRebaseRow.attributeKey` retyped `string` → `RatingAttributeKey` (imported); split
+  `baselineValue`/`baselineSource: "...AUTOMATIC"` into `coachBaselineValue` (always
+  coach-authoritative) and a new `currentAppliedValue`; `baselineSource` no longer accepts
+  `"AUTOMATIC"`; rendering updated to show both values distinctly (new `applied-{attributeKey}`
+  testid, shown only when the two values differ).
+- `d07-attribute-evolution-review/manual-edit-rebase/fixtures.ts` — `finishing`/`workRate`
+  replaced with `oneVOneAttacking`/`effort` (real `RatingAttributeKey` values, real production
+  labels); `speed` row corrected to demonstrate `coachBaselineValue: 6` / `currentAppliedValue: 7`
+  instead of an invalid `baselineSource: "AUTOMATIC"`. `fixtureVersion` 1→2, `fixtureSha256`
+  recomputed.
+- `d07-attribute-evolution-review/manual-edit-rebase/__tests__/page.test.tsx` — updated testids
+  (`finishing`→`oneVOneAttacking`, `workRate`→`effort`) and added an assertion for the new
+  `applied-speed` value and its accompanying baseline-unchanged copy.
+- `d09-evidence-lineage/shared/evidence-lineage-display.tsx` — on-page description corrected from
+  "The coach's original wording is preserved" to "Previous extracted observation wording is
+  retained when a newer extraction supersedes it. The original coach-submitted source is not shown
+  here."
+- `d09-evidence-lineage/superseded-lineage/fixtures.ts` — `fixtureVersion` 1→2 (rendering changed
+  via the shared display component; entry data and `fixtureSha256` unchanged — documented why in
+  the header comment).
+
+### Tests / browser suite
+
+- `e2e/ui-lab-gate-d.spec.ts` — updated the manual-edit-rebase test block's testids
+  (`workRate`→`effort`) and added an `applied-speed` assertion. Test count unchanged (86).
+
+### Documentation
+
+- `DATA_TRUTH_AND_FIXTURES.md`, `SCENARIO_REGISTER.md`, `BLOCKERS.md` (this file's own §11–§12) —
+  dated 2026-11-25 correction notes added; original findings preserved, not rewritten.
+- `candidate_manifest.json` — `GATE-D-W1-D07-REBASE` (`fixtureVersion` 1→2, `knownGaps` corrected
+  to name both fixed defects and the Unlock-only interactivity distinction) and
+  `GATE-D-W1-D09-LINEAGE` (`fixtureVersion` 1→2, `knownGaps` corrected) updated;
+  `GATE-D-W1-D02-SPARSE`'s `knownGaps` corrected from describing the *populated* fixture's
+  percentages to describing the actual sparse (single-code, insufficient-evidence) scenario.
+
+### Judgment calls
+
+- Reused the real production attribute-label strings from
+  `src/components/players/player-attributes-panel.tsx`'s local `RATING_LABELS` map ("1v1 Att.",
+  "Effort") rather than inventing new label wording or exporting/importing that local const —
+  consistent with how "Passing"/"Speed" were already hardcoded to match production convention in
+  this same fixture.
+- Did not touch `GATE-D-W1-D08-STRONG`/`-CONFLICT`'s existing `collapseTacticalToProfile` reuse or
+  any D01/D02/D04/D08 file — this pass's four findings were scoped entirely to D07, D09, and two
+  manifest entries.
+
+### Validation (this pass)
+
+`npm run typecheck` (clean, via `NODE_OPTIONS="--max-old-space-size=6144"` — transient sandbox OOM
+on the plain command, known pre-existing issue, not a real failure), `npm run lint` (clean, same 3
+pre-existing unrelated warnings), `npx vitest run gate-d` (14 files / 27 tests),
+`npm run test:components -- --run gate-d` (14 files / 64 tests), `npx playwright test
+--project=ui-lab-gate-d --list` (86 tests listed, spec parses correctly — a live local browser run
+was attempted but blocked by this sandbox's background-process handling; the authoritative
+live-browser verification is the real CI run this pass's commit triggers, checked before
+finalizing). Full `npm run test:components` regression run: 190 files / 1197 tests passing, no regressions.

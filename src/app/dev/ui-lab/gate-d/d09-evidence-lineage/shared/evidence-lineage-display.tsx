@@ -142,7 +142,7 @@ export function EvidenceLineageDisplay({
       <div className="p-4">
         <SectionHeader
           title="Observation lineage"
-          description="The coach's original wording is preserved; a resubmission supersedes the prior extraction, it does not rewrite history."
+          description="Previous extracted observation wording is retained when a newer extraction supersedes it. The original coach-submitted source is not shown here."
         />
         <ol className="mt-3 space-y-2">
           {entries.map((entry) =>
