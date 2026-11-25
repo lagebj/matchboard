@@ -92,6 +92,16 @@ export default defineConfig({
       },
       testMatch: /ui-lab-gate-c\.spec\.ts/,
     },
+    // Gate D W1 remediation — same no-auth/no-database rationale and same local dev-server target
+    // as the Gate C project above; its own project, scoped to its own spec file, same convention.
+    {
+      name: "ui-lab-gate-d",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: process.env.UI_LAB_BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333",
+      },
+      testMatch: /ui-lab-gate-d\.spec\.ts/,
+    },
     {
       name: "chromium",
       use: {
@@ -103,7 +113,7 @@ export default defineConfig({
       // it under the full-access coach persona would make its "denied" assertions false. It runs
       // only under the "chromium-viewer" project below (ADR-0078). mobile-critical.spec.ts is a
       // compact-viewport-only contract — it runs under the two mobile-critical-* projects below.
-      testIgnore: [/authz-failure\.spec\.ts/, /mobile-critical\.spec\.ts/, /ui-lab-b08\.spec\.ts/, /ui-lab-gate-c\.spec\.ts/],
+      testIgnore: [/authz-failure\.spec\.ts/, /mobile-critical\.spec\.ts/, /ui-lab-b08\.spec\.ts/, /ui-lab-gate-c\.spec\.ts/, /ui-lab-gate-d\.spec\.ts/],
     },
     {
       name: "chromium-viewer",

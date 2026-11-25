@@ -98,3 +98,15 @@ The `OpponentSportingEvidence.estimate` field already uses `Decimal(4,2)`. The `
 - Phase 5: Forward-only player evidence
 - Phase 6: Assessment history UI
 - Phase 7: Hardening and cleanup (remove dead code, parallel calculations)
+
+## Update (2026-11-23)
+
+Gate D (Player Intelligence) programme, product-owner decision: **ADR-0160** partially supersedes
+this ADR's automatic-always attribute-mutation scope. Attribute changes up to one point, backed by
+at least three matches of evidence and confidence ≥0.7, remain automatic as this ADR established;
+a change of two or more cumulative points from the last coach-established/approved baseline now
+requires explicit coach approval. **ADR-0160** also moves manual-edit rebase (§6 above) from this
+ADR's player-wide `Player.evidenceCutoverAt` to an attribute-level mechanism — a required schema
+change not yet implemented. This ADR's vocabulary, accumulator, provenance model, and
+`AssessmentChange` audit mechanism are otherwise retained unchanged. See ADR-0160 for the full
+decision and required follow-up work; no implementation performed as part of this update.

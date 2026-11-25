@@ -1117,6 +1117,70 @@ const scenarios = [
     route: "gate-c/c08-same-day-quick-add/planning-closed",
     extraViewports: gcW3ExtraSmokeViewports,
   },
+  // Gate D W1 (D01 Overview position evidence, D02 Evidence position-dot consolidation, D04
+  // Matches minute coverage) — CANDIDATE, not approved. Fixture-driven only. Registered from the
+  // first commit, per the same B5/R7 lesson every prior gate's wave already applied. See
+  // docs/ui-lab/gate-d-w1-candidates/SOURCE_RECONCILIATION.md and WAVE_SCOPE.md for scope.
+  {
+    slug: "gate-d-w1-d01-agreeing-positions",
+    route: "gate-d/d01-overview-position-evidence/agreeing-positions",
+  },
+  {
+    slug: "gate-d-w1-d01-diverging-positions",
+    route: "gate-d/d01-overview-position-evidence/diverging-positions",
+  },
+  {
+    slug: "gate-d-w1-d02-populated-evidence",
+    route: "gate-d/d02-evidence-dot-consolidation/populated-evidence",
+  },
+  {
+    slug: "gate-d-w1-d02-sparse-evidence",
+    route: "gate-d/d02-evidence-dot-consolidation/sparse-evidence",
+  },
+  {
+    slug: "gate-d-w1-d04-full-coverage",
+    route: "gate-d/d04-matches-coverage/full-coverage",
+  },
+  {
+    slug: "gate-d-w1-d04-partial-coverage",
+    route: "gate-d/d04-matches-coverage/partial-coverage",
+  },
+  // Gate D W1 extension (2026-11-23 owner decision, ADR-0160): D07/D08 directional candidates and
+  // D09 evidence-lineage exposure. CANDIDATE, not approved. See
+  // docs/ui-lab/gate-d-w1-candidates/WAVE_SCOPE.md's "Wave 1 extension" section.
+  {
+    slug: "gate-d-w1-d07-automatic-non-material",
+    route: "gate-d/d07-attribute-evolution-review/automatic-non-material",
+  },
+  {
+    slug: "gate-d-w1-d07-pending-material-approval",
+    route: "gate-d/d07-attribute-evolution-review/pending-material-approval",
+  },
+  // 2026-11-24 remediation: the previously-deferred manual-edit/attribute-level-rebase state
+  // (ADR-0160 §5), added per the owner's remediation brief.
+  {
+    slug: "gate-d-w1-d07-manual-edit-rebase",
+    route: "gate-d/d07-attribute-evolution-review/manual-edit-rebase",
+  },
+  {
+    slug: "gate-d-w1-d08-strong-evidence",
+    route: "gate-d/d08-primary-position-proposal/strong-evidence",
+  },
+  {
+    slug: "gate-d-w1-d08-conflicting-note",
+    route: "gate-d/d08-primary-position-proposal/conflicting-note",
+  },
+  {
+    slug: "gate-d-w1-d09-superseded-lineage",
+    route: "gate-d/d09-evidence-lineage/superseded-lineage",
+  },
+  // 2026-11-24 remediation: the real validateExtractionSemantics rejection behavior (an
+  // unresolvable player reference discards the whole extraction, never a kept-but-ambiguous
+  // observation) — added per the owner's remediation brief's D09 coverage requirement.
+  {
+    slug: "gate-d-w1-d09-ambiguous-reference-rejected",
+    route: "gate-d/d09-evidence-lineage/ambiguous-reference-rejected",
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },

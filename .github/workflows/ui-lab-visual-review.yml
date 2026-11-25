@@ -38,7 +38,10 @@ jobs:
     # Gate C W1: bumped 45 -> 55 for the new Gate C Playwright acceptance step below (same
     # rationale — real browser navigation and responsive-overflow coverage for C01-C03, not only
     # component tests).
-    timeout-minutes: 55
+    # Gate D W1 remediation: bumped 55 -> 65 for the new Gate D Playwright acceptance step below
+    # (86 real-browser tests — D01/D02/D07/D08/D09 interaction, Server-Action-absence, and
+    # responsive-overflow coverage, per the owner's remediation brief §8).
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -106,6 +109,24 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-lab-gate-c-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      # Gate D W1 remediation — real Chromium assertions for D01/D02/D07/D08/D09 simulated
+      # interactions (accept/reject/defer/edit/retract/unlock), Server-Action absence (next-action
+      # header filtering, not a blanket POST check), and responsive overflow, per the owner's
+      # remediation brief §8. Same dedicated no-`setup`-dependency Playwright project convention
+      # and already-running local server as the B08/Gate C steps above. Deliberately no `if:`
+      # override, matching their default-continuation behavior.
+      - name: Run Gate D Playwright acceptance suite
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3333
+        run: npx playwright test --project=ui-lab-gate-d
+      - name: Upload Gate D Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-lab-gate-d-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: playwright-report/
           if-no-files-found: ignore
           retention-days: 7

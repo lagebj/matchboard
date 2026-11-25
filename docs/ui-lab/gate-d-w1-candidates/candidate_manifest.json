@@ -1,0 +1,343 @@
+{
+  "programmeRevision": "0.169.15",
+  "baseCommitSha": "a9c6f2fa1a8cab0be306dfca28bd51ddc01bbbf5",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY \u2014 dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-d/. Not a production implementation, not an authorization, not a security proof. Scope and authority sources: docs/ui-lab/gate-d-w1-candidates/SOURCE_RECONCILIATION.md.",
+  "note": "Gate D W1 \u2014 D01 (Player Detail Overview, position evidence), D02 (Player Detail Evidence, position-dot consolidation), D04 (Player Detail Matches, minute coverage), D07 (attribute evolution review, directional), D08 (primary position proposal, directional), D09 (evidence lineage). D03/D06 (Assistant Coach cross-source hypothesis) deferred to Wave 2. UPDATE 2026-11-23: the product owner resolved the two authority conflicts that originally blocked D07/D08 (ADR-0139 vs. mandatory coach approval; ADR-0154 vs. the 14-role profile vocabulary) via ADR-0160 (docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md), which partially supersedes ADR-0139/ADR-0092 and additively extends ADR-0154. This resolves the conflicts as DECISIONS, not as production implementation \u2014 no schema, service, or write-path change was made anywhere in this wave. D07/D08's candidates are therefore directional design candidates for a decided-but-unimplemented policy (not production-component mounts for the review/approval interaction itself, since no such interaction exists in production yet), explicitly labeled as such, following the same precedent Gate A already set with its own a06/a12 directional studies. D09 was found, on re-audit, to be independent of the D07/D08 conflict entirely \u2014 real supersession machinery already ships in qualitative-evidence-service.ts; D09 exposes that existing lineage through new presentation. No production code was changed anywhere in this wave. scripts/ui-lab-visual-review.mjs registers all eleven routes for CI capture (consistent with every prior gate's wave). capture-attestation.json is not yet included; it requires a real CI capture run. All candidates are CANDIDATE, pending owner review \u2014 none approved, none merged, none self-approved. REMEDIATION 2026-11-24 (owner review of this PR): corrected D01 (now demonstrates the approved 14-role profile experience directionally, not just a disclosed absence), D02 (now performs real 24-to-14 profile-level share consolidation, not just exact-code shares), D07 (fixed cumulative-materiality math that previously violated ADR-0160 \u00a74's own threshold; added the previously-deferred manual-edit/attribute-rebase state), D08 (replaced a conflicting-note fixture that did not actually conflict with the proposal), and D09 (added simulated Edit/Retract interactions and a new state demonstrating the real ambiguous-reference-rejection behavior). Thirteen candidates total. No production code changed in this remediation pass either. SELF-DISCOVERED FIX 2026-11-24 (during screenshot inspection, not requested by the owner's remediation brief): GATE-D-W1-D01-DIVERGING's currentStory fixture contradicted its own new 'no automatic mutation' disclosure (it used real production copy that only applies after a position change has already been written); fixed, fixtureVersion bumped to 3.",
+  "candidates": [
+    {
+      "scenarioId": "GATE-D-W1-D01-AGREEING",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d01-agreeing-positions",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/d01-overview-position-evidence/shared/profile-role-summary.tsx",
+        "src/components/touchline/player/player-current-story-card.tsx",
+        "src/components/touchline/player/player-position-map-widget.tsx",
+        "src/components/touchline/pitch/touchline-position-map.tsx",
+        "src/components/players/player-position-profile.tsx",
+        "src/app/dev/ui-lab/gate-d/shared/player-position-profile-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/d01-overview-position-evidence/agreeing-positions/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D01",
+        "XR-P01",
+        "XR-P04",
+        "XR-V01"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D01-AGREEING",
+      "dataContractRef": "docs/adr/0154-canonical-tactical-position-model.md; docs/adr/0157-contextual-coach-workspace-convergence.md (slice C5)",
+      "baselineAssetRef": "No new production code \u2014 display-only fixture of already-shipped, unmodified components.",
+      "knownGaps": [
+        "REMEDIATED 2026-11-24: v1 only mounted the real 24-code production components with a disclosed mismatch; it did not demonstrate the approved 14-role profile experience ADR-0160 decided on. v2 adds a directional ProfileRoleSummary (reusing collapseTacticalToProfile) alongside the unmodified production mount, showing declared vs. evidence-derived profile role, confidence, and exact-tactical drill-down.",
+        "The 14-role profile projection is not a shipped production capability (confirmed: no collapseTacticalToProfile caller exists outside src/app/dev/ui-lab/gate-a/**) \u2014 ProfileRoleSummary is explicitly directional, not a production-component mount.",
+        "The position editor's save action is simulated (disclosed on-page) \u2014 no Server Action is called, no player record is written."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D01-DIVERGING",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d01-diverging-positions",
+      "fixtureVersion": 3,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/d01-overview-position-evidence/shared/profile-role-summary.tsx",
+        "src/components/touchline/player/player-current-story-card.tsx",
+        "src/components/touchline/player/player-position-map-widget.tsx",
+        "src/components/touchline/pitch/touchline-position-map.tsx",
+        "src/components/players/player-position-profile.tsx",
+        "src/app/dev/ui-lab/gate-d/shared/player-position-profile-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/d01-overview-position-evidence/diverging-positions/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D01",
+        "XR-P01",
+        "XR-P04",
+        "XR-V01"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D01-DIVERGING",
+      "dataContractRef": "docs/adr/0154-canonical-tactical-position-model.md; docs/adr/0139 (automatic position-profile evolution); docs/adr/0157-contextual-coach-workspace-convergence.md (slice C5)",
+      "baselineAssetRef": "No new production code \u2014 display-only fixture of already-shipped, unmodified components.",
+      "knownGaps": [
+        "SELF-DISCOVERED FIX 2026-11-24: the currentStory fixture previously used the real POSITION_EVOLUTION headline (\"Recorded primary position updated to Right Back...\"), which production only emits after a position change has already been applied -- contradicting this candidate's own declared-primary-unchanged state and its new 'no automatic mutation occurs' disclosure. Found via screenshot inspection, not a test. Fixed to an OPPORTUNITY-sourced headline (matches the sibling agreeing-positions fixture's convention) that makes no claim about the primary position.",
+        "The 14-role profile projection is not a shipped production capability (confirmed: no collapseTacticalToProfile caller exists outside src/app/dev/ui-lab/gate-a/**) -- ProfileRoleSummary is explicitly directional, not a production-component mount.",
+        "The position editor's save action is simulated (disclosed on-page) -- no Server Action is called, no player record is written."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D02-POPULATED",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d02-populated-evidence",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/consolidated-position-evidence.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/position-profile-consolidation.ts",
+        "src/lib/touchline/presentation/player-evidence-view-model.ts",
+        "src/components/touchline/evidence/evidence-story.tsx",
+        "src/components/touchline/viz/sparkline.tsx",
+        "src/components/touchline/viz/stacked-distribution.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/evidence-groups.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/populated-evidence/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D02",
+        "XR-P03",
+        "XR-A03"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D02-POPULATED",
+      "dataContractRef": "docs/adr/0155 step B6 (DerivedTrend); docs/adr/0157-contextual-coach-workspace-convergence.md (slice C5)",
+      "baselineAssetRef": "No new production code \u2014 display-only fixture of already-shipped, unmodified components.",
+      "knownGaps": [
+        "REMEDIATED 2026-11-24: v1 displayed only exact tactical shares (CB 58% / RCB 25% / CDM 17%), which is a valid exact breakdown but not profile-level consolidation \u2014 D02's actual acceptance question. v2 adds a real, tested consolidateExactSharesByProfile() aggregation (reusing collapseTacticalToProfile, no second mapping) showing the profile-level result (CB 83% / DM 17%) as the primary view, with the exact breakdown kept accessible via an explicit drill-down.",
+        "Disclosed finding: production's real buildEvidenceStories() never actually populates positionShares with live data \u2014 the POSITION story's positionShares is a wired rendering slot with no current data source, not something this fixture can claim is proven correct against production data."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D02-SPARSE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d02-sparse-evidence",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/consolidated-position-evidence.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/position-profile-consolidation.ts",
+        "src/lib/touchline/presentation/player-evidence-view-model.ts",
+        "src/components/touchline/evidence/evidence-story.tsx",
+        "src/components/touchline/viz/stacked-distribution.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/shared/evidence-groups.tsx",
+        "src/app/dev/ui-lab/gate-d/d02-evidence-dot-consolidation/sparse-evidence/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D02",
+        "XR-P03",
+        "XR-A03"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D02-SPARSE",
+      "dataContractRef": "docs/adr/0155 step B6 (DerivedTrend); docs/adr/0157-contextual-coach-workspace-convergence.md (slice C5)",
+      "baselineAssetRef": "No new production code \u2014 display-only fixture of already-shipped, unmodified components.",
+      "knownGaps": [
+        "This sparse fixture has a single exact POSITION code (LM, 100% of the one recorded match), not the populated fixture's CB/RCB/CDM mix -- the profile-level consolidation is trivially LM 100% (no sibling sided code shares its profile group), exercising the real consolidateExactSharesByProfile() aggregation's one-code edge rather than its multi-code case. No unobserved position is fabricated as a zero share; Opportunity and Trend both render the real insufficient-evidence (confidence: null) state instead of a guessed value.",
+        "Disclosed finding: production's real buildEvidenceStories() never actually populates positionShares with live data -- the POSITION story's positionShares is a wired rendering slot with no current data source, not something this fixture can claim is proven correct against production data."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D04-FULL",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d04-full-coverage",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/player/player-match-timeline.tsx",
+        "src/app/dev/ui-lab/gate-d/d04-matches-coverage/full-coverage/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D04"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D04-FULL",
+      "dataContractRef": "04_PLAYER_DETAIL_CONTRACT.md \u00a75 (Matches tab)",
+      "baselineAssetRef": "No new production code \u2014 display-only fixture of an already-shipped, unmodified component.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D04-PARTIAL",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d04-partial-coverage",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/player/player-match-timeline.tsx",
+        "src/app/dev/ui-lab/gate-d/d04-matches-coverage/partial-coverage/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D04"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D04-PARTIAL",
+      "dataContractRef": "04_PLAYER_DETAIL_CONTRACT.md \u00a75 (Matches tab)",
+      "baselineAssetRef": "No new production code \u2014 display-only fixture of an already-shipped, unmodified component.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D07-AUTOMATIC",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d07-automatic-non-material",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/materiality-policy.ts",
+        "src/components/players/player-assessment-history-panel.tsx",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/assessment-history-display.tsx",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/automatic-non-material/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D07"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D07-AUTOMATIC",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md \u00a74; docs/adr/0092-match-evidence-engine-domain-foundation.md",
+      "baselineAssetRef": "No new production code. Reproduces AssessmentHistoryPanel's real rendering over fixture data (that component owns its own data fetch) \u2014 disclosed in DATA_TRUTH_AND_FIXTURES.md.",
+      "knownGaps": [],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D07-MATERIAL",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d07-pending-material-approval",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/materiality-policy.ts",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/material-approval-review.tsx",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/pending-material-approval/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D07"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D07-MATERIAL",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md \u00a74",
+      "baselineAssetRef": "No production equivalent exists yet. This is a directional design candidate for ADR-0160's decided-but-unimplemented materiality/approval policy, not a mount of a real production review surface.",
+      "knownGaps": [
+        "REMEDIATED 2026-11-24: v1 showed three automatic one-point increases (6->7->8->9) reaching a pending proposal of 9, which violated ADR-0160 \u00a74's own cumulative-threshold math (approval triggers at +2 from baseline, not +3). v2 corrects this: baseline 6, one legitimately-automatic step applied (6->7), a second step (7->8) correctly requires approval because cumulative movement from baseline reaches +2. The threshold math is now backed by an independently unit-tested pure module (materiality-policy.ts).",
+        "No production schema or service supports a pending attribute-approval state today; AssessmentChange always represents an already-applied change.",
+        "Accept/Reject are simulated \u2014 no Server Action is called, no AssessmentChange row is written."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D08-STRONG",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d08-strong-evidence",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d08-primary-position-proposal/shared/position-proposal-review.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/d08-primary-position-proposal/strong-evidence/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D08"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D08-STRONG",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md \u00a71, \u00a76; docs/adr/0139-evolving-player-position-model.md",
+      "baselineAssetRef": "No production equivalent exists yet. Directional design candidate; reuses the real, tested collapseTacticalToProfile() from Gate A's a12-profile-editor directional study rather than reimplementing the 14-role mapping table.",
+      "knownGaps": [
+        "ADR-0139's evolvePlayerPositionProfile() still writes automatically in production today; this review surface does not exist yet.",
+        "Accept/Reject/Defer are simulated \u2014 no Server Action is called, no position record is written."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D08-CONFLICT",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d08-conflicting-note",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d08-primary-position-proposal/shared/position-proposal-review.tsx",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/d08-primary-position-proposal/conflicting-note/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D08"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D08-CONFLICT",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md \u00a71, \u00a76",
+      "baselineAssetRef": "Same as GATE-D-W1-D08-STRONG \u2014 directional design candidate.",
+      "knownGaps": [
+        "REMEDIATED 2026-11-24: v1's conflicting note (\"prefers staying tucked in\") actually supported the proposed RB move rather than conflicting with it, failing to demonstrate genuine evidence conflict. v2 replaces it with a coach observation reporting a recurring defensive concern directly relevant to the proposed role, creating real, unresolved tension the coach must weigh.",
+        "Same production-equivalence gaps as GATE-D-W1-D08-STRONG.",
+        "A conflicting coach note is disclosed as additional context, never as a reason to auto-suppress or auto-apply the proposal."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D09-LINEAGE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d09-superseded-lineage",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/lib/evidence/qualitative-evidence-service.ts",
+        "src/app/dev/ui-lab/gate-d/d09-evidence-lineage/shared/evidence-lineage-display.tsx",
+        "src/app/dev/ui-lab/gate-d/d09-evidence-lineage/superseded-lineage/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D09"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D09-LINEAGE",
+      "dataContractRef": "docs/adr/0152-coach-learning-loop.md",
+      "baselineAssetRef": "The underlying supersession data model and behavior are real and already shipped (ADR-0152); no existing production component surfaces this lineage to a coach, so this candidate's display component is new presentation over real data, not a mount of an existing production component.",
+      "knownGaps": [
+        "No production UI currently exposes this lineage; this candidate is the first presentation of it.",
+        "Edit and Retract are simulated, interactive controls -- no Server Action is called, no qualitative-evidence-service write occurs.",
+        "CORRECTED 2026-11-25: the on-page description previously said \"the coach's original wording is preserved,\" which the real schema does not establish (only the extracted observation's statement is preserved across supersession, not necessarily the coach's byte-identical raw submission). Corrected to disclose this distinction explicitly."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D07-REBASE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d07-manual-edit-rebase",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/attribute-rebase-panel.tsx",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/shared/materiality-policy.ts",
+        "src/app/dev/ui-lab/gate-d/d07-attribute-evolution-review/manual-edit-rebase/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D07"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D07-REBASE",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md \u00a75",
+      "baselineAssetRef": "ADDED 2026-11-24 (previously deferred). No production equivalent exists yet. Directional state machine demonstrating ADR-0160 \u00a75's attribute-level manual-edit rebase (not a real database schema; any undecided persistence detail is disclosed, not fabricated).",
+      "knownGaps": [
+        "CORRECTED 2026-11-25: the fixture previously used attribute identifiers (finishing, workRate) that do not exist in the real RatingAttributeKey domain (src/lib/ratings/player-rating.ts) -- replaced with oneVOneAttacking/effort, labelled with their real production display strings. AttributeRebaseRow.attributeKey is now typed as RatingAttributeKey, not a bare string.",
+        "CORRECTED 2026-11-25: baselineSource no longer accepts \"AUTOMATIC\" -- ADR-0160 Sec4's materiality baseline is always coach-established/approved; an automatic adjustment now changes only currentAppliedValue (new field, distinct from coachBaselineValue), so repeated automatic steps can never silently redefine the approval baseline.",
+        "Player.evidenceCutoverAt is player-wide today, not per-attribute -- the real schema change this state anticipates has not been implemented.",
+        "Only Unlock is an interactive, simulated control (no Server Action, no persisted lock state). Manual edit and the locked state are fixture-presented, not live interactions this candidate demonstrates -- there is no interactive Manual Edit or Lock control in this candidate."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W1-D09-AMBIGUOUS",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w1-d09-ambiguous-reference-rejected",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/lib/evidence/qualitative-evidence-extraction-contract.ts",
+        "src/app/dev/ui-lab/gate-d/d09-evidence-lineage/shared/rejected-extraction-display.tsx",
+        "src/app/dev/ui-lab/gate-d/d09-evidence-lineage/ambiguous-reference-rejected/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "D09"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w1-candidates/SCENARIO_REGISTER.md row GATE-D-W1-D09-AMBIGUOUS",
+      "dataContractRef": "src/lib/evidence/qualitative-evidence-extraction-contract.ts (validateExtractionSemantics)",
+      "baselineAssetRef": "ADDED 2026-11-24. Demonstrates the real validateExtractionSemantics rule: an unresolvable player reference discards the entire extraction response (zero observations), never a kept-but-ambiguous, lower-confidence observation. Built directly from the real contract's rejection behavior, not an invented 'ambiguous' tier.",
+      "knownGaps": [],
+      "approval": null
+    }
+  ]
+}
