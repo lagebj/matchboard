@@ -136,3 +136,52 @@ files/64 tests), full `npm run test:components` (190 files/1197 tests), and
   review/approval UI, persistence, and the 14-role projection module remain required future work —
   `VISUAL_VS_CURRENT.md`'s acceptance-classification table and all three reviews confirm this
   distinction is honestly disclosed throughout, not that the capability itself now exists.
+
+## Fourth independent review — attribute-domain, baseline-semantics, D09-wording fixes (2026-11-25)
+
+A second owner review found four more findings (D07's invalid `finishing`/`workRate` attribute
+keys; D07's `baselineSource: "AUTOMATIC"` allowing an automatic step to look like it redefined the
+materiality baseline; D09's overstated "original wording is preserved" copy; two stale
+`candidate_manifest.json` descriptions). All four were fixed, and a fourth independent review
+(fresh agent, no shared context with the implementer or any prior review) verified them against
+the owner's exact 10-question brief.
+
+### Findings verified
+
+| # | Question | Independent finding |
+|---|---|---|
+| 1 | Valid attribute keys/labels? | Confirmed — `passing`/`oneVOneAttacking`/`speed`/`effort` are real `RatingAttributeKey` values; labels match `player-attributes-panel.tsx`'s real `RATING_LABELS` exactly; type imported, not duplicated. |
+| 2 | Baseline vs. applied distinguished? | Confirmed by tracing JSX directly — `coachBaselineValue`/`currentAppliedValue` are distinct fields, rendered via separate testids, verified live (86/86 Playwright). |
+| 3 | No automatic baseline redefinition? | Confirmed — `baselineSource` type no longer includes `"AUTOMATIC"`; grep of the whole directory found no remaining misuse. |
+| 4 | Manual edit affects only its own attribute? | Confirmed — no shared mutable state across rows in `AttributeRebasePanel`. |
+| 5 | Lock/unlock eligibility correct? | Confirmed by tracing `resumeStatus()`/`canResumeAutomationAfterManualEdit()` against the real fixture values, and verified live via Playwright. |
+| 6 | D09 copy accurate? | Confirmed — new copy matches what the real Prisma schema (`QualitativeEvidenceExtractionRun`/`QualitativeEvidenceObservation`) actually supports; no raw-source-text field exists anywhere, confirmed by direct schema grep. |
+| 7 | Manifest descriptions accurate? | Confirmed — both corrected entries now match their real fixtures/components exactly. |
+| 8 | Browser interactions still pass? | Confirmed by **actually running** the suite against a real local dev server: 86/86 passed, including both corrected manual-edit-rebase tests. |
+| 9 | Valid capture provenance? | 78 entries confirmed. One MINOR, disclosed, immaterial note: see below. |
+| 10 | Prior corrections intact? | Confirmed — D01-DIVERGING, D08-CONFLICT, and D07-MATERIAL's earlier fixes all verified still in place, not reverted. |
+
+### Validation (independently re-run)
+
+`npm run typecheck` (clean), `npm run lint` (clean, 3 pre-existing unrelated warnings),
+`npx vitest run gate-d` (14 files/27 tests), `npm run test:components -- --run gate-d` (14
+files/64 tests), full `npm run test:components` (190 files/1197 tests), and a **live** run of
+`npx playwright test --project=ui-lab-gate-d` against a real local dev server (86/86 passed) —
+every number matched exactly, with the Playwright suite independently executed rather than only
+read.
+
+### Findings
+
+- **BLOCKING**: none. **MAJOR**: none.
+- **MINOR**: `capture-attestation.json`'s `reviewedBranchHeadSha` does not literally string-match
+  the exact current branch-tip commit, because the attestation-refresh commit necessarily lands
+  one commit after the commit CI actually captured (an attestation can't describe a commit that
+  doesn't exist yet when CI runs). The reviewer confirmed via `git diff` that zero `src/`/`e2e/`
+  files changed between the attested commit and current HEAD — the screenshots still accurately
+  reflect the current code — and this exact pattern is already disclosed in the document's own
+  `knownLimitations`. Not an error; inherent to how this evidence chain is built, same as every
+  prior attestation in this wave.
+
+### Fourth reviewer's overall verdict
+
+`READY_FOR_OWNER_REVIEW`
