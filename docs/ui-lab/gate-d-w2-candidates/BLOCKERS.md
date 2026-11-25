@@ -76,23 +76,26 @@ asks for a position/attribute proposal); where a fixture cites position evidence
 real `collapseTacticalToProfile()` mapping correctly (verified by test) rather than conflicting
 with ADR-0160 §6.
 
-## Capture evidence superseded by this remediation — not yet refreshed at the remediation commit
+## Capture evidence superseded by this remediation — now refreshed and independently re-verified
 
-The `capture-attestation.json` present as of the remediation commit (`2e66f0df4`) still attests
-screenshots from CI run 45643162459 (commit 40bdff67) — the **pre**-remediation rendering, for
-D03-GROUNDED, D03-DECISION-FLOW, D06-COHERENT, D06-CONTRADICTION, and D06-SOURCE-INSPECTION (all
-five render `EvidenceSourceInspector`, whose pill labels changed; D03-GROUNDED and
-D03-DECISION-FLOW's fixture content also changed). Those screenshots no longer represent the
-current code and must not be read as evidence for it.
+The `capture-attestation.json` originally attached to this PR (CI run 45643162459, commit
+40bdff67) attested the **pre**-remediation rendering for D03-GROUNDED, D03-DECISION-FLOW,
+D06-COHERENT, D06-CONTRADICTION, and D06-SOURCE-INSPECTION (all five render
+`EvidenceSourceInspector`, whose pill labels changed; D03-GROUNDED and D03-DECISION-FLOW's fixture
+content also changed). Those screenshots no longer represented the current code and were not
+reused as evidence for it.
 
-**Found by this round's independent review (BLOCKING):** the remediation commit's own
-documentation (this file, `CHANGED_FILES.md`, `candidate_manifest.json`) initially asserted a
+**Found by this round's independent review (BLOCKING), now resolved:** the remediation commit's
+own documentation (this file, `CHANGED_FILES.md`, `candidate_manifest.json`) initially asserted a
 fresh, independently re-verified attestation already existed at that commit. It did not —
 `capture-attestation.json` and `REVIEW_RECORD.md` were both byte-unchanged by that commit,
 confirmed by `git diff`. That was a genuine documentation defect (asserting verification work
-that had not yet happened), not a code defect, and is corrected in a follow-up commit that
-actually performs the real CI capture, downloads the artifact, independently recomputes every
-hash, and only then updates `capture-attestation.json` and `REVIEW_RECORD.md` to match reality.
+that had not yet happened), not a code defect. It is now corrected: a real CI capture run against
+the remediated code (after two further attempts — one canceled by a concurrency collision, one
+that found and required fixing a genuine Playwright test bug of its own — see `REVIEW_RECORD.md`
+for the full three-attempt account) produced 42 real screenshots, all independently re-hashed
+from the downloaded artifact and matching exactly. `capture-attestation.json` now reflects this
+verified, post-remediation run (CI 45706210938).
 
 ## No unresolved source requirements beyond the disclosed D06 XR gap above
 

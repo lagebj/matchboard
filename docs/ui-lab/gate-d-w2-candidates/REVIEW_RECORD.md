@@ -185,12 +185,52 @@ documentation was prematurely describing in advance. The real CI capture run, in
 re-verification, and `capture-attestation.json` update described in the next section are the
 follow-through that makes those documents' claims true.
 
+## Post-remediation CI capture — what actually happened, including two more real problems
+
+Getting a genuine, complete capture run against the remediated code took three attempts, each for
+a different real reason — recorded here in full rather than only reporting the final success:
+
+1. **Run 45700445445** (triggered automatically by the remediation push, commit `2e66f0df4`) —
+   **canceled mid-flight**, not failed: `ui-lab-visual-review.yml`'s concurrency group
+   (`ui-lab-review-${{ github.ref }}`, `cancel-in-progress: true`) canceled it when the
+   documentation-sequencing-correction commit (`debe6e5a8`) was pushed shortly after, before the
+   capture run finished. No evidence was produced by this run at all.
+2. **Run 45701649793** (manually dispatched via `workflow_dispatch` against the branch, to avoid
+   a further concurrency collision) — the capture step itself succeeded, but the **Gate D
+   Playwright acceptance suite failed one test**: `getByText("Coach observation")` in the
+   D06-COHERENT test resolved to 4 elements instead of 1 — the hypothesis statement's own prose
+   ("...his recorded position intervals and a recent coach observation about his central
+   defending") contains both "recorded position" and "coach observation" as ordinary English,
+   which Playwright's default case-insensitive substring match also matches alongside the real
+   `StatusPill`. A genuine test-authoring bug (the same general class as the first PR's own
+   Playwright-vs-jsdom surprises), not a component, fixture, or domain-rule defect — 143 of 144
+   tests passed; this was the only failure. Fixed (`exact: true` added to every pill-label lookup
+   in that test) and pushed (`7900b59b`).
+3. **Run 45706210938** (manually dispatched again against the fixed code) — **passed in full**:
+   144/144 Gate D Playwright tests, and all 42 scheduled captures across the 7 Wave 2 scenarios
+   succeeded.
+
+**Capture provenance independently verified** (not taken on the workflow's own report): the real
+CI artifact (`ui-lab-review-45706210938-1`) was downloaded via the GitHub CLI, and every one of
+the 42 recorded `sha256` values was recomputed directly from the downloaded PNG bytes and found to
+match the manifest exactly — zero mismatches, zero missing files. `sourceCommitSha` and
+`reviewedBranchHeadSha` are identical (`7900b59b2b4c2f126d7636009eb57b3dd4298d5e`) because this
+run was triggered via `workflow_dispatch` directly against the branch, not the `pull_request`
+event's synthetic merge commit. D03-GROUNDED, D03-DECISION-FLOW, and D06-CONTRADICTION's
+desktop-dark captures were also visually opened and inspected directly in this session, confirming
+the corrected count-not-rate wording, the "6-week window" text, the three distinctly-titled
+per-hypothesis source inspectors, and (together with the Playwright suite's own passing assertions
+for the collapsed-by-default pill text) the corrected source classification.
+`docs/ui-lab/gate-d-w2-candidates/capture-attestation.json` records this verification in full,
+including this exact three-attempt history in its own `knownLimitations`.
+
 ## Final disposition
 
-**READY_FOR_OWNER_VISUAL_REVIEW**, conditioned on the capture-evidence refresh below actually
-being completed (not merely asserted) before this disposition is treated as final — see the
-capture section of this file (added once that CI run completes) for the actual, independently
-re-verified evidence. All four P1/P2 code-level findings are genuinely fixed and independently
-re-verified, with no new defect introduced and no other scenario affected by the same defect
-classes. The one BLOCKING finding from this round concerned documentation sequencing, not code,
-and is corrected above.
+**READY_FOR_OWNER_VISUAL_REVIEW**
+
+All four P1/P2 code-level findings are genuinely fixed and independently re-verified, with no new
+defect introduced and no other scenario affected by the same defect classes. The documentation-
+sequencing BLOCKING finding from this round is corrected. Fresh, independently re-verified capture
+evidence now exists for the actual remediated code (CI run 45706210938), superseding the stale
+pre-remediation attestation. No further implementation work is required before this wave proceeds
+to the owner's own visual review and `/visual-approve` decision.

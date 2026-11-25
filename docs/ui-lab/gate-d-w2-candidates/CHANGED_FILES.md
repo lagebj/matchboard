@@ -33,12 +33,12 @@ No production code (anything outside `src/app/dev/ui-lab/`, `e2e/`, `scripts/`, 
 - `docs/ui-lab/gate-d-w2-candidates/{DATA_TRUTH_AND_FIXTURES,EVIDENCE_AND_HYPOTHESIS_CONTRACT,SCENARIO_REGISTER,VISUAL_VS_CURRENT,INTERACTION_AND_STATE_AUDIT,BLOCKERS,CHANGED_FILES,candidate_manifest.json}`
   — updated to record the four findings as genuine history and describe their corrections (not
   rewritten to imply the problems never existed).
-- `REVIEW_RECORD.md` and `capture-attestation.json` are **not** touched by this specific
-  remediation commit (confirmed by `git diff` — a point this remediation's own first-pass
-  documentation incorrectly claimed otherwise, flagged BLOCKING by a fresh independent review and
-  corrected in `BLOCKERS.md`). Both are updated in a separate follow-up commit once a real CI
-  capture run against this remediation's actual code exists and its hashes are independently
-  re-verified.
+- `REVIEW_RECORD.md` and `capture-attestation.json` were **not** touched by the original
+  remediation commit itself (confirmed by `git diff` at the time — a point that commit's own
+  first-pass documentation incorrectly claimed otherwise, flagged BLOCKING by a fresh independent
+  review and corrected in `BLOCKERS.md`). Both are updated in a later follow-up commit: a real CI
+  capture run (after two further attempts, see `REVIEW_RECORD.md`) produced 42 screenshots against
+  the actual remediated code, independently re-hashed from the downloaded artifact.
 
 ## New — shared UI Lab infrastructure (affects production code: no)
 
