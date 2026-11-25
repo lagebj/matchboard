@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveApproval } from "../resolve-approval.mjs";
+import { resolveApproval, scenarioResultsRelevantToThisPr } from "../resolve-approval.mjs";
 
 const HEAD = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
 const OLD = "0000000000000000000000000000000000000000";
@@ -210,5 +210,81 @@ describe("resolveApproval — legacy manifest fallback", () => {
     const result = resolveApproval(base({ comments: [] }));
     expect(result.scenarios.get("B01")?.state).toBe("AWAITING_APPROVAL");
     expect(result.scenarios.get("B01")?.source).toBeNull();
+  });
+});
+
+describe("scenarioResultsRelevantToThisPr — issue #833 (full-registry re-check must not inherit unrelated approval debt)", () => {
+  it("excludes a scenario this PR's diff never touches and whose own comment thread never discussed it", () => {
+    const scenarios = [
+      scenario(),
+      scenario({ scenarioId: "LEGACY-UNRELATED", componentOwners: ["src/components/touchline/some-old-shared.tsx"] }),
+    ];
+    const changedFiles = ["src/app/dev/ui-lab/gate-b/b01-planned-ready/page.tsx"];
+    const { scenarios: results } = resolveApproval(
+      base({ scenarios, changedFiles, comments: [comment(`/visual-approve ${HEAD}`)] }),
+    );
+    // Full registry-wide resolution still awaits the unrelated scenario (today's existing,
+    // unchanged behavior) — the fix is which of these this PR's own conclusion depends on.
+    expect(results.get("LEGACY-UNRELATED")?.state).toBe("AWAITING_APPROVAL");
+
+    const relevant = scenarioResultsRelevantToThisPr(results, scenarios, changedFiles);
+    expect(relevant.has("B01")).toBe(true);
+    expect(relevant.has("LEGACY-UNRELATED")).toBe(false);
+  });
+
+  it("keeps a scenario this PR's diff touches, even if it is not approved", () => {
+    const scenarios = [scenario()];
+    const changedFiles = ["src/app/dev/ui-lab/gate-b/b01-planned-ready/page.tsx"];
+    const { scenarios: results } = resolveApproval(base({ scenarios, changedFiles, comments: [] }));
+    expect(results.get("B01")?.state).toBe("AWAITING_APPROVAL");
+
+    const relevant = scenarioResultsRelevantToThisPr(results, scenarios, changedFiles);
+    expect(relevant.get("B01")?.state).toBe("AWAITING_APPROVAL");
+  });
+
+  it("keeps a scenario this PR's own comment thread explicitly decided about, even though its componentOwners do not intersect the diff", () => {
+    const scenarios = [
+      scenario(),
+      scenario({ scenarioId: "LEGACY-EXPLICIT", componentOwners: ["src/components/touchline/some-old-shared.tsx"] }),
+    ];
+    const changedFiles = ["src/app/dev/ui-lab/gate-b/b01-planned-ready/page.tsx"];
+    const { scenarios: results } = resolveApproval(
+      base({ scenarios, changedFiles, comments: [comment(`/visual-approve ${HEAD}\nscenarios: LEGACY-EXPLICIT`)] }),
+    );
+    expect(results.get("LEGACY-EXPLICIT")?.state).toBe("APPROVED");
+    expect(results.get("LEGACY-EXPLICIT")?.source).toBe("PR_COMMENT");
+
+    const relevant = scenarioResultsRelevantToThisPr(results, scenarios, changedFiles);
+    expect(relevant.has("LEGACY-EXPLICIT")).toBe(true);
+  });
+
+  it("falls back to every scenario when nothing's componentOwners intersect the changed files at all (infra-only change)", () => {
+    const scenarios = [scenario(), scenario({ scenarioId: "B02", componentOwners: ["src/app/dev/ui-lab/gate-b/b02-other/page.tsx"] })];
+    const changedFiles = ["scripts/ui-lab-visual-review.mjs"];
+    const { scenarios: results } = resolveApproval(base({ scenarios, changedFiles, comments: [] }));
+
+    const relevant = scenarioResultsRelevantToThisPr(results, scenarios, changedFiles);
+    expect(relevant.has("B01")).toBe(true);
+    expect(relevant.has("B02")).toBe(true);
+  });
+
+  it("reproduces PR #844's exact real-world shape: 13 own scenarios approved, 31 unrelated legacy scenarios excluded", () => {
+    const ownScenarios = Array.from({ length: 13 }, (_, i) =>
+      scenario({ scenarioId: `GATE-D-OWN-${i}`, componentOwners: [`src/app/dev/ui-lab/gate-d/own-${i}.tsx`] }),
+    );
+    const legacyScenarios = Array.from({ length: 31 }, (_, i) =>
+      scenario({ scenarioId: `LEGACY-${i}`, componentOwners: [`src/components/touchline/legacy-${i}.tsx`] }),
+    );
+    const scenarios = [...ownScenarios, ...legacyScenarios];
+    const changedFiles = ownScenarios.map((s) => s.componentOwners[0]);
+    const { scenarios: results } = resolveApproval(base({ scenarios, changedFiles, comments: [comment(`/visual-approve ${HEAD}`)] }));
+
+    for (const s of ownScenarios) expect(results.get(s.scenarioId)?.state).toBe("APPROVED");
+    for (const s of legacyScenarios) expect(results.get(s.scenarioId)?.state).toBe("AWAITING_APPROVAL");
+
+    const relevant = scenarioResultsRelevantToThisPr(results, scenarios, changedFiles);
+    expect(relevant.size).toBe(13);
+    for (const s of ownScenarios) expect(relevant.get(s.scenarioId)?.state).toBe("APPROVED");
+    for (const s of legacyScenarios) expect(relevant.has(s.scenarioId)).toBe(false);
   });
 });

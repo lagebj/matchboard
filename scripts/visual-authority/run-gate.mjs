@@ -18,7 +18,7 @@ import { computeSharedComponentOwnerPaths, scopedSharedContent } from "./scoped-
 import { hasWriteAccess } from "./check-actor-permission.mjs";
 import { loadVisualAuthorityConfig, isConfiguredApprover } from "./visual-authority-config.mjs";
 import { isKnownRevision } from "./revision.mjs";
-import { resolveApproval } from "./resolve-approval.mjs";
+import { resolveApproval, scenarioResultsRelevantToThisPr } from "./resolve-approval.mjs";
 import { evaluateGateFromScenarios } from "./evaluate-gate.mjs";
 import { parseCommand } from "./parse-comment.mjs";
 
@@ -346,7 +346,14 @@ async function main() {
     currentSha: headSha,
   });
 
-  const result = evaluateGateFromScenarios({ applicable: true, scenarioResults, errors });
+  // Issue #833 — this PR's own merge-gate conclusion must only depend on scenarios it actually
+  // touches or has explicitly decided about, never on the entire repo-wide registry's unresolved
+  // approval debt (loadScenarioRegistry() above loads every docs/ui-lab/**/candidate_manifest.json
+  // whenever classify() matches, independent of this PR's own diff). writeJobOutputs below still
+  // receives the full, unfiltered scenarioResults — archival of already-approved evidence is a
+  // separate concern from this PR's own pass/fail decision.
+  const relevantResults = scenarioResultsRelevantToThisPr(scenarioResults, scenarios, files);
+  const result = evaluateGateFromScenarios({ applicable: true, scenarioResults: relevantResults, errors });
 
   await postCheckRun(result);
   console.log(`${result.state}: ${result.summary}`);

@@ -43,7 +43,7 @@ function intersects(a, b) {
  * fallback is deliberately the WIDER set, not the empty set: a changed file this PR touches that
  * no scenario currently declares ownership of (e.g. the shared capture script itself) must not
  * silently exempt every scenario from needing approval. */
-function unscopedScenarioIds(scenarios, changedFiles) {
+export function unscopedScenarioIds(scenarios, changedFiles) {
   const matched = scenarios.filter((s) => intersects(s.componentOwners, changedFiles));
   return (matched.length > 0 ? matched : scenarios).map((s) => s.scenarioId);
 }
@@ -216,4 +216,39 @@ function resolveLegacyOrAwaiting(scenario, currentFingerprintForScenario, finger
     approvedRevision: revisionSha,
     reason: `Historical manifest approval by ${approvedBy} at ${revisionSha} no longer matches the current visual-content fingerprint for this scenario — a fresh \`/visual-approve\` is required.`,
   };
+}
+
+/**
+ * Which of a full registry-wide resolveApproval() result map should count toward THIS PR's own
+ * merge-gate decision (issue #833 — a full-registry re-check otherwise makes every unrelated PR
+ * inherit the entire repo's unresolved approval debt, permanently, since `loadScenarioRegistry()`
+ * loads every `docs/ui-lab/**\/candidate_manifest.json` whenever `classify()` matches, independent
+ * of whether this PR's own diff touches the affected scenario at all).
+ *
+ * A scenario counts if either:
+ * - this PR's own diff actually touches one of its `componentOwners` (the same `changedFiles`
+ *   intersection `unscopedScenarioIds()` already uses to decide what an *unscoped* approval
+ *   command applies to — including its "fall back to everything" case when nothing matches at
+ *   all, so an infra-only change with no owning scenario still requires a real sign-off); or
+ * - this PR's own comment thread already reached a real decision about it (`source ===
+ *   "PR_COMMENT"` — set for both unscoped-matched and explicitly `scenarios:`-scoped commands),
+ *   so an explicit, deliberate approve/reject of an otherwise-unrelated scenario is still honored.
+ *
+ * Every other scenario — approved, rejected, or never reviewed on some other PR entirely — is not
+ * this PR's business and must not affect its own pass/fail conclusion.
+ *
+ * @param {Map<string, import("./resolve-approval.mjs").EffectiveVisualApproval>} scenarioResults
+ * @param {ScenarioInput[]} scenarios
+ * @param {string[]} changedFiles
+ * @returns {Map<string, import("./resolve-approval.mjs").EffectiveVisualApproval>}
+ */
+export function scenarioResultsRelevantToThisPr(scenarioResults, scenarios, changedFiles) {
+  const matchedByFiles = new Set(unscopedScenarioIds(scenarios, changedFiles));
+  const relevant = new Map();
+  for (const [id, result] of scenarioResults) {
+    if (matchedByFiles.has(id) || result.source === "PR_COMMENT") {
+      relevant.set(id, result);
+    }
+  }
+  return relevant;
 }
