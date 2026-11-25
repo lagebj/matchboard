@@ -79,12 +79,47 @@ existing `cbProfileRole`/`forwardProfileRole`) rather than silently picking one.
 including all pre-existing assertions — only the sha256 and the new display-wording assertions
 needed updates; no evidence-integrity or domain-rule test changed).
 
+## CI capture run — real failures found and fixed, then verified green
+
+The first real CI run (`ui-lab-visual-review.yml`, PR #847) found **4 real Playwright
+failures** that neither Vitest config nor this review could surface locally (the devcontainer's
+own pre-existing HMR limitation, `BLOCKERS.md`):
+
+1. `getByText("Composure under pressure in the defensive third")` resolved to 2 elements —
+   Playwright's default text match is a case-insensitive substring search (unlike Testing
+   Library's jsdom default, which is an exact match), and the phrase genuinely appears twice
+   (the focus widget's title, and quoted inside the hypothesis statement's own prose).
+2. Same root cause for `getByText("No defensible hypothesis")` — the page's own `<h1>` also
+   contains that substring.
+3. The decision-flow Dismiss test clicked `.first()` when it needed the second hypothesis's own
+   Dismiss button (`.nth(1)`) — a genuine test-authoring bug (wrong index), not a component bug.
+4. The coherent-synthesis test asserted visibility of a provenance pill inside a collapsed
+   `<details>` without expanding it first — a real browser correctly treats unexpanded `<details>`
+   content as not visible (jsdom's own rendering model does not make this distinction the same
+   way, which is why the equivalent Vitest component test did not catch it).
+
+All four are test-authoring defects, not component, fixture, or domain-rule defects — confirmed
+by re-reading the actual failure output line-by-line before writing the fix. Fixed in a single
+follow-up commit; the re-triggered CI run passed in full: all required checks green, the Gate D
+Playwright acceptance suite (D01/D02/D04/D06/D07/D08/D09 — Wave 1 regression-checked in the same
+run — plus this wave's new D03/D06 tests) passed, and all 42 scheduled captures (7 scenarios × 6
+viewport/theme combinations) succeeded.
+
+**Capture provenance independently verified** (not taken on the workflow's own report): the real
+CI artifact (`ui-lab-review-45635807186-1`) was downloaded via `gh run download`, and every one
+of the 42 recorded `sha256` values was recomputed directly from the downloaded PNG bytes and
+found to match exactly — zero mismatches, zero missing files. `docs/ui-lab/gate-d-w2-candidates/
+capture-attestation.json` records this verification; see its own `knownLimitations` for the
+GitHub Actions synthetic-merge-commit caveat every prior wave's attestation also discloses.
+
 ## Final disposition
 
 **READY_FOR_OWNER_VISUAL_REVIEW**
 
-No BLOCKING findings. The one MAJOR finding was a documentation-completeness gap, not a code,
-fixture, test, or domain-rule defect — it is fixed by this file's own existence. The one MINOR
-finding was a cosmetic wording issue, now fixed. No further implementation work is required
-before this wave proceeds through the Visual Authority Gate (CI capture, then owner review) per
-`docs/development/coding-agent-working-session.md`.
+No BLOCKING findings. The one MAJOR finding (from the initial code review) was a
+documentation-completeness gap, not a code, fixture, test, or domain-rule defect — fixed by this
+file's own existence. The one MINOR finding was a cosmetic wording issue, now fixed. The real CI
+run's 4 Playwright failures were genuine test-authoring bugs, now fixed and re-verified green,
+with independently re-verified capture evidence attached. No further implementation work is
+required before this wave proceeds through the remaining Visual Authority Gate steps (owner
+review, `/visual-approve`) per `docs/development/coding-agent-working-session.md`.

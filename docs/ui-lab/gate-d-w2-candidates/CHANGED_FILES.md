@@ -47,9 +47,10 @@ No production code (anything outside `src/app/dev/ui-lab/`, `e2e/`, `scripts/`, 
 
 - `docs/ui-lab/gate-d-w2-candidates/{SOURCE_RECONCILIATION,CURRENT_STATE_AUDIT,WAVE_SCOPE,SCENARIO_REGISTER,DATA_TRUTH_AND_FIXTURES,EVIDENCE_AND_HYPOTHESIS_CONTRACT,INTERACTION_AND_STATE_AUDIT,VISUAL_VS_CURRENT,BLOCKERS,REVIEW_RECORD,CHANGED_FILES}.md`
 - `docs/ui-lab/gate-d-w2-candidates/candidate_manifest.json`
-- `docs/ui-lab/gate-d-w2-candidates/capture-attestation.json` — created only once real CI capture
-  evidence exists (see `BLOCKERS.md`); absent as of this PR's opening commit, added in a follow-up
-  commit on the same branch once CI produces it.
+- `docs/ui-lab/gate-d-w2-candidates/capture-attestation.json` — added in a follow-up commit once
+  CI's real `ui-lab-visual-review.yml` run produced capture evidence; all 42 recorded hashes
+  independently re-verified against the downloaded CI artifact before this file was written (see
+  `BLOCKERS.md`, `REVIEW_RECORD.md`).
 
 ## GitHub issues filed (no code change in this repo)
 

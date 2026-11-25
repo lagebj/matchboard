@@ -23,15 +23,23 @@ a production domain-type/contract change out of this wave's UI-Lab-only scope (m
   `hypotheses` array renders nothing). Corrects Wave 1's own `CURRENT_STATE_AUDIT.md`, which had
   incorrectly attributed a different surface's real OFF/EMPTY/ERROR/STALE states to this one.
 
-## Local verification limitation (pre-existing, not introduced by this wave)
+## Local verification limitation (pre-existing, not introduced by this wave) — resolved by CI
 
 Per existing project memory and Wave 1's own precedent: `next dev` + Playwright cannot hydrate
-reliably inside this devcontainer (the HMR WebSocket upgrade fails/retries forever,
-reproducing on untouched Wave 1 pages too — not specific to this wave's new routes). This wave's
-new Vitest component tests (both `vitest.config.components.ts` and default config) were run and
-pass locally; the new `e2e/ui-lab-gate-d.spec.ts` additions were **not** executed locally for
-this reason and will be validated by CI's real `ui-lab-visual-review.yml`/`ci-checks.yml` runs —
-see `REVIEW_RECORD.md` for what this means for this wave's final disposition.
+reliably inside this devcontainer (the HMR WebSocket upgrade fails/retries forever, reproducing
+on untouched Wave 1 pages too — not specific to this wave's new routes). This wave's new Vitest
+component tests (both `vitest.config.components.ts` and default config) were run and pass
+locally; the new `e2e/ui-lab-gate-d.spec.ts` additions could not be executed locally for this
+reason.
+
+**Outcome**: CI's real browser run (`ui-lab-visual-review.yml`, PR #847) found 4 real failures on
+the first run — genuine Playwright-vs-jsdom text-matching differences (Playwright's `getByText`
+is a case-insensitive substring match by default; Testing Library's jsdom default is an exact
+match), plus one test targeting the wrong button index. None were component or fixture defects.
+Fixed in a follow-up commit, re-verified against the real CI run: all Playwright tests and all 42
+scheduled captures (7 scenarios × 6 viewport/theme combinations) passed. See `REVIEW_RECORD.md`
+for the full account and `capture-attestation.json` for the independently re-verified capture
+evidence.
 
 ## No authority conflicts found
 

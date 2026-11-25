@@ -73,4 +73,4 @@ focus) => Promise<{success}|{success:false,error}>`); this wave's `AssistantCoac
 substitutes a simulated implementation of exactly that same contract, never a different one. No
 fixture's simulated confirmation writes to a real `AssistantCoachHypothesis`, `DevelopmentThread`,
 or player record — confirmed by the "no real Server Action" assertion in every component test and
-(pending CI) every Playwright test (`INTERACTION_AND_STATE_AUDIT.md`).
+every Playwright test, confirmed green by the real CI run (`INTERACTION_AND_STATE_AUDIT.md`).

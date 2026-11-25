@@ -46,7 +46,8 @@ to any Prisma model. Verified three ways:
 1. **Component tests** (`vitest.config.components.ts`) — every Promote/Dismiss interaction is
    exercised via `@testing-library/user-event`, asserting the resulting DOM state (hypothesis
    text disappears on success, error text appears and hypothesis persists on simulated failure).
-2. **Playwright** (`e2e/ui-lab-gate-d.spec.ts`, pending real CI execution — see `BLOCKERS.md`) —
+2. **Playwright** (`e2e/ui-lab-gate-d.spec.ts`, confirmed green by the real CI run after one
+   fix commit — see `BLOCKERS.md`) —
    every new `describe` block for D03/D06 uses the existing `collectServerActionRequests()`
    helper (filters on the real `next-action` request header, not a blanket POST check, matching
    both Gate C W3's and Gate D W1's own established precedent for why a blanket check is

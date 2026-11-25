@@ -11,7 +11,7 @@ captures) versus merely asserted.
 | Existing coach focus vs. AI hypothesis distinction | Required | Both rendered in the real Development tab already; never visually merged | Component tests assert both texts render with distinct framing copy |
 | Longitudinal comparison with stated window/units/coverage | Required (XR-A01) | `DerivedTrend`/`getPlayerTrendStories()` compute real comparison windows; this wave's fixture-level `FixtureSourceRecord.detail` states the same discipline in UI Lab prose | Fixture test asserts the detail text contains both window phrases and a coverage statement |
 | Honest insufficiency state, no padding (XR-A04) | Required | **Not satisfied today** — an empty hypotheses array renders nothing (`CURRENT_STATE_AUDIT.md`) | This wave's `NoDefensibleHypothesis` is a disclosed directional answer, not a production capability |
-| Promote/Dismiss/failure interaction | Required | Real, already shipped (`AssistantCoachHypothesisPanel`) | Component tests + (pending CI) Playwright; no real Server Action invoked |
+| Promote/Dismiss/failure interaction | Required | Real, already shipped (`AssistantCoachHypothesisPanel`) | Component tests + Playwright, both confirmed green by the real CI run; no real Server Action invoked |
 
 ## D06
 
