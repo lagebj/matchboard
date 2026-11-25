@@ -213,12 +213,122 @@ test.describe("D09 — full lineage coverage: explicit/tentative/edit/retract/am
   });
 });
 
+test.describe("D03 — Development/AI: grounded hypothesis, sparse no-hypothesis state, coach decision flow", () => {
+  test("grounded: the existing development focus and the Assistant Coach hypothesis are visibly distinct", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    await expect(page.getByText("Composure under pressure in the defensive third")).toBeVisible();
+    await expect(page.getByText(/This is the coach's own existing, already-confirmed development focus/)).toBeVisible();
+    await expect(page.getByText("Assistant Coach hypotheses")).toBeVisible();
+  });
+
+  test("grounded: the contradicting observation is disclosed, not hidden", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    await expect(page.getByText(/Contradicting: Coach observation, 4 Oct 2026 vs Skedsmo/)).toBeVisible();
+  });
+
+  test("grounded: the cited source detail is reachable via a real, keyboard-accessible <details>", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    const details = page.locator("details", { hasText: "Defensive-third giveaway rate" });
+    await details.locator("summary").click();
+    await expect(details.getByText(/5 across the previous 3 matches/)).toBeVisible();
+  });
+
+  test("sparse: renders the honest no-hypothesis state, never generic padding advice", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/sparse-no-hypothesis`);
+    await expect(page.getByText("No defensible hypothesis")).toBeVisible();
+    await expect(page.getByText(/we recommend|you should focus on/i)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /promote to development focus/i })).toHaveCount(0);
+  });
+
+  test("decision flow: Promote succeeds with no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+    const requests = collectServerActionRequests(page);
+
+    const focusInputs = page.getByLabel("Development focus to record if promoted");
+    await focusInputs.first().fill("Track left-midfield comfort under possession");
+    await page.getByRole("button", { name: /promote to development focus/i }).first().click();
+    await expect(page.getByText(/Amir Haile's recorded minutes at left midfield/)).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("decision flow: Dismiss succeeds with no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+    const requests = collectServerActionRequests(page);
+
+    await page.getByRole("button", { name: /^dismiss$/i }).first().click();
+    await expect(page.getByText(/Amir Haile's event rate while trailing/)).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("decision flow: a simulated Promote failure leaves the hypothesis visible with an inline error, no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+    const requests = collectServerActionRequests(page);
+
+    const focusInputs = page.getByLabel("Development focus to record if promoted");
+    await focusInputs.last().fill("Track rotation pattern with Jonas");
+    await page.getByRole("button", { name: /promote to development focus/i }).last().click();
+    await expect(page.getByText(/Could not record the development focus right now/)).toBeVisible();
+    await expect(page.getByText(/Amir Haile's co-presence with Jonas Berg/)).toBeVisible();
+    expect(requests).toHaveLength(0);
+  });
+});
+
+test.describe("D06 — cross-source hypothesis: coherent synthesis, genuine contradiction, sparse evidence, source inspection", () => {
+  test("coherent: cites three distinct evidence kinds, with exact 24-code tactical precision preserved", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/coherent-synthesis`);
+    await expect(page.getByText(/Noah Fjeld's on-pitch exposure has shifted/)).toBeVisible();
+    await expect(page.getByText("Recorded fact")).not.toHaveCount(0);
+    await expect(page.getByText("Derived measurement")).toBeVisible();
+  });
+
+  test("contradiction: both disagreeing sources are visible, neither silently resolved", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/genuine-contradiction`);
+    await expect(page.getByText(/Contradicting: Coach assessment, 20 Sep 2026, Coach observation, 11 Oct 2026/)).toBeVisible();
+  });
+
+  test("sparse: the four distinct gap kinds remain distinguishable, not one vague line", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/sparse-cross-source`);
+    await expect(page.getByText(/Missing data: no actual position interval/)).toBeVisible();
+    await expect(page.getByText(/Insufficient sample: only 2 of 6 eligible matches/)).toBeVisible();
+    await expect(page.getByText(/No contrary evidence: nothing on record/)).toBeVisible();
+    await expect(page.getByText(/Coach uncertainty, recorded directly/)).toBeVisible();
+    await expect(page.getByText("Assistant Coach hypotheses")).toHaveCount(0);
+  });
+
+  test("source inspection: each cited source expands independently to its own real detail", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/source-inspection-confirmation`);
+    const trendDetails = page.locator("details", { hasText: "Centre forward role minutes" });
+    await trendDetails.locator("summary").click();
+    await expect(trendDetails.getByText(/15 across the previous 3 matches/)).toBeVisible();
+  });
+
+  test("source inspection: Promote is disabled until a focus is entered, then succeeds with no real Server Action", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/source-inspection-confirmation`);
+    const requests = collectServerActionRequests(page);
+    const promote = page.getByRole("button", { name: /promote to development focus/i });
+
+    await expect(promote).toBeDisabled();
+    await page.getByLabel("Development focus to record if promoted").fill("Developing as a central striking option");
+    await expect(promote).toBeEnabled();
+    await promote.click();
+    await expect(page.getByText(/Sara Dahl's recorded minutes have shifted/)).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+  });
+});
+
 test.describe("Gate D — responsive layout: no horizontal page overflow at any required width", () => {
   const SCENARIOS = [
     "d01-overview-position-evidence/agreeing-positions",
     "d01-overview-position-evidence/diverging-positions",
     "d02-evidence-dot-consolidation/populated-evidence",
     "d02-evidence-dot-consolidation/sparse-evidence",
+    "d03-development-ai/grounded-longitudinal-hypothesis",
+    "d03-development-ai/sparse-no-hypothesis",
+    "d03-development-ai/coach-decision-flow",
+    "d06-cross-source-hypothesis/coherent-synthesis",
+    "d06-cross-source-hypothesis/genuine-contradiction",
+    "d06-cross-source-hypothesis/sparse-cross-source",
+    "d06-cross-source-hypothesis/source-inspection-confirmation",
     "d07-attribute-evolution-review/automatic-non-material",
     "d07-attribute-evolution-review/pending-material-approval",
     "d07-attribute-evolution-review/manual-edit-rebase",

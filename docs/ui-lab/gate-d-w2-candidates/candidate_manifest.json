@@ -1,0 +1,175 @@
+{
+  "programmeRevision": "0.169.16",
+  "baseCommitSha": "60b4e499217739770d47bfea506992736f811738",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-d/. Not a production implementation, not an authorization, not a security proof. Scope and authority sources: docs/ui-lab/gate-d-w2-candidates/SOURCE_RECONCILIATION.md.",
+  "note": "Gate D W2 — D03 (Player Detail Development/AI hypothesis) and D06 (Player intelligence, cross-source hypothesis), deferred from Wave 1 (PR #844, merged/approved 2026-11-25). Seven candidates total: three D03 states (grounded longitudinal hypothesis, sparse no-hypothesis, coach decision flow), four D06 states (coherent synthesis, genuine contradiction, sparse cross-source, source inspection + confirmation). Every interactive candidate reuses the real, unmodified AssistantCoachHypothesisPanel via a new fixture-safe actions override mount (AssistantCoachHypothesisMount), following the exact Gate C W3 C07 RSC-boundary pattern. EvidenceSourceInspector (source-linking) and NoDefensibleHypothesis (honest insufficiency state) are new, explicitly disclosed directional presentations — no equivalent exists in production today (see CURRENT_STATE_AUDIT.md); both disclosed production gaps are filed as GitHub issues #845 and #846 rather than fixed in this UI-Lab-only wave. No production code changed anywhere in this wave. scripts/ui-lab-visual-review.mjs registers all seven routes for CI capture. capture-attestation.json is not yet included; it requires a real CI capture run. All candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved. The `assistantCoachState` field below uses descriptive values (ACTIVE / EMPTY) consistent with this field's apparent intent in Wave 1's manifest, since every Wave 1 entry used NOT_APPLICABLE (none of Wave 1's scenarios involved Assistant Coach) and no other value was ever established — disclosed here rather than silently copied from an inapplicable precedent. REMEDIATION (independent review, same PR): GATE-D-W2-D06-COHERENT and GATE-D-W2-D06-SOURCE-INSPECTION's hypothesis statements reworded the awkward bare-code parenthetical ('(profile role: F)' reading oddly beside 'centre forward' in prose) into a clearer 'in 14-role profile terms, from profile role: X to profile role: Y' construction; fixtureVersion bumped to 2 on both (derivation and test coverage unchanged). docs/ui-lab/gate-d-w2-candidates/REVIEW_RECORD.md records the full independent-review findings and disposition.",
+  "candidates": [
+    {
+      "scenarioId": "GATE-D-W2-D03-GROUNDED",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/components/touchline/player/player-development-timeline.tsx",
+        "src/components/touchline/widget/touchline-widget.tsx",
+        "src/components/touchline/widget/widget-header.tsx",
+        "src/lib/touchline/presentation/player-development-view-model.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d03-development-ai/grounded-longitudinal-hypothesis/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": ["D03", "XR-A01", "XR-A04"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D03-GROUNDED",
+      "dataContractRef": "docs/adr/0155-development-context-and-evidence.md; docs/adr/0157-contextual-coach-workspace-convergence.md (§2, §5, slice C5)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel and Development-tab composition; new fixture-safe mount and a new, disclosed directional source inspector.",
+      "knownGaps": [
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation — no navigable source-detail capability exists in production (issue #845).",
+        "The derived-trend source record's detail text is UI-Lab-authored prose following production's own comparison-window convention, not a literal call to getPlayerTrendStories()'s real headline generator (see DATA_TRUTH_AND_FIXTURES.md)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-SPARSE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d03-sparse-no-hypothesis",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/player/player-development-timeline.tsx",
+        "src/components/touchline/widget/touchline-widget.tsx",
+        "src/components/touchline/widget/widget-header.tsx",
+        "src/lib/touchline/presentation/player-development-view-model.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/no-defensible-hypothesis.tsx",
+        "src/app/dev/ui-lab/gate-d/d03-development-ai/sparse-no-hypothesis/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "EMPTY",
+      "requirementRefs": ["D03", "XR-A04"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D03-SPARSE",
+      "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md (§5 AI boundary — failure/insufficiency is a small status state, never a page-level error)",
+      "baselineAssetRef": "Real Development-tab composition primitives; NoDefensibleHypothesis is new, disclosed directional.",
+      "knownGaps": [
+        "Production's real getPlayerAssistantCoachHypotheses()/AssistantCoachHypothesisPanel renders nothing at all in this exact case — NoDefensibleHypothesis does not exist in production (issue #846)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d03-coach-decision-flow",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/d03-development-ai/coach-decision-flow/page.tsx"
+      ],
+      "lifecycle": "not_applicable",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": ["D03"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D03-DECISION-FLOW",
+      "dataContractRef": "src/components/ai/assistant-coach-hypothesis-panel.tsx (AssistantCoachHypothesisActions contract)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel; the simulated actions object is the only new logic, reusing the exact Gate C W3 C07 mechanism.",
+      "knownGaps": [
+        "Promote/Dismiss/failure are simulated — no real Server Action is called and no player-development record is written, disclosed on-page."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-COHERENT",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d06-coherent-synthesis",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/domain/positions/canonical-labels.ts",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/coherent-synthesis/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": ["D06"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D06-COHERENT",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md (§6, 14-role/24-code split)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel; real canonicalFullLabel/collapseTacticalToProfile; new, disclosed directional source inspector.",
+      "knownGaps": [
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation (issue #845)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-CONTRADICTION",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d06-genuine-contradiction",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/domain/positions/canonical-labels.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/genuine-contradiction/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": ["D06"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D06-CONTRADICTION",
+      "dataContractRef": "docs/adr/0155-development-context-and-evidence.md §9 (history is evidence, never reconciled away)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel; new, disclosed directional source inspector.",
+      "knownGaps": [
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation (issue #845)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SPARSE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d06-sparse-cross-source",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/w2-shared/no-defensible-hypothesis.tsx",
+        "src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/sparse-cross-source/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "EMPTY",
+      "requirementRefs": ["D06"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D06-SPARSE",
+      "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md §5",
+      "baselineAssetRef": "NoDefensibleHypothesis is new, disclosed directional; no production component mounts the equivalent state today.",
+      "knownGaps": [
+        "Same production gap as GATE-D-W2-D03-SPARSE (issue #846)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d06-source-inspection-confirmation",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/domain/positions/canonical-labels.ts",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/source-inspection-confirmation/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": ["D06"],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D06-SOURCE-INSPECTION",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md (§6, 14-role/24-code split)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel; new, disclosed directional source inspector.",
+      "knownGaps": [
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation (issue #845)."
+      ],
+      "approval": null
+    }
+  ]
+}
