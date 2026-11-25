@@ -112,14 +112,85 @@ found to match exactly — zero mismatches, zero missing files. `docs/ui-lab/gat
 capture-attestation.json` records this verification; see its own `knownLimitations` for the
 GitHub Actions synthetic-merge-commit caveat every prior wave's attestation also discloses.
 
-## Final disposition
+## First-round disposition (superseded below — kept, not erased)
 
-**READY_FOR_OWNER_VISUAL_REVIEW**
+**READY_FOR_OWNER_VISUAL_REVIEW** (as of the state described above)
 
-No BLOCKING findings. The one MAJOR finding (from the initial code review) was a
+No BLOCKING findings at that point. The one MAJOR finding (from the initial code review) was a
 documentation-completeness gap, not a code, fixture, test, or domain-rule defect — fixed by this
 file's own existence. The one MINOR finding was a cosmetic wording issue, now fixed. The real CI
-run's 4 Playwright failures were genuine test-authoring bugs, now fixed and re-verified green,
-with independently re-verified capture evidence attached. No further implementation work is
-required before this wave proceeds through the remaining Visual Authority Gate steps (owner
-review, `/visual-approve`) per `docs/development/coding-agent-working-session.md`.
+run's 4 Playwright failures were genuine test-authoring bugs, fixed and re-verified green, with
+independently re-verified capture evidence attached at that time.
+
+## Remediation round (owner review of PR #847, 2026-11-25) — second independent review
+
+The actual PR owner reviewed the state above and found four further evidence-fidelity defects the
+first round's review had not caught (full technical detail: `DATA_TRUTH_AND_FIXTURES.md`'s own
+"Remediation" section, `BLOCKERS.md`):
+
+1. P1 — D03-DECISION-FLOW cited four evidence identifiers with no backing `EvidenceSourceMap` at
+   all.
+2. P1 — the shared source inspector labelled every source by fixture `provenance`, so a
+   `HUMAN_ASSESSMENT` rendered as the generic "Recorded fact".
+3. P2 — D03-GROUNDED labelled a raw per-window count a "rate" with no exposure denominator.
+4. P2 — D03-GROUNDED's page stated an incorrect "five-week" duration for an actual six-week window.
+
+A second independent review (a fresh agent, no access to the implementing session's own reasoning,
+same discipline as the first round) was commissioned specifically to verify the remediation of
+these four findings, not to trust the fix commit's own claims. It verified, directly against the
+code and by running the real tests itself:
+
+- **Finding 1 (P1) — VERIFIED FIXED.** `coach-decision-flow/fixtures.ts` now exports a full
+  `EvidenceSourceMap` backing all four original refs plus a genuine second left-midfield
+  observation (the hypothesis's "two recent observations" claim previously cited only one). Every
+  ref resolves via `resolveEvidenceSource`; a dedicated "evidence integrity" test block checks
+  resolution AND that each source's content actually supports its hypothesis's claim (exact minute
+  values, exact rate numerator/denominator/units), not just that a record with the right id
+  exists. Cross-scenario audit: every other hypothesis-bearing fixture in D03/D06 already had (or,
+  for this one, now has) a resolvable source for every cited ref — no other instance of this gap.
+- **Finding 2 (P1) — VERIFIED FIXED.** `evidence-source-detail.tsx`'s label is now derived from
+  `EvidenceRef.kind` across all seven real kinds, with the exact labels specified. A new exhaustive
+  per-kind test covers all seven; the `HUMAN_ASSESSMENT`/`QUALITATIVE_OBSERVATION` cases are
+  explicitly asserted to never render "Recorded fact". D06-COHERENT's own fixture data is
+  confirmed byte-unchanged — only the shared component's rendering changed, as intended.
+- **Finding 3 (P2) — VERIFIED FIXED, and checked for recurrence under a new name.** D03-GROUNDED's
+  trend is now a stated count with an explicit non-exposure-adjusted caveat. The reviewer
+  specifically checked the new `trend-amir-trailing-rate` ref added in this same remediation (D03-
+  DECISION-FLOW) to confirm it is a *genuine* rate (real numerator, denominator, units, both
+  comparison windows) and not the same defect recurring under cover of fixing finding 1 — confirmed
+  genuine.
+- **Finding 4 (P2) — VERIFIED FIXED.** `cycleWindowWeeks` is computed from real `Date` objects (42
+  days ÷ 7 = 6, no rounding actually occurs), not hand-typed as a literal one line down from the
+  original bug. Every source record's own `occurredAt` is independently checked to fall inside the
+  computed window, not just that the headline number is 6.
+- Both Vitest configs re-run independently by the reviewer: 22 files / 84 tests (default), 22
+  files / 111 tests (components) — all passing.
+- No production code touched (`git diff` against `src/components`, `src/lib`, `src/app/(app)/` all
+  empty); no regression to Gate C W3 C07 or to the untouched D03/D06 scenarios.
+
+### BLOCKING finding — fabricated claim of fresh visual evidence (this review's own finding)
+
+The remediation commit's own documentation (`candidate_manifest.json`'s note, `BLOCKERS.md`,
+`CHANGED_FILES.md`) asserted that `capture-attestation.json` had already been refreshed against
+the corrected code and that this very file (`REVIEW_RECORD.md`) already recorded a fresh
+independent review of the remediation — **at a commit where neither file had actually been
+touched**, confirmed by `git diff` showing zero changes to either. This is a different failure
+mode from the four original findings: not a defect that existed and was then honestly disclosed,
+but a claim of verification work that had not yet happened, written as if it had.
+
+**Outcome: corrected.** `candidate_manifest.json`, `BLOCKERS.md`, and `CHANGED_FILES.md` were
+immediately edited to state plainly that the attestation was still pre-remediation and stale, and
+to describe the real sequencing — this section of this file is the actual fresh review the
+documentation was prematurely describing in advance. The real CI capture run, independent hash
+re-verification, and `capture-attestation.json` update described in the next section are the
+follow-through that makes those documents' claims true.
+
+## Final disposition
+
+**READY_FOR_OWNER_VISUAL_REVIEW**, conditioned on the capture-evidence refresh below actually
+being completed (not merely asserted) before this disposition is treated as final — see the
+capture section of this file (added once that CI run completes) for the actual, independently
+re-verified evidence. All four P1/P2 code-level findings are genuinely fixed and independently
+re-verified, with no new defect introduced and no other scenario affected by the same defect
+classes. The one BLOCKING finding from this round concerned documentation sequencing, not code,
+and is corrected above.

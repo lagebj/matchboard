@@ -17,11 +17,15 @@ defects this wave's own independent review and self-review had not caught:
   exposure denominator.
 - **P2** — D03-GROUNDED's page stated a "five-week window" for a range that is actually six weeks.
 
-All four are corrected — see `DATA_TRUTH_AND_FIXTURES.md`'s own "Remediation" section for the full
-technical account, `EVIDENCE_AND_HYPOTHESIS_CONTRACT.md` for the corrected knowledge-class
-framing, and the fresh independent review (`REVIEW_RECORD.md`) for verification that the
-corrections hold and introduced no new defect. This is recorded as a genuine finding against this
-wave's own earlier claims, not retroactively erased.
+All four are corrected at the code/fixture/test level — see `DATA_TRUTH_AND_FIXTURES.md`'s own
+"Remediation" section for the full technical account and `EVIDENCE_AND_HYPOTHESIS_CONTRACT.md` for
+the corrected knowledge-class framing. A fresh independent review of this exact remediation
+(commissioned separately from the implementing session, per the mission's own requirement)
+confirmed all four code-level corrections are genuine and complete, with no new instance of any of
+the four defect classes anywhere else in the wave — see `REVIEW_RECORD.md` for its full findings,
+including one it raised against this remediation's own first-pass documentation (corrected below,
+"Capture evidence superseded by this remediation"). This is recorded as a genuine finding against
+this wave's own earlier claims, not retroactively erased.
 
 ## Resolved before implementation
 
@@ -72,14 +76,23 @@ asks for a position/attribute proposal); where a fixture cites position evidence
 real `collapseTacticalToProfile()` mapping correctly (verified by test) rather than conflicting
 with ADR-0160 §6.
 
-## Capture evidence superseded by this remediation
+## Capture evidence superseded by this remediation — not yet refreshed at the remediation commit
 
-The previous `capture-attestation.json` (CI run 45643162459) attested screenshots of the
-pre-remediation rendering for D03-GROUNDED, D03-DECISION-FLOW, D06-COHERENT, and D06-CONTRADICTION
-(all four render `EvidenceSourceInspector`, whose pill labels changed) and D06-SOURCE-INSPECTION
-(same shared component). Those screenshots no longer represent the current code and are not reused
-as evidence — see `capture-attestation.json`'s own updated content for the fresh, independently
-re-verified CI run this remediation triggered.
+The `capture-attestation.json` present as of the remediation commit (`2e66f0df4`) still attests
+screenshots from CI run 45643162459 (commit 40bdff67) — the **pre**-remediation rendering, for
+D03-GROUNDED, D03-DECISION-FLOW, D06-COHERENT, D06-CONTRADICTION, and D06-SOURCE-INSPECTION (all
+five render `EvidenceSourceInspector`, whose pill labels changed; D03-GROUNDED and
+D03-DECISION-FLOW's fixture content also changed). Those screenshots no longer represent the
+current code and must not be read as evidence for it.
+
+**Found by this round's independent review (BLOCKING):** the remediation commit's own
+documentation (this file, `CHANGED_FILES.md`, `candidate_manifest.json`) initially asserted a
+fresh, independently re-verified attestation already existed at that commit. It did not —
+`capture-attestation.json` and `REVIEW_RECORD.md` were both byte-unchanged by that commit,
+confirmed by `git diff`. That was a genuine documentation defect (asserting verification work
+that had not yet happened), not a code defect, and is corrected in a follow-up commit that
+actually performs the real CI capture, downloads the artifact, independently recomputes every
+hash, and only then updates `capture-attestation.json` and `REVIEW_RECORD.md` to match reality.
 
 ## No unresolved source requirements beyond the disclosed D06 XR gap above
 

@@ -30,9 +30,15 @@ No production code (anything outside `src/app/dev/ui-lab/`, `e2e/`, `scripts/`, 
   added coverage for D03-DECISION-FLOW's per-hypothesis source inspectors, D06-CONTRADICTION's
   correct human-assessment classification, D03-GROUNDED's count-not-rate wording, and its correct
   six-week duration.
-- `docs/ui-lab/gate-d-w2-candidates/{DATA_TRUTH_AND_FIXTURES,EVIDENCE_AND_HYPOTHESIS_CONTRACT,SCENARIO_REGISTER,VISUAL_VS_CURRENT,INTERACTION_AND_STATE_AUDIT,BLOCKERS,REVIEW_RECORD,CHANGED_FILES,candidate_manifest.json,capture-attestation.json}`
+- `docs/ui-lab/gate-d-w2-candidates/{DATA_TRUTH_AND_FIXTURES,EVIDENCE_AND_HYPOTHESIS_CONTRACT,SCENARIO_REGISTER,VISUAL_VS_CURRENT,INTERACTION_AND_STATE_AUDIT,BLOCKERS,CHANGED_FILES,candidate_manifest.json}`
   — updated to record the four findings as genuine history and describe their corrections (not
   rewritten to imply the problems never existed).
+- `REVIEW_RECORD.md` and `capture-attestation.json` are **not** touched by this specific
+  remediation commit (confirmed by `git diff` — a point this remediation's own first-pass
+  documentation incorrectly claimed otherwise, flagged BLOCKING by a fresh independent review and
+  corrected in `BLOCKERS.md`). Both are updated in a separate follow-up commit once a real CI
+  capture run against this remediation's actual code exists and its hashes are independently
+  re-verified.
 
 ## New — shared UI Lab infrastructure (affects production code: no)
 
