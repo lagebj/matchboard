@@ -321,11 +321,17 @@ test.describe("D06 — cross-source hypothesis: coherent synthesis, genuine cont
     for (let i = 0; i < summaryCount; i++) {
       await summaries.nth(i).click();
     }
-    await expect(page.getByText("Recorded position").first()).toBeVisible();
-    await expect(page.getByText("Coach observation")).toBeVisible();
-    await expect(page.getByText("Derived trend")).toBeVisible();
-    await expect(page.getByText("Recorded fact")).toHaveCount(0);
-    await expect(page.getByText("Derived measurement")).toHaveCount(0);
+    // exact:true is required here, not just a style preference: the hypothesis's own prose
+    // ("...his recorded position intervals and a recent coach observation about his central
+    // defending") naturally contains both phrases as ordinary English, which Playwright's
+    // default case-insensitive substring match also picks up alongside the real pill — exact
+    // match isolates the pill `<span>` itself (confirmed live: a prior version of this test
+    // without exact:true found 4 matches for "Coach observation", not the intended 1).
+    await expect(page.getByText("Recorded position", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Coach observation", { exact: true })).toBeVisible();
+    await expect(page.getByText("Derived trend", { exact: true })).toBeVisible();
+    await expect(page.getByText("Recorded fact", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Derived measurement", { exact: true })).toHaveCount(0);
   });
 
   test("contradiction: both disagreeing sources are visible, neither silently resolved", async ({ page }) => {
