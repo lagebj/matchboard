@@ -45,5 +45,32 @@ never trusts an arbitrary literal, not that a human never runs the computation o
 Not a blocker, recorded here only for transparency per the mission brief's "no premature
 verification claims" standard.
 
-No confirmed BLOCKING or MAJOR item exists for E01 at implementation time. See
-`REVIEW_RECORD.md` for the independent review's own findings.
+### BLK-E01-04 — CI's first real Gate E Playwright run found two real test-authoring defects (fixed, not a production bug)
+
+Confirming BLK-E01-02's prediction that local Playwright verification was unreliable in this
+sandbox: this PR's first real CI run of `ui-lab-visual-review.yml` (run 45801842024) genuinely
+failed 4 of 14 `e2e/ui-lab-gate-e.spec.ts` tests. Root-caused directly from the CI run's own page
+snapshots and error logs (not guessed):
+
+1. `page.getByLabel("League season")` is accessibility-tree-wide in Playwright (unlike
+   `@testing-library/react`'s `getByLabelText`, which is scoped to form-labelable elements — this
+   is exactly why the equivalent jsdom component tests never caught it) and matched **two**
+   elements: the real `<select>` and `LeagueSeasonRail`'s unrelated
+   `role="list" aria-label="League season weeks"` region. Every period-switching `selectOption()`
+   call threw a strict-mode violation before ever changing the season, which is why the
+   "re-resolves focus"/"restores current-round identity" assertions downstream also failed.
+2. Playwright's `getByText(string)` substring-matches **case-insensitively** by default. Each
+   candidate page's own debug subheading (`"...current round"` / `"...no current round"`)
+   accidentally self-matched `getByText("Current round")` — including in the season-closed
+   state's own XR-T01 reject-case test, which is exactly the assertion this wave most needs to be
+   trustworthy.
+
+Fixed in commit `0854cf9a`: every `getByLabel("League season")` replaced with the unambiguous
+`getByRole("combobox", { name: "League season" })`; both subheadings renamed to "Mid-season
+state" / "Season closed state". **No production code was touched** — `buildLeagueOperatingViewModel()`
+and `LeagueSurface` were never in question; this was entirely a test-locator-precision defect in
+`e2e/ui-lab-gate-e.spec.ts` itself. Re-run pending; this entry is not rewritten once that
+succeeds — see `REVIEW_RECORD.md` for the final disposition.
+
+No confirmed BLOCKING or MAJOR item remains unaddressed for E01. See `REVIEW_RECORD.md` for the
+independent review's own findings.
