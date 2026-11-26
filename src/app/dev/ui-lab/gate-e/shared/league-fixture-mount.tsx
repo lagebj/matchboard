@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
 import type { FixturePeriod } from "@/domain/fixtures/types";
 import { buildLeagueOperatingViewModel } from "@/lib/touchline/presentation/league-view-model";
 import { LeagueSurface } from "@/components/fixtures/league-surface";
