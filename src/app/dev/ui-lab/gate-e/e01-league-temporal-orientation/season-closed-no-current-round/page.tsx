@@ -15,7 +15,7 @@ export default function E01SeasonClosedNoCurrentRoundPage() {
         <AppearanceControl />
       </div>
       <h2 className="mb-1 text-[13px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-        E01 &middot; Season closed, no current round
+        E01 &middot; Season closed state
       </h2>
       <Suspense fallback={<div className="p-4 text-sm text-[var(--text-muted)]">Loading…</div>}>
         <LeagueFixtureMount periods={periods} now={now} />

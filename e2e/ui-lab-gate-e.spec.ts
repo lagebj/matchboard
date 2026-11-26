@@ -52,7 +52,7 @@ test.describe("E01 — period navigation and context restoration", () => {
     await page.goto(`${BASE}/mid-season-current-round`);
     await expect(page.getByText("Current round").first()).toBeVisible();
 
-    await page.getByLabel("League season").selectOption({ label: "Autumn 2026 · Aug – Nov 2026" });
+    await page.getByRole("combobox", { name: "League season" }).selectOption({ label: "Autumn 2026 · Aug – Nov 2026" });
     await page.waitForURL(/season=gate-e-w1-e01-mid-period-autumn-2026/);
     await expect(page.getByText("Needs closure").first()).toBeVisible();
     await expect(page.getByText("Current round")).toHaveCount(0);
@@ -60,10 +60,10 @@ test.describe("E01 — period navigation and context restoration", () => {
 
   test("switching back to Spring 2027 restores the current-round identity, proving context is re-resolved per period rather than cached", async ({ page }) => {
     await page.goto(`${BASE}/mid-season-current-round`);
-    await page.getByLabel("League season").selectOption({ label: "Autumn 2026 · Aug – Nov 2026" });
+    await page.getByRole("combobox", { name: "League season" }).selectOption({ label: "Autumn 2026 · Aug – Nov 2026" });
     await page.waitForURL(/season=gate-e-w1-e01-mid-period-autumn-2026/);
 
-    await page.getByLabel("League season").selectOption({ label: "Spring 2027 · Mar – Jun 2027" });
+    await page.getByRole("combobox", { name: "League season" }).selectOption({ label: "Spring 2027 · Mar – Jun 2027" });
     await page.waitForURL(/season=gate-e-w1-e01-mid-period-spring-2027/);
     await expect(page.getByText("Current round").first()).toBeVisible();
     await expect(page.getByText("Round 9")).toBeVisible();
@@ -120,7 +120,7 @@ test.describe("E01 — season closed: no current round exists (XR-T01 reject cas
 
   test("no season selector renders when only one league season exists", async ({ page }) => {
     await page.goto(`${BASE}/season-closed-no-current-round`);
-    await expect(page.getByLabel("League season")).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "League season" })).toHaveCount(0);
   });
 });
 
