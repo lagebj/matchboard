@@ -1,0 +1,202 @@
+{
+  "programmeRevision": "0.169.16",
+  "baseCommitSha": "60b4e499217739770d47bfea506992736f811738",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-d/. Not a production implementation, not an authorization, not a security proof. Scope and authority sources: docs/ui-lab/gate-d-w2-candidates/SOURCE_RECONCILIATION.md.",
+  "note": "Gate D W2 — D03 (Player Detail Development/AI hypothesis) and D06 (Player intelligence, cross-source hypothesis), deferred from Wave 1 (PR #844, merged/approved 2026-11-25). Seven candidates total: three D03 states (grounded longitudinal hypothesis, sparse no-hypothesis, coach decision flow), four D06 states (coherent synthesis, genuine contradiction, sparse cross-source, source inspection + confirmation). Every interactive candidate reuses the real, unmodified AssistantCoachHypothesisPanel via a new fixture-safe actions override mount (AssistantCoachHypothesisMount), following the exact Gate C W3 C07 RSC-boundary pattern. EvidenceSourceInspector (source-linking) and NoDefensibleHypothesis (honest insufficiency state) are new, explicitly disclosed directional presentations — no equivalent exists in production today (see CURRENT_STATE_AUDIT.md); both disclosed production gaps are filed as GitHub issues #845 and #846 rather than fixed in this UI-Lab-only wave. No production code changed anywhere in this wave. scripts/ui-lab-visual-review.mjs registers all seven routes for CI capture. All candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved. The `assistantCoachState` field below uses descriptive values (ACTIVE / EMPTY) consistent with this field's apparent intent in Wave 1's manifest, since every Wave 1 entry used NOT_APPLICABLE (none of Wave 1's scenarios involved Assistant Coach) and no other value was ever established — disclosed here rather than silently copied from an inapplicable precedent. REMEDIATION (independent review, same PR): GATE-D-W2-D06-COHERENT and GATE-D-W2-D06-SOURCE-INSPECTION's hypothesis statements reworded the awkward bare-code parenthetical ('(profile role: F)' reading oddly beside 'centre forward' in prose) into a clearer 'in 14-role profile terms, from profile role: X to profile role: Y' construction; fixtureVersion bumped to 2 on both (derivation and test coverage unchanged). REMEDIATION (owner review, same PR, 2026-11-25): four evidence-fidelity findings corrected — (1) GATE-D-W2-D03-DECISION-FLOW had no EvidenceSourceMap at all backing its four cited refs; added, fixtureVersion bumped to 2. (2) evidence-source-detail.tsx's pill label was provenance-derived, mislabelling a HUMAN_ASSESSMENT as 'Recorded fact'; corrected to a kind-derived label across all seven real EvidenceRef kinds (no fixtureVersion impact — shared-component fix, not a fixture-data change; GATE-D-W2-D06-COHERENT, -CONTRADICTION, and -SOURCE-INSPECTION's own fixture data/hashes are unchanged, but their screenshots now show the corrected label). (3) GATE-D-W2-D03-GROUNDED mislabelled a raw count as a 'rate'; corrected to a count with an exposure-normalization caveat, fixtureVersion bumped to 2. (4) GATE-D-W2-D03-GROUNDED's page stated an incorrect 'five-week' duration for an actual six-week window; corrected to a value computed from the fixture's own date boundaries. Full account: docs/ui-lab/gate-d-w2-candidates/DATA_TRUTH_AND_FIXTURES.md, BLOCKERS.md, REVIEW_RECORD.md. A prior version of this note prematurely claimed a fresh attestation already existed before one had actually been produced — flagged BLOCKING by an independent review of this remediation and corrected. capture-attestation.json now reflects a real, independently re-verified CI capture run against the actual remediated code (CI 45706210938, after two further attempts documented in full in REVIEW_RECORD.md — one canceled by a concurrency collision, one that found and required fixing a genuine Playwright test bug of its own), superseding the stale pre-remediation attestation (CI run 45643162459, commit 40bdff67). REMEDIATION (owner review, same PR, 2026-11-26): two unsupported cross-player claims corrected — (1) GATE-D-W2-D03-DECISION-FLOW dismissHypothesis claimed several teammates showed the same pattern while its own missingEvidence disclosed no squad-wide comparison existed; corrected to describe only Amir Haile's own recorded numbers, fixtureVersion bumped to 3. (2) GATE-D-W2-D03-GROUNDED cycleInsight claimed a squad-wide recurring theme with no supporting records for any player other than Jonas Berg; corrected to a player-specific interpretation, fixtureVersion bumped to 3. A bounded audit of the other five Wave 2 scenarios (D03-SPARSE, D06-COHERENT, D06-CONTRADICTION, D06-SPARSE, D06-SOURCE-INSPECTION) found no instance of the same defect class — every claim in those fixtures is already player-specific and traceable to its own cited sources. A fresh independent review of this exact correction confirmed both fixes genuine (one MINOR finding on test depth, no BLOCKING/MAJOR), and a real CI capture run (45768348321) against the corrected code produced all 42 screenshots, independently re-hashed and matching exactly. Full account: REVIEW_RECORD.md.",
+  "candidates": [
+    {
+      "scenarioId": "GATE-D-W2-D03-GROUNDED",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+      "fixtureVersion": 3,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/components/touchline/player/player-development-timeline.tsx",
+        "src/components/touchline/widget/touchline-widget.tsx",
+        "src/components/touchline/widget/widget-header.tsx",
+        "src/lib/touchline/presentation/player-development-view-model.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d03-development-ai/grounded-longitudinal-hypothesis/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": [
+        "D03",
+        "XR-A01",
+        "XR-A04"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D03-GROUNDED",
+      "dataContractRef": "docs/adr/0155-development-context-and-evidence.md; docs/adr/0157-contextual-coach-workspace-convergence.md (§2, §5, slice C5)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel and Development-tab composition; new fixture-safe mount and a new, disclosed directional source inspector.",
+      "knownGaps": [
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation — no navigable source-detail capability exists in production (issue #845).",
+        "The derived-trend source record's detail text is UI-Lab-authored prose following production's own comparison-window convention, not a literal call to getPlayerTrendStories()'s real headline generator (see DATA_TRUTH_AND_FIXTURES.md).",
+        "REMEDIATED (owner review 2026-11-25): previously labelled a raw per-window count (5 -> 2 giveaways) as a 'rate' with no exposure denominator; corrected to describe a count, with an explicit non-exposure-adjusted caveat. The page's 'five-week' learning-cycle duration was also wrong (actual range is six weeks); now computed from the fixture's own date boundaries.",
+        "REMEDIATED (owner review 2026-11-26, P2): cycleInsight previously claimed a 'squad-wide recurring theme' ('Several midfielders... most of the group...') with no source records for any player other than Jonas. Corrected to a player-specific interpretation whose every factual claim traces to Jonas's own observation timeline, with an explicit disclosure that it does not establish a squad-wide pattern."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-SPARSE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d03-sparse-no-hypothesis",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/touchline/player/player-development-timeline.tsx",
+        "src/components/touchline/widget/touchline-widget.tsx",
+        "src/components/touchline/widget/widget-header.tsx",
+        "src/lib/touchline/presentation/player-development-view-model.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/no-defensible-hypothesis.tsx",
+        "src/app/dev/ui-lab/gate-d/d03-development-ai/sparse-no-hypothesis/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "EMPTY",
+      "requirementRefs": [
+        "D03",
+        "XR-A04"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D03-SPARSE",
+      "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md (§5 AI boundary — failure/insufficiency is a small status state, never a page-level error)",
+      "baselineAssetRef": "Real Development-tab composition primitives; NoDefensibleHypothesis is new, disclosed directional.",
+      "knownGaps": [
+        "Production's real getPlayerAssistantCoachHypotheses()/AssistantCoachHypothesisPanel renders nothing at all in this exact case — NoDefensibleHypothesis does not exist in production (issue #846)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d03-coach-decision-flow",
+      "fixtureVersion": 3,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d03-development-ai/coach-decision-flow/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": [
+        "D03"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D03-DECISION-FLOW",
+      "dataContractRef": "src/components/ai/assistant-coach-hypothesis-panel.tsx (AssistantCoachHypothesisActions contract)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel; the simulated actions object reuses the exact Gate C W3 C07 mechanism; new, disclosed directional source inspector (one per hypothesis).",
+      "knownGaps": [
+        "Promote/Dismiss/failure are simulated — no real Server Action is called and no player-development record is written, disclosed on-page.",
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation (issue #845).",
+        "REMEDIATED (owner review 2026-11-25): this fixture previously cited four evidence identifiers with no backing EvidenceSourceMap at all — resolveEvidenceSource was never called against it and no test checked that it could be. Corrected: a full source map now backs all four refs, plus a second left-midfield observation (the original hypothesis claimed 'two recent observations' but cited only one).",
+        "REMEDIATED (owner review 2026-11-26, P2): dismissHypothesis's statement previously claimed 'several teammates show the same pattern', contradicting this same hypothesis's own missingEvidence ('No comparison against squad-wide trailing-rate baseline yet') and unsupported by trend-amir-trailing-rate, which contains only Amir's own measurements. Corrected: the statement now describes only Amir's own recorded numbers and states plainly that no squad-wide comparison exists."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-COHERENT",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d06-coherent-synthesis",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/domain/positions/canonical-labels.ts",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/coherent-synthesis/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": [
+        "D06"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D06-COHERENT",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md (§6, 14-role/24-code split)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel; real canonicalFullLabel/collapseTacticalToProfile; new, disclosed directional source inspector.",
+      "knownGaps": [
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation (issue #845).",
+        "REMEDIATED (owner review 2026-11-25): this fixture's own data is unchanged, but its rendered screenshot changed — the shared evidence-source-detail.tsx pill label is now kind-derived, not provenance-derived (see GATE-D-W2-D06-CONTRADICTION's own knownGaps for the finding this fixes)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-CONTRADICTION",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d06-genuine-contradiction",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/domain/positions/canonical-labels.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/genuine-contradiction/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": [
+        "D06"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D06-CONTRADICTION",
+      "dataContractRef": "docs/adr/0155-development-context-and-evidence.md §9 (history is evidence, never reconciled away)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel; new, disclosed directional source inspector.",
+      "knownGaps": [
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation (issue #845).",
+        "FINDING (owner review 2026-11-25, P1 #2): the earlier formal coach assessment and the later coach observation were both rendering as the generic 'Recorded fact' label (derived from fixture provenance, not from EvidenceRef.kind) — risking the assessment reading as objectively established rather than a human judgment. Corrected: the label is now kind-derived ('Coach assessment', 'Coach observation'), and this fixture's own test suite now asserts both render correctly and neither renders as 'Recorded fact'."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SPARSE",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d06-sparse-cross-source",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/app/dev/ui-lab/gate-d/w2-shared/no-defensible-hypothesis.tsx",
+        "src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/sparse-cross-source/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "EMPTY",
+      "requirementRefs": [
+        "D06"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D06-SPARSE",
+      "dataContractRef": "docs/adr/0157-contextual-coach-workspace-convergence.md §5",
+      "baselineAssetRef": "NoDefensibleHypothesis is new, disclosed directional; no production component mounts the equivalent state today.",
+      "knownGaps": [
+        "Same production gap as GATE-D-W2-D03-SPARSE (issue #846)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-d-w2-d06-source-inspection-confirmation",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/components/ai/assistant-coach-hypothesis-panel.tsx",
+        "src/domain/positions/canonical-labels.ts",
+        "src/app/dev/ui-lab/gate-a/shared/profile-position-model.ts",
+        "src/app/dev/ui-lab/gate-d/w2-shared/assistant-coach-hypothesis-mount.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx",
+        "src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-types.ts",
+        "src/app/dev/ui-lab/gate-d/d06-cross-source-hypothesis/source-inspection-confirmation/page.tsx"
+      ],
+      "lifecycle": "directional",
+      "assistantCoachState": "ACTIVE",
+      "requirementRefs": [
+        "D06"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-d-w2-candidates/SCENARIO_REGISTER.md row GATE-D-W2-D06-SOURCE-INSPECTION",
+      "dataContractRef": "docs/adr/0160-coach-approved-position-and-attribute-mutation-policy.md (§6, 14-role/24-code split)",
+      "baselineAssetRef": "Real, unmodified AssistantCoachHypothesisPanel; new, disclosed directional source inspector.",
+      "knownGaps": [
+        "EvidenceSourceInspector is a disclosed UI Lab directional presentation (issue #845).",
+        "REMEDIATED (owner review 2026-11-25): this fixture's own data is unchanged, but its rendered screenshot changed — the shared evidence-source-detail.tsx pill label is now kind-derived, not provenance-derived (see GATE-D-W2-D06-CONTRADICTION's own knownGaps for the finding this fixes)."
+      ],
+      "approval": null
+    }
+  ]
+}

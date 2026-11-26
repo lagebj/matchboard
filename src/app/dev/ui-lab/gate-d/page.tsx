@@ -2,20 +2,22 @@ import Link from "next/link";
 import { AppearanceControl } from "@/components/touchline";
 
 /**
- * `/dev/ui-lab/gate-d` index — Gate D W1 (Player Intelligence; official register
+ * `/dev/ui-lab/gate-d` index — Gate D (Player Intelligence; official register
  * `25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv`). Dev-only, fixture-backed, `CANDIDATE` only.
  *
- * D01, D02, D04: presentation-verification over already-wired real production components.
- * D07, D08: directional design candidates for ADR-0160's decided-but-unimplemented coach-approval
- * policy (2026-11-23 owner decision resolving the prior ADR-0139/ADR-0154 authority conflicts).
- * D09: exposes real, already-shipped qualitative-evidence supersession lineage.
- * D03/D06 (Assistant Coach cross-source hypothesis) remain deferred to Wave 2 — see
- * `docs/ui-lab/gate-d-w1-candidates/WAVE_SCOPE.md`.
+ * Wave 1: D01, D02, D04: presentation-verification over already-wired real production
+ * components. D07, D08: directional design candidates for ADR-0160's decided-but-unimplemented
+ * coach-approval policy. D09: exposes real, already-shipped qualitative-evidence supersession
+ * lineage.
+ * Wave 2: D03, D06 (Assistant Coach hypothesis and cross-source synthesis) — see
+ * `docs/ui-lab/gate-d-w2-candidates/`.
  */
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-d/d01-overview-position-evidence", id: "D01", title: "Player Detail Overview — position evidence" },
   { href: "/dev/ui-lab/gate-d/d02-evidence-dot-consolidation", id: "D02", title: "Player Detail Evidence — position-dot consolidation" },
+  { href: "/dev/ui-lab/gate-d/d03-development-ai", id: "D03", title: "Player Detail Development — AI hypothesis" },
   { href: "/dev/ui-lab/gate-d/d04-matches-coverage", id: "D04", title: "Player Detail Matches — minute coverage" },
+  { href: "/dev/ui-lab/gate-d/d06-cross-source-hypothesis", id: "D06", title: "Player intelligence — cross-source hypothesis" },
   { href: "/dev/ui-lab/gate-d/d07-attribute-evolution-review", id: "D07", title: "Attribute evolution review (directional)" },
   { href: "/dev/ui-lab/gate-d/d08-primary-position-proposal", id: "D08", title: "Primary position proposal (directional)" },
   { href: "/dev/ui-lab/gate-d/d09-evidence-lineage", id: "D09", title: "Evidence lineage" },

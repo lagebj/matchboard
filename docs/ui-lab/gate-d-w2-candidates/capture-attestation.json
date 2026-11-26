@@ -1,0 +1,562 @@
+{
+  "description": "Gate D W2 (register D03 Player Detail Development/AI, D06 Player intelligence cross-source hypothesis) UI Lab visual-review evidence, captured after the owner-review cross-player-claims remediation (2026-11-26): D03-DECISION-FLOW's dismissHypothesis no longer claims an unsupported teammate comparison (now states only Amir Haile's own recorded numbers and discloses the squad-wide comparison is unavailable); D03-GROUNDED's cycleInsight no longer claims a squad-wide recurring theme (now a player-specific interpretation traceable to Jonas Berg's own observation timeline). This run's own Gate D Playwright acceptance suite (146 tests, up from 144 — two new tests added for this round) passed in full. Supersedes the prior attestation (CI run 45706210938, commit 7900b59b), which reflected the rendering before this round's two sentence-level corrections to these same two scenarios.",
+  "sourceCommitSha": "c5b58cad78868e3be58d585118bfb6f533c396fc",
+  "generatedAt": "2026-11-26T06:49:48.237Z",
+  "environment": {
+    "node": "v24.22.3",
+    "platform": "linux",
+    "ci": true
+  },
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45768348321",
+  "ciArtifact": {
+    "id": 15094520332,
+    "name": "ui-lab-review-45768348321-1",
+    "expiresAt": "2026-12-03T06:49:48.000Z"
+  },
+  "reviewedBranchHeadSha": "94d7576bc2a2e29bcaee0a13380c11c3454a5a1b",
+  "knownLimitations": [
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — this run was triggered automatically by the pull_request event (the code change touched src/app/dev/ui-lab/**, inside this workflow's own path filter), unlike the immediately preceding capture run which used workflow_dispatch directly against the branch. reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run.",
+    "All 42 Gate D W2 capture hashes recorded below were independently re-verified in this session: the real CI artifact (ui-lab-review-45768348321-1) was downloaded via the GitHub CLI, and every sha256 recomputed directly from the downloaded PNG bytes against the manifest's own recorded value — zero mismatches, zero missing files. D03-GROUNDED and D03-DECISION-FLOW's desktop-dark captures were also visually opened and inspected directly in this session, confirming the corrected player-specific learning-cycle text and the corrected teammate-comparison-free trailing-event hypothesis render as intended.",
+    "This run captures only the \"initial\" interaction state for every Gate D W2 scenario, matching scripts/ui-lab-visual-review.mjs's registration — every simulated Promote/Dismiss/failure/source-expansion interaction and every corrected statement is instead verified by the dedicated e2e/ui-lab-gate-d.spec.ts Playwright suite (146 tests, all passing on this exact run), not by a captured post-interaction screenshot state.",
+    "No PASS recorded anywhere in this wave's documentation should be read as evidence that EvidenceSourceInspector or NoDefensibleHypothesis are production capabilities — see VISUAL_VS_CURRENT.md's design/production/verified table. This capture is design-acceptance evidence only."
+  ],
+  "approvalStatus": "CANDIDATE",
+  "captureCountsByScenario": {
+    "gate-d-w2-d03-grounded-longitudinal-hypothesis": 6,
+    "gate-d-w2-d03-sparse-no-hypothesis": 6,
+    "gate-d-w2-d03-coach-decision-flow": 6,
+    "gate-d-w2-d06-coherent-synthesis": 6,
+    "gate-d-w2-d06-genuine-contradiction": 6,
+    "gate-d-w2-d06-sparse-cross-source": 6,
+    "gate-d-w2-d06-source-inspection-confirmation": 6
+  },
+  "interactionStateCountsByScenario": {
+    "gate-d-w2-d03-grounded-longitudinal-hypothesis": {
+      "initial": 6
+    },
+    "gate-d-w2-d03-sparse-no-hypothesis": {
+      "initial": 6
+    },
+    "gate-d-w2-d03-coach-decision-flow": {
+      "initial": 6
+    },
+    "gate-d-w2-d06-coherent-synthesis": {
+      "initial": 6
+    },
+    "gate-d-w2-d06-genuine-contradiction": {
+      "initial": 6
+    },
+    "gate-d-w2-d06-sparse-cross-source": {
+      "initial": 6
+    },
+    "gate-d-w2-d06-source-inspection-confirmation": {
+      "initial": 6
+    }
+  },
+  "captures": [
+    {
+      "scenarioId": "GATE-D-W2-D03-GROUNDED",
+      "scenario": "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+      "route": "gate-d/d03-development-ai/grounded-longitudinal-hypothesis",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-desktop-dark.png",
+      "sha256": "3c5559976067a407b87d735e140712202eb6308e034da1235f23ccbd94f1b4fa"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-GROUNDED",
+      "scenario": "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+      "route": "gate-d/d03-development-ai/grounded-longitudinal-hypothesis",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-desktop-light.png",
+      "sha256": "9df80fa4a98553b6025994eb4bd862a084af03a3374aec91e5fd88174bdb5224"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-GROUNDED",
+      "scenario": "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+      "route": "gate-d/d03-development-ai/grounded-longitudinal-hypothesis",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-mobile-dark.png",
+      "sha256": "3e3d6dcf82052ab42011eb00297c9775c57960f29d33267d857449ad0f9017b1"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-GROUNDED",
+      "scenario": "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+      "route": "gate-d/d03-development-ai/grounded-longitudinal-hypothesis",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-mobile-light.png",
+      "sha256": "f744b26a91a2f45152dbd720d1f98f5caae2a675e459c874f399ae10cdd9cea2"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-GROUNDED",
+      "scenario": "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+      "route": "gate-d/d03-development-ai/grounded-longitudinal-hypothesis",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-narrow-dark.png",
+      "sha256": "c311e0b74b6a322e9f941ccdff3b4e3ef0330a8724f925c8f6b42d004eb6561b"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-GROUNDED",
+      "scenario": "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+      "route": "gate-d/d03-development-ai/grounded-longitudinal-hypothesis",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-narrow-light.png",
+      "sha256": "8712847db7af37ee5370315171f57e8d9b046df329d2f3cbbdf53b79e02784a3"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-SPARSE",
+      "scenario": "gate-d-w2-d03-sparse-no-hypothesis",
+      "route": "gate-d/d03-development-ai/sparse-no-hypothesis",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-sparse-no-hypothesis-desktop-dark.png",
+      "sha256": "7bd0621a2b528d89bdf7eefc225d90413ae78b102253eb9062a8e573203846ca"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-SPARSE",
+      "scenario": "gate-d-w2-d03-sparse-no-hypothesis",
+      "route": "gate-d/d03-development-ai/sparse-no-hypothesis",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-sparse-no-hypothesis-desktop-light.png",
+      "sha256": "eb1d44a3c9065fae94ea8957314324f66abaad515e8e8b43b9725a739245be82"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-SPARSE",
+      "scenario": "gate-d-w2-d03-sparse-no-hypothesis",
+      "route": "gate-d/d03-development-ai/sparse-no-hypothesis",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-sparse-no-hypothesis-mobile-dark.png",
+      "sha256": "eb8689ceef8d2c49f82eeef560e3bafef90b33f8775954d1e435e7881561a608"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-SPARSE",
+      "scenario": "gate-d-w2-d03-sparse-no-hypothesis",
+      "route": "gate-d/d03-development-ai/sparse-no-hypothesis",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-sparse-no-hypothesis-mobile-light.png",
+      "sha256": "147c0d123672816e677fc8d5deea810c5a8abdad133e01aa61c57f3764c5319d"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-SPARSE",
+      "scenario": "gate-d-w2-d03-sparse-no-hypothesis",
+      "route": "gate-d/d03-development-ai/sparse-no-hypothesis",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-sparse-no-hypothesis-narrow-dark.png",
+      "sha256": "ba012cf032406a208fe75268cc46d91826beabf8d7893f15e1c27c328dc0a989"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-SPARSE",
+      "scenario": "gate-d-w2-d03-sparse-no-hypothesis",
+      "route": "gate-d/d03-development-ai/sparse-no-hypothesis",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-sparse-no-hypothesis-narrow-light.png",
+      "sha256": "5144408b3bd8d749b9660a474c2b8bdf0b9c4af1fbc13d667f25bc01ded7dce6"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
+      "scenario": "gate-d-w2-d03-coach-decision-flow",
+      "route": "gate-d/d03-development-ai/coach-decision-flow",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-coach-decision-flow-desktop-dark.png",
+      "sha256": "0f4393743080bc26ba81a1377b4c492cb4c1a82a1f10b5c470ccf6d0962ce37b"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
+      "scenario": "gate-d-w2-d03-coach-decision-flow",
+      "route": "gate-d/d03-development-ai/coach-decision-flow",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-coach-decision-flow-desktop-light.png",
+      "sha256": "4753f2d134b53ea8be0bf7d143880c6b463e44b825455b051c2657d96cd7209e"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
+      "scenario": "gate-d-w2-d03-coach-decision-flow",
+      "route": "gate-d/d03-development-ai/coach-decision-flow",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-coach-decision-flow-mobile-dark.png",
+      "sha256": "0969b52aa2d0a2a173c08bdfd13777daddb20715d6f29a7cfd38a844c4d03830"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
+      "scenario": "gate-d-w2-d03-coach-decision-flow",
+      "route": "gate-d/d03-development-ai/coach-decision-flow",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-coach-decision-flow-mobile-light.png",
+      "sha256": "e64c937751f2d9225d5650ca35bad376ef5e2faf95c80b890d9fbcae8316159d"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
+      "scenario": "gate-d-w2-d03-coach-decision-flow",
+      "route": "gate-d/d03-development-ai/coach-decision-flow",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-coach-decision-flow-narrow-dark.png",
+      "sha256": "9a11697099a24b31855f12549cec01fd46f272aa72d71c42bc23951c626620f5"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
+      "scenario": "gate-d-w2-d03-coach-decision-flow",
+      "route": "gate-d/d03-development-ai/coach-decision-flow",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d03-coach-decision-flow-narrow-light.png",
+      "sha256": "1cb82a7a5fe1a3500e3ebf8bf1739960d9fe8f1676b40f908029dc392bc8e673"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-COHERENT",
+      "scenario": "gate-d-w2-d06-coherent-synthesis",
+      "route": "gate-d/d06-cross-source-hypothesis/coherent-synthesis",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-coherent-synthesis-desktop-dark.png",
+      "sha256": "3168b3bb7ebb465d1d26ee8ae5226e358780eb41912f803614776113c0b92db9"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-COHERENT",
+      "scenario": "gate-d-w2-d06-coherent-synthesis",
+      "route": "gate-d/d06-cross-source-hypothesis/coherent-synthesis",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-coherent-synthesis-desktop-light.png",
+      "sha256": "a077ba8364db4cfed5bb1de56e1ca35a331011980a57fed6d238cc8feea474c3"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-COHERENT",
+      "scenario": "gate-d-w2-d06-coherent-synthesis",
+      "route": "gate-d/d06-cross-source-hypothesis/coherent-synthesis",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-coherent-synthesis-mobile-dark.png",
+      "sha256": "2a798b6775ffc10d87930f7518798c82f5c59c7ef6131c12e0432ed1258971ff"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-COHERENT",
+      "scenario": "gate-d-w2-d06-coherent-synthesis",
+      "route": "gate-d/d06-cross-source-hypothesis/coherent-synthesis",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-coherent-synthesis-mobile-light.png",
+      "sha256": "b5fb815f1c3f3cd5850a40cfd2e162b4d57a94c21b9bc45ebd5bfcfe77b78325"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-COHERENT",
+      "scenario": "gate-d-w2-d06-coherent-synthesis",
+      "route": "gate-d/d06-cross-source-hypothesis/coherent-synthesis",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-coherent-synthesis-narrow-dark.png",
+      "sha256": "ac615933ce211c5dcd0d5e33aa868dca186637713b83d4a4e38fe5d6cdd3cc30"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-COHERENT",
+      "scenario": "gate-d-w2-d06-coherent-synthesis",
+      "route": "gate-d/d06-cross-source-hypothesis/coherent-synthesis",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-coherent-synthesis-narrow-light.png",
+      "sha256": "7bdb28d190f62958ca801daa135b3966c91835cc48f6d3fb86cb9162a19d1c17"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-CONTRADICTION",
+      "scenario": "gate-d-w2-d06-genuine-contradiction",
+      "route": "gate-d/d06-cross-source-hypothesis/genuine-contradiction",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-genuine-contradiction-desktop-dark.png",
+      "sha256": "4a16042987085912008d3d5a636524b28477c8dff14fe4828b76202734d05d7d"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-CONTRADICTION",
+      "scenario": "gate-d-w2-d06-genuine-contradiction",
+      "route": "gate-d/d06-cross-source-hypothesis/genuine-contradiction",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-genuine-contradiction-desktop-light.png",
+      "sha256": "2985fd03a4684f19fd26799a4b534587158fb2a50f046f11a4ce470d9572b996"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-CONTRADICTION",
+      "scenario": "gate-d-w2-d06-genuine-contradiction",
+      "route": "gate-d/d06-cross-source-hypothesis/genuine-contradiction",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-genuine-contradiction-mobile-dark.png",
+      "sha256": "9854ceceb8a0ddc08e07dcc4a8828b2da99838a18385b96700b527b1a2bf3c3b"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-CONTRADICTION",
+      "scenario": "gate-d-w2-d06-genuine-contradiction",
+      "route": "gate-d/d06-cross-source-hypothesis/genuine-contradiction",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-genuine-contradiction-mobile-light.png",
+      "sha256": "7c4910daed2a618e71afecc3227f488753816bcd44d12567c92d2cf90e9fa2da"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-CONTRADICTION",
+      "scenario": "gate-d-w2-d06-genuine-contradiction",
+      "route": "gate-d/d06-cross-source-hypothesis/genuine-contradiction",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-genuine-contradiction-narrow-dark.png",
+      "sha256": "a69a6206716107ebed4e3ceb2acc80ba5556e512e3992109d1d4c70679a725fa"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-CONTRADICTION",
+      "scenario": "gate-d-w2-d06-genuine-contradiction",
+      "route": "gate-d/d06-cross-source-hypothesis/genuine-contradiction",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-genuine-contradiction-narrow-light.png",
+      "sha256": "7ef6c2757226be5ca29a659ed7460a1d75c769254e1f1f07ddebe5977c8f34ee"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SPARSE",
+      "scenario": "gate-d-w2-d06-sparse-cross-source",
+      "route": "gate-d/d06-cross-source-hypothesis/sparse-cross-source",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-sparse-cross-source-desktop-dark.png",
+      "sha256": "b1c84242fa1cd42db5acc2487db4c29e8639194ca034a75051a80032eccc0995"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SPARSE",
+      "scenario": "gate-d-w2-d06-sparse-cross-source",
+      "route": "gate-d/d06-cross-source-hypothesis/sparse-cross-source",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-sparse-cross-source-desktop-light.png",
+      "sha256": "378e1736facd2d3d15ff676d74e117f949d20201a2df98876b7fe523a198e91a"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SPARSE",
+      "scenario": "gate-d-w2-d06-sparse-cross-source",
+      "route": "gate-d/d06-cross-source-hypothesis/sparse-cross-source",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-sparse-cross-source-mobile-dark.png",
+      "sha256": "3a3fdc2ea3336ba62841815bfd435c15625bcf2e8ad38d824fa210a410c90779"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SPARSE",
+      "scenario": "gate-d-w2-d06-sparse-cross-source",
+      "route": "gate-d/d06-cross-source-hypothesis/sparse-cross-source",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-sparse-cross-source-mobile-light.png",
+      "sha256": "d59f59c4f2966d59741b8235a46959f3cdd9b6a4d435795e479721f7800a3721"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SPARSE",
+      "scenario": "gate-d-w2-d06-sparse-cross-source",
+      "route": "gate-d/d06-cross-source-hypothesis/sparse-cross-source",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-sparse-cross-source-narrow-dark.png",
+      "sha256": "328bf5cd356dfce0e9a42b33f4f4f08c2fde271a9aefc5c3b43ab095fce166f6"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SPARSE",
+      "scenario": "gate-d-w2-d06-sparse-cross-source",
+      "route": "gate-d/d06-cross-source-hypothesis/sparse-cross-source",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-sparse-cross-source-narrow-light.png",
+      "sha256": "3a5feaff786cc01427025f694f1fc801bac103728f480c319cfa8b18fe97f2fa"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
+      "scenario": "gate-d-w2-d06-source-inspection-confirmation",
+      "route": "gate-d/d06-cross-source-hypothesis/source-inspection-confirmation",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-source-inspection-confirmation-desktop-dark.png",
+      "sha256": "fb34f775f31b58a6e9ced9e241221a1a905ece868d044179db7c95e5276f3c7e"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
+      "scenario": "gate-d-w2-d06-source-inspection-confirmation",
+      "route": "gate-d/d06-cross-source-hypothesis/source-inspection-confirmation",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-source-inspection-confirmation-desktop-light.png",
+      "sha256": "61f2181c62b0374b92fb0f464e2a861374375b85a595d02e3ec795fe551be64f"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
+      "scenario": "gate-d-w2-d06-source-inspection-confirmation",
+      "route": "gate-d/d06-cross-source-hypothesis/source-inspection-confirmation",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-source-inspection-confirmation-mobile-dark.png",
+      "sha256": "bc05aad6e63f396ba0ba97aa5bcfd78e8fdc7178420335960e4f0ebdaf9996f5"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
+      "scenario": "gate-d-w2-d06-source-inspection-confirmation",
+      "route": "gate-d/d06-cross-source-hypothesis/source-inspection-confirmation",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-source-inspection-confirmation-mobile-light.png",
+      "sha256": "851503c1c405464f25cce4f8066c540c943bcb04b5af8c2718644cb6406ae061"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
+      "scenario": "gate-d-w2-d06-source-inspection-confirmation",
+      "route": "gate-d/d06-cross-source-hypothesis/source-inspection-confirmation",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-source-inspection-confirmation-narrow-dark.png",
+      "sha256": "d96db6d6be967ba121396de1836234088df3af0042d31f441d82b17af17938b3"
+    },
+    {
+      "scenarioId": "GATE-D-W2-D06-SOURCE-INSPECTION",
+      "scenario": "gate-d-w2-d06-source-inspection-confirmation",
+      "route": "gate-d/d06-cross-source-hypothesis/source-inspection-confirmation",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-d-w2-d06-source-inspection-confirmation-narrow-light.png",
+      "sha256": "096b1ce1c6d884ea9449acabd47e0cc739340000c5cb9b6568981fc0f02b6e36"
+    }
+  ]
+}

@@ -213,12 +213,210 @@ test.describe("D09 — full lineage coverage: explicit/tentative/edit/retract/am
   });
 });
 
+test.describe("D03 — Development/AI: grounded hypothesis, sparse no-hypothesis state, coach decision flow", () => {
+  test("grounded: the existing development focus and the Assistant Coach hypothesis are visibly distinct", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    // The focus name appears twice (the Development focus widget's own title, and quoted inside
+    // the hypothesis statement's prose) — both real, not a duplicate-rendering bug.
+    await expect(page.getByText("Composure under pressure in the defensive third").first()).toBeVisible();
+    await expect(page.getByText(/This is the coach's own existing, already-confirmed development focus/)).toBeVisible();
+    await expect(page.getByText("Assistant Coach hypotheses")).toBeVisible();
+  });
+
+  test("grounded: the contradicting observation is disclosed, not hidden", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    await expect(page.getByText(/Contradicting: Coach observation, 4 Oct 2026 vs Skedsmo/)).toBeVisible();
+  });
+
+  test("grounded: the cited source detail is reachable via a real, keyboard-accessible <details>", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    const details = page.locator("details", { hasText: "Recorded defensive-third giveaways" });
+    await details.locator("summary").click();
+    await expect(details.getByText(/5 across the previous 3 matches/)).toBeVisible();
+  });
+
+  test("grounded: describes recorded giveaways as a count, never as an unlabelled rate (remediation P2 #3)", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    await expect(page.getByText(/giveaway rate/i)).toHaveCount(0);
+    await expect(page.getByText(/not an exposure-adjusted performance rate/)).toBeVisible();
+  });
+
+  test("grounded: states the correct six-week learning-cycle duration, computed from the fixture's own dates (remediation P2 #4)", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    await expect(page.getByText(/Based on the 6-week window 30 Aug – 11 Oct 2026/)).toBeVisible();
+    await expect(page.getByText(/five-week/)).toHaveCount(0);
+  });
+
+  test("grounded: the learning-cycle insight makes no unsupported squad-wide claim (remediation P2)", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    await expect(page.getByText("Defensive-third decision-making across the review window")).toBeVisible();
+    await expect(page.getByText("Composure under pressure is a squad-wide recurring theme")).toHaveCount(0);
+    await expect(page.getByText(/Several midfielders/)).toHaveCount(0);
+    await expect(page.getByText(/do not establish consistent improvement or a squad-wide pattern/)).toBeVisible();
+  });
+
+  test("decision flow: the dismiss-demo hypothesis makes no unsupported teammate comparison (remediation P2)", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+    await expect(page.getByText(/teammates?/i)).toHaveCount(0);
+    await expect(page.getByText(/squad-wide comparison is not available/)).toBeVisible();
+  });
+
+  test("sparse: renders the honest no-hypothesis state, never generic padding advice", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/sparse-no-hypothesis`);
+    // exact:true disambiguates from the page's own h1 ("...no defensible hypothesis"), which
+    // Playwright's default case-insensitive substring match would otherwise also match.
+    await expect(page.getByText("No defensible hypothesis", { exact: true })).toBeVisible();
+    await expect(page.getByText(/we recommend|you should focus on/i)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /promote to development focus/i })).toHaveCount(0);
+  });
+
+  test("decision flow: Promote succeeds with no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+    const requests = collectServerActionRequests(page);
+
+    const focusInputs = page.getByLabel("Development focus to record if promoted");
+    await focusInputs.first().fill("Track left-midfield comfort under possession");
+    await page.getByRole("button", { name: /promote to development focus/i }).first().click();
+    await expect(page.getByText(/Amir Haile's recorded minutes at left midfield/)).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("decision flow: Dismiss succeeds with no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+    const requests = collectServerActionRequests(page);
+
+    // Three hypotheses render in order (confirm-demo, dismiss-demo, error-demo) — dismiss-demo's
+    // own Dismiss button is the second one, not the first.
+    await page.getByRole("button", { name: /^dismiss$/i }).nth(1).click();
+    await expect(page.getByText(/Amir Haile's recorded event rate while trailing/)).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("decision flow: a simulated Promote failure leaves the hypothesis visible with an inline error, no real Server Action invoked", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+    const requests = collectServerActionRequests(page);
+
+    const focusInputs = page.getByLabel("Development focus to record if promoted");
+    await focusInputs.last().fill("Track rotation pattern with Jonas");
+    await page.getByRole("button", { name: /promote to development focus/i }).last().click();
+    await expect(page.getByText(/Could not record the development focus right now/)).toBeVisible();
+    await expect(page.getByText(/Amir Haile's recorded shared pitch time with Jonas Berg/)).toBeVisible();
+    expect(requests).toHaveLength(0);
+  });
+
+  test("decision flow: each hypothesis has its own distinctly titled source inspector, and every cited source expands to real, kind-correct detail (remediation P1 #1)", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+
+    await expect(page.getByText("Cited sources — left-midfield exposure hypothesis")).toBeVisible();
+    await expect(page.getByText("Cited sources — event-rate-while-trailing hypothesis")).toBeVisible();
+    await expect(page.getByText("Cited sources — co-presence hypothesis")).toBeVisible();
+
+    const trailingRateDetails = page.locator("details", { hasText: "Event rate while trailing" });
+    await trailingRateDetails.locator("summary").click();
+    await expect(trailingRateDetails.getByText(/2 across 108 recorded trailing minutes/)).toBeVisible();
+    await expect(trailingRateDetails.getByText(/a rate of 1 per 54 minutes/)).toBeVisible();
+
+    const copresenceDetails = page.locator("details", { hasText: "Shared pitch time with Jonas Berg" });
+    await copresenceDetails.locator("summary").click();
+    await expect(copresenceDetails.getByText(/does not establish partnership quality/)).toBeVisible();
+  });
+});
+
+test.describe("D06 — cross-source hypothesis: coherent synthesis, genuine contradiction, sparse evidence, source inspection", () => {
+  test("coherent: cites three distinct evidence kinds, each classified by its own real kind — never collapsed to a generic 'Recorded fact'", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/coherent-synthesis`);
+    await expect(page.getByText(/Noah Fjeld's on-pitch exposure has shifted/)).toBeVisible();
+    // The kind-based pill label lives inside each source's collapsed <details> — expand all of
+    // them before asserting visibility, matching the real browser's own collapsed-by-default
+    // rendering (unlike a jsdom component test, Playwright correctly treats unexpanded <details>
+    // content as not visible).
+    const summaries = page.locator("details summary");
+    const summaryCount = await summaries.count();
+    for (let i = 0; i < summaryCount; i++) {
+      await summaries.nth(i).click();
+    }
+    // exact:true is required here, not just a style preference: the hypothesis's own prose
+    // ("...his recorded position intervals and a recent coach observation about his central
+    // defending") naturally contains both phrases as ordinary English, which Playwright's
+    // default case-insensitive substring match also picks up alongside the real pill — exact
+    // match isolates the pill `<span>` itself (confirmed live: a prior version of this test
+    // without exact:true found 4 matches for "Coach observation", not the intended 1).
+    await expect(page.getByText("Recorded position", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Coach observation", { exact: true })).toBeVisible();
+    await expect(page.getByText("Derived trend", { exact: true })).toBeVisible();
+    await expect(page.getByText("Recorded fact", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Derived measurement", { exact: true })).toHaveCount(0);
+  });
+
+  test("contradiction: both disagreeing sources are visible, neither silently resolved", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/genuine-contradiction`);
+    await expect(page.getByText(/Contradicting: Coach assessment, 20 Sep 2026, Coach observation, 11 Oct 2026/)).toBeVisible();
+  });
+
+  test("contradiction: the earlier formal assessment is classified as a Coach assessment, never a generic 'Recorded fact' (remediation P1 #2)", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/genuine-contradiction`);
+    const assessmentDetails = page.locator("details", { hasText: "Coach assessment, 20 Sep 2026" });
+    await assessmentDetails.locator("summary").click();
+    await expect(assessmentDetails.getByText("Coach assessment", { exact: true })).toBeVisible();
+    await expect(assessmentDetails.getByText("Recorded fact")).toHaveCount(0);
+
+    const observationDetails = page.locator("details", { hasText: "Coach observation, 11 Oct 2026" });
+    await observationDetails.locator("summary").click();
+    await expect(observationDetails.getByText("Coach observation", { exact: true })).toBeVisible();
+    await expect(observationDetails.getByText("Recorded fact")).toHaveCount(0);
+
+    const positionDetails = page.locator("details", { hasText: "Recorded position, 11 Oct 2026" });
+    await positionDetails.locator("summary").click();
+    await expect(positionDetails.getByText("Recorded position", { exact: true })).toBeVisible();
+
+    const trendDetails = page.locator("details", { hasText: "Centre-back role minutes" });
+    await trendDetails.locator("summary").click();
+    await expect(trendDetails.getByText("Derived trend", { exact: true })).toBeVisible();
+  });
+
+  test("sparse: the four distinct gap kinds remain distinguishable, not one vague line", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/sparse-cross-source`);
+    await expect(page.getByText(/Missing data: no actual position interval/)).toBeVisible();
+    await expect(page.getByText(/Insufficient sample: only 2 of 6 eligible matches/)).toBeVisible();
+    await expect(page.getByText(/No contrary evidence: nothing on record/)).toBeVisible();
+    await expect(page.getByText(/Coach uncertainty, recorded directly/)).toBeVisible();
+    await expect(page.getByText("Assistant Coach hypotheses")).toHaveCount(0);
+  });
+
+  test("source inspection: each cited source expands independently to its own real detail", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/source-inspection-confirmation`);
+    const trendDetails = page.locator("details", { hasText: "Centre forward role minutes" });
+    await trendDetails.locator("summary").click();
+    await expect(trendDetails.getByText(/15 across the previous 3 matches/)).toBeVisible();
+  });
+
+  test("source inspection: Promote is disabled until a focus is entered, then succeeds with no real Server Action", async ({ page }) => {
+    await page.goto(`${BASE}/d06-cross-source-hypothesis/source-inspection-confirmation`);
+    const requests = collectServerActionRequests(page);
+    const promote = page.getByRole("button", { name: /promote to development focus/i });
+
+    await expect(promote).toBeDisabled();
+    await page.getByLabel("Development focus to record if promoted").fill("Developing as a central striking option");
+    await expect(promote).toBeEnabled();
+    await promote.click();
+    await expect(page.getByText(/Sara Dahl's recorded minutes have shifted/)).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+  });
+});
+
 test.describe("Gate D — responsive layout: no horizontal page overflow at any required width", () => {
   const SCENARIOS = [
     "d01-overview-position-evidence/agreeing-positions",
     "d01-overview-position-evidence/diverging-positions",
     "d02-evidence-dot-consolidation/populated-evidence",
     "d02-evidence-dot-consolidation/sparse-evidence",
+    "d03-development-ai/grounded-longitudinal-hypothesis",
+    "d03-development-ai/sparse-no-hypothesis",
+    "d03-development-ai/coach-decision-flow",
+    "d06-cross-source-hypothesis/coherent-synthesis",
+    "d06-cross-source-hypothesis/genuine-contradiction",
+    "d06-cross-source-hypothesis/sparse-cross-source",
+    "d06-cross-source-hypothesis/source-inspection-confirmation",
     "d07-attribute-evolution-review/automatic-non-material",
     "d07-attribute-evolution-review/pending-material-approval",
     "d07-attribute-evolution-review/manual-edit-rebase",

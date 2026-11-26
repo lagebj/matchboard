@@ -1181,6 +1181,38 @@ const scenarios = [
     slug: "gate-d-w1-d09-ambiguous-reference-rejected",
     route: "gate-d/d09-evidence-lineage/ambiguous-reference-rejected",
   },
+  // Gate D W2 (register D03 Player Detail Development/AI, D06 Player intelligence cross-source
+  // hypothesis) — CANDIDATE, not approved. Fixture-driven only, reusing the real, unmodified
+  // AssistantCoachHypothesisPanel. See docs/ui-lab/gate-d-w2-candidates/SOURCE_RECONCILIATION.md
+  // and WAVE_SCOPE.md for scope.
+  {
+    slug: "gate-d-w2-d03-grounded-longitudinal-hypothesis",
+    route: "gate-d/d03-development-ai/grounded-longitudinal-hypothesis",
+  },
+  {
+    slug: "gate-d-w2-d03-sparse-no-hypothesis",
+    route: "gate-d/d03-development-ai/sparse-no-hypothesis",
+  },
+  {
+    slug: "gate-d-w2-d03-coach-decision-flow",
+    route: "gate-d/d03-development-ai/coach-decision-flow",
+  },
+  {
+    slug: "gate-d-w2-d06-coherent-synthesis",
+    route: "gate-d/d06-cross-source-hypothesis/coherent-synthesis",
+  },
+  {
+    slug: "gate-d-w2-d06-genuine-contradiction",
+    route: "gate-d/d06-cross-source-hypothesis/genuine-contradiction",
+  },
+  {
+    slug: "gate-d-w2-d06-sparse-cross-source",
+    route: "gate-d/d06-cross-source-hypothesis/sparse-cross-source",
+  },
+  {
+    slug: "gate-d-w2-d06-source-inspection-confirmation",
+    route: "gate-d/d06-cross-source-hypothesis/source-inspection-confirmation",
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
