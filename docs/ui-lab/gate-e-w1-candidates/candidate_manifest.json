@@ -1,0 +1,68 @@
+{
+  "programmeRevision": "0.169.16",
+  "baseCommitSha": "69b0687624c693706481caf71d0bb6354acb43f3",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-e/. Not a production implementation, not an authorization, not a security proof. Scope and authority sources: docs/ui-lab/gate-e-w1-candidates/SOURCE_RECONCILIATION.md.",
+  "note": "Gate E W1 — E01 (League temporal orientation, period navigation, context restoration). Two states: mid-season-current-round and season-closed-no-current-round. Both reuse the real, unmodified buildLeagueOperatingViewModel() and LeagueSurface (ADR-0144) via a new fixture-safe URL-state mount (league-fixture-mount.tsx), the same actions-override-mount pattern precedent Gate C W3/Gate D W2 established for self-fetching production components. Unlike every prior Gate A directional study and Gate D's D07/D08/D09, this wave introduces zero new or directional presentation component — 100% real, already-shipped production code. scripts/ui-lab-visual-review.mjs registers both routes for CI capture. Both candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved. E02-E08 are deferred to later Gate E waves (docs/ui-lab/gate-e-w1-candidates/WAVE_SCOPE.md).",
+  "candidates": [
+    {
+      "scenarioId": "GATE-E-W1-E01-MID-SEASON",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-e-w1-e01-mid-season-current-round",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/lib/touchline/presentation/league-view-model.ts",
+        "src/components/fixtures/league-surface.tsx",
+        "src/components/fixtures/league-season-rail.tsx",
+        "src/components/fixtures/league-focused-round.tsx",
+        "src/components/fixtures/league-operational-match-row.tsx",
+        "src/components/fixtures/league-history-rounds.tsx",
+        "src/app/dev/ui-lab/gate-e/shared/league-fixture-mount.tsx",
+        "src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/mid-season-current-round/page.tsx"
+      ],
+      "lifecycle": "production",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "E01",
+        "XR-T01",
+        "XR-S02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-e-w1-candidates/SCENARIO_REGISTER.md row GATE-E-W1-E01-MID-SEASON",
+      "dataContractRef": "docs/adr/0144-league-operating-surface.md",
+      "baselineAssetRef": "Real, unmodified buildLeagueOperatingViewModel()/LeagueSurface and children; the fixture-safe URL-state mount is new but reproduces FixturesPage's own existing orchestration logic verbatim, not a second implementation.",
+      "knownGaps": [
+        "ARR-0035 (pre-existing, already-tracked): the real view-model's own focusedRound.matches[].href/roundBoardHref are bare unscoped paths, not org-scoped. Not introduced or fixed by this wave — see BLOCKERS.md.",
+        "'Generate all draft squads' and 'Create match' (real production Server Actions/mutations) are intentionally not rendered in this fixture mount — no safe way to represent either without invoking a real Server Action from a synthetic control."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-e-w1-e01-season-closed-no-current-round",
+      "fixtureVersion": 1,
+      "componentOwners": [
+        "src/lib/touchline/presentation/league-view-model.ts",
+        "src/components/fixtures/league-surface.tsx",
+        "src/components/fixtures/league-season-rail.tsx",
+        "src/components/fixtures/league-focused-round.tsx",
+        "src/components/fixtures/league-operational-match-row.tsx",
+        "src/components/fixtures/league-history-rounds.tsx",
+        "src/app/dev/ui-lab/gate-e/shared/league-fixture-mount.tsx",
+        "src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/season-closed-no-current-round/page.tsx"
+      ],
+      "lifecycle": "production",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "E01",
+        "XR-T01"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-e-w1-candidates/SCENARIO_REGISTER.md row GATE-E-W1-E01-SEASON-CLOSED",
+      "dataContractRef": "docs/adr/0144-league-operating-surface.md",
+      "baselineAssetRef": "Real, unmodified buildLeagueOperatingViewModel()/LeagueSurface and children.",
+      "knownGaps": [
+        "Same ARR-0035 disclosure as GATE-E-W1-E01-MID-SEASON."
+      ],
+      "approval": null
+    }
+  ]
+}
