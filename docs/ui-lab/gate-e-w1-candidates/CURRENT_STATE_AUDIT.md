@@ -30,13 +30,16 @@ mutation (`fixturePopulateAllAction`, "Generate all draft squads") that must nev
 synthetic UI Lab controls (mission brief §11).
 
 **Resolution:** a new, small, fixture-safe presentation seam —
-`src/app/dev/ui-lab/gate-e/shared/league-fixture-mount.tsx` — that reproduces only
+`src/app/dev/ui-lab/gate-e/shared/league-fixture-mount.tsx` — that reproduces
 `FixturesPage`'s non-fetching URL-state orchestration (the exact same `season`/`round` query-param
-logic) and calls the real, unmodified `buildLeagueOperatingViewModel()` + `LeagueSurface` with
-injected fixture `FixturePeriod[]` data. This mirrors the Gate C W3 / Gate D W2 "actions-override
-mount" precedent exactly — a thin seam around a self-fetching composition, not a second
-implementation of League. No mutation control ("Generate all draft squads", "Create match") is
-rendered in the mount, since there is no safe way to represent either without a real Server
+logic) verbatim, including its real `TouchlinePageHeader`/`TouchlineButton` header composition
+(an independent review initially found this reimplemented as hand-rolled markup instead; corrected
+— see `REVIEW_RECORD.md` BLK-E01-05), and calls the real, unmodified
+`buildLeagueOperatingViewModel()` + `LeagueSurface` with injected fixture `FixturePeriod[]` data.
+This mirrors the Gate C W3 / Gate D W2 "actions-override mount" precedent exactly — a thin seam
+around a self-fetching composition, not a second implementation of League. Only one mutation
+control ("Generate all draft squads") is omitted from the mount, since there is no safe way to
+represent it without a real Server
 Action.
 
 ## Known, already-tracked residue this wave surfaces but does not fix

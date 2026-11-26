@@ -72,5 +72,24 @@ and `LeagueSurface` were never in question; this was entirely a test-locator-pre
 `e2e/ui-lab-gate-e.spec.ts` itself. Re-run pending; this entry is not rewritten once that
 succeeds — see `REVIEW_RECORD.md` for the final disposition.
 
-No confirmed BLOCKING or MAJOR item remains unaddressed for E01. See `REVIEW_RECORD.md` for the
-independent review's own findings.
+### BLK-E01-05 — independent review found the header was hand-rolled, not the real `TouchlinePageHeader` (fixed)
+
+A fresh, context-independent review (not self-review; see `REVIEW_RECORD.md`) found that
+`league-fixture-mount.tsx`'s original implementation hand-rolled its own `<h1>`/layout markup for
+the League title/context/actions row instead of reusing the real, production
+`TouchlinePageHeader`/`TouchlineButton` primitives `FixturesPage` actually uses — a genuine,
+undisclosed divergence that directly contradicted this document set's own "zero new/directional
+presentation" and "it does not... diverge from production behaviour in any way" claims (the
+rendered title was 20px instead of production's real 28/32px, among other layout differences).
+Classified **MAJOR** by the reviewer.
+
+**Fixed**: the mount now imports and renders the real `TouchlinePageHeader`/`TouchlineButton`
+exactly as `fixtures-page.tsx` does, including the real "Create match" navigation link (a plain
+link to `/o/{orgSlug}/matches/new`, not a mutation, so it was safe to keep — only "Generate all
+draft squads", a real Server Action, remains intentionally omitted). All local tests re-verified
+green after the fix. See `CHANGED_FILES.md`/git history for the exact commit.
+
+No confirmed BLOCKING or unaddressed MAJOR item remains for E01. See `REVIEW_RECORD.md` for the
+independent review's full account, including the two MINOR findings (no explicit keyboard-only
+interaction test; a forward-reference to this very `REVIEW_RECORD.md` from documents written
+before it existed) that remain as disclosed, non-blocking limitations.

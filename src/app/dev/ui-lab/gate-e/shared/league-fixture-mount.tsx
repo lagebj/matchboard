@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { FixturePeriod } from "@/domain/fixtures/types";
 import { buildLeagueOperatingViewModel } from "@/lib/touchline/presentation/league-view-model";
 import { LeagueSurface } from "@/components/fixtures/league-surface";
+import { TouchlinePageHeader, TouchlineButton } from "@/components/touchline";
 
 /**
  * Gate E — E01 (League, register row E01). Fixture-safe mount for the real, unmodified
@@ -15,9 +16,12 @@ import { LeagueSurface } from "@/components/fixtures/league-surface";
  * (`fixturePopulateAllAction`) for "Generate all draft squads"; this mount reproduces only its
  * data-free URL-state orchestration (the `season`/`round` query-param selection authority,
  * ADR-0144 "URL as selection authority") and injects fixture `FixturePeriod[]` data instead of a
- * real fetch. No mutation control is rendered — "Generate all draft squads" and "Create match"
- * are intentionally omitted, since Section 11's "never invoke real Server Actions from synthetic
- * UI Lab controls" leaves no safe way to represent them here.
+ * real fetch. It reuses the real `TouchlinePageHeader`/`TouchlineButton` primitives for the header
+ * (same 28/32px title treatment and actions layout as production), rather than hand-rolled
+ * markup. "Create match" is kept as a real navigation link (`/o/{orgSlug}/matches/new`, not a
+ * mutation). Only "Generate all draft squads" (a real Server Action) is omitted, since Section
+ * 11's "never invoke real Server Actions from synthetic UI Lab controls" leaves no safe way to
+ * represent it here.
  *
  * The "League teams" / "Review season" links use the production org-scoped href shape with a
  * fixed synthetic org slug ("acme", matching the Gate C precedent), consistent with ARR-0035:
@@ -72,20 +76,27 @@ export function LeagueFixtureMount({ periods, now, orgSlug = "acme" }: { periods
 
   return (
     <div className="touchline flex min-w-0 flex-col gap-6" data-ui-lab-ready="true">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-[20px] font-[650] text-[var(--foreground)]">League</h1>
-          <p className="text-[13px] text-[var(--text-muted)]">
-            {activePeriod?.dateRange ? `${activePeriod.title} · ${activePeriod.dateRange}` : "Seasons, rounds and matches."}
-          </p>
-        </div>
-        <Link
-          href={`/o/${orgSlug}/teams`}
-          className="text-[13px] font-medium text-[var(--text-soft)] no-underline hover:text-[var(--foreground)]"
-        >
-          League teams <span aria-hidden="true">›</span>
-        </Link>
-      </div>
+      <TouchlinePageHeader
+        title="League"
+        context={
+          activePeriod?.dateRange
+            ? `${activePeriod.title} · ${activePeriod.dateRange}`
+            : "Seasons, rounds and matches. Open a round for squad work."
+        }
+        actions={
+          <>
+            <Link
+              href={`/o/${orgSlug}/teams`}
+              className="text-[13px] font-medium text-[var(--text-soft)] no-underline hover:text-[var(--foreground)]"
+            >
+              League teams <span aria-hidden="true">›</span>
+            </Link>
+            <TouchlineButton as="a" href={`/o/${orgSlug}/matches/new`} variant="primary">
+              Create match
+            </TouchlineButton>
+          </>
+        }
+      />
 
       {periods.length > 1 && (
         <div className="flex flex-wrap items-center gap-2">
