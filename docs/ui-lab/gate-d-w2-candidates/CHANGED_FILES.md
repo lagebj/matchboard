@@ -23,8 +23,9 @@ No production code (anything outside `src/app/dev/ui-lab/`, `e2e/`, `scripts/`, 
   — updated to record both findings as genuine history, the bounded five-scenario audit outcome,
   and their corrections.
 - `REVIEW_RECORD.md` and `capture-attestation.json`: not touched by the code-change commit itself;
-  updated in later commits once a fresh independent review and a real CI capture run against this
-  round's actual code both exist (see `BLOCKERS.md`).
+  updated in a later commit once a fresh independent review (clean — one MINOR finding, no
+  BLOCKING/MAJOR) and a real CI capture run (45768348321, all 42 hashes independently re-verified)
+  against this round's actual code both existed (see `BLOCKERS.md`, `REVIEW_RECORD.md`).
 
 ## Remediation round (owner review of PR #847, 2026-11-25) — modified
 

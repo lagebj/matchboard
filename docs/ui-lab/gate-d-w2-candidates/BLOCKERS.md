@@ -119,12 +119,13 @@ for the full three-attempt account) produced 42 real screenshots, all independen
 from the downloaded artifact and matching exactly. `capture-attestation.json` now reflects this
 verified, post-remediation run (CI 45706210938).
 
-**Superseded again by the 2026-11-26 cross-player-claims remediation above**: D03-GROUNDED's
-"Learning cycle" card and D03-DECISION-FLOW's dismiss-demo hypothesis card both render different
-text now. The CI 45706210938 attestation no longer reflects the current rendering for these two
-scenarios and must not be read as evidence for it; a fresh capture against this round's actual
-code follows in a later commit, verified the same way (see `REVIEW_RECORD.md` once that run
-completes — not asserted here before it exists).
+**Superseded again by the 2026-11-26 cross-player-claims remediation above, now refreshed**:
+D03-GROUNDED's "Learning cycle" card and D03-DECISION-FLOW's dismiss-demo hypothesis card both
+render different text now. The CI 45706210938 attestation reflected the rendering before this
+round's corrections and was not reused as evidence for it. A real CI capture run against this
+round's actual code (CI 45768348321) was obtained, downloaded, and independently re-hashed —
+`capture-attestation.json` now reflects it; see `REVIEW_RECORD.md`'s own "Final remediation round"
+section for the full account.
 
 ## No unresolved source requirements beyond the disclosed D06 XR gap above
 

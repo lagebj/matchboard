@@ -1,24 +1,23 @@
 {
-  "description": "Gate D W2 (register D03 Player Detail Development/AI, D06 Player intelligence cross-source hypothesis) UI Lab visual-review evidence, captured after the owner-review remediation pass (2026-11-25): D03-DECISION-FLOW now has a full EvidenceSourceMap and per-hypothesis source inspectors (was previously unbacked); the shared source-inspector pill label is now kind-derived, not provenance-derived (D06-CONTRADICTION's coach assessment/observation now classify correctly); D03-GROUNDED's giveaway trend is now described as a count, not a mislabelled rate, and its learning-cycle duration is computed from the fixture's own dates (6 weeks, not the previous incorrect 5). This run's own Gate D Playwright acceptance suite (144 tests) passed in full, including one fix mid-remediation for a Playwright-vs-jsdom text-matching collision this exact CI run surfaced (see REVIEW_RECORD.md). Supersedes the prior attestation (CI run 45643162459, commit 40bdff67), which reflected the pre-remediation rendering and must not be read as evidence for the current code.",
-  "sourceCommitSha": "7900b59b2b4c2f126d7636009eb57b3dd4298d5e",
-  "generatedAt": "2026-11-25T21:59:35.628Z",
+  "description": "Gate D W2 (register D03 Player Detail Development/AI, D06 Player intelligence cross-source hypothesis) UI Lab visual-review evidence, captured after the owner-review cross-player-claims remediation (2026-11-26): D03-DECISION-FLOW's dismissHypothesis no longer claims an unsupported teammate comparison (now states only Amir Haile's own recorded numbers and discloses the squad-wide comparison is unavailable); D03-GROUNDED's cycleInsight no longer claims a squad-wide recurring theme (now a player-specific interpretation traceable to Jonas Berg's own observation timeline). This run's own Gate D Playwright acceptance suite (146 tests, up from 144 — two new tests added for this round) passed in full. Supersedes the prior attestation (CI run 45706210938, commit 7900b59b), which reflected the rendering before this round's two sentence-level corrections to these same two scenarios.",
+  "sourceCommitSha": "c5b58cad78868e3be58d585118bfb6f533c396fc",
+  "generatedAt": "2026-11-26T06:49:48.237Z",
   "environment": {
     "node": "v24.22.3",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45706210938",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45768348321",
   "ciArtifact": {
-    "id": 15066008618,
-    "name": "ui-lab-review-45706210938-1",
-    "expiresAt": "2026-12-02T21:59:36.000Z"
+    "id": 15094520332,
+    "name": "ui-lab-review-45768348321-1",
+    "expiresAt": "2026-12-03T06:49:48.000Z"
   },
-  "reviewedBranchHeadSha": "7900b59b2b4c2f126d7636009eb57b3dd4298d5e",
+  "reviewedBranchHeadSha": "94d7576bc2a2e29bcaee0a13380c11c3454a5a1b",
   "knownLimitations": [
-    "This run's sourceCommitSha equals reviewedBranchHeadSha exactly — triggered via workflow_dispatch against the branch ref directly, not the pull_request event's synthetic base+head merge commit (confirmed via the run's own workflow_run.head_sha metadata), so there is no merge-commit discrepancy to disclose this time.",
-    "All 42 Gate D W2 capture hashes recorded below were independently re-verified in this session: the real CI artifact (ui-lab-review-45706210938-1) was downloaded via the GitHub CLI, and every sha256 recomputed directly from the downloaded PNG bytes against the manifest's own recorded value — zero mismatches, zero missing files. D03-GROUNDED, D03-DECISION-FLOW, D06-CONTRADICTION, D06-COHERENT, and D06-SOURCE-INSPECTION's desktop-dark captures were also visually inspected directly and confirmed to show the corrected count-not-rate wording, the 6-week duration, the per-hypothesis source inspectors, and (via the passing Playwright suite's own kind-label assertions, not visible in a collapsed-by-default screenshot) the corrected Coach assessment/Coach observation classification.",
-    "The CI run that triggered this capture (45706210938) was itself a second attempt: the first capture run against the remediation commit (45700445445) was canceled mid-flight by a concurrency-group collision with an immediately following documentation-only push, and the first subsequent re-run (45701649793) found one genuine Playwright test bug of its own (a case-insensitive substring match colliding with ordinary prose in the hypothesis statement, not a product defect) — fixed, then this run passed in full. See REVIEW_RECORD.md for the complete account.",
-    "This run captures only the \"initial\" interaction state for every Gate D W2 scenario, matching scripts/ui-lab-visual-review.mjs's registration — every simulated Promote/Dismiss/failure/source-expansion interaction and every source-kind pill label is instead verified by the dedicated e2e/ui-lab-gate-d.spec.ts Playwright suite (144 tests, all passing on this exact run), not by a captured post-interaction screenshot state.",
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit — this run was triggered automatically by the pull_request event (the code change touched src/app/dev/ui-lab/**, inside this workflow's own path filter), unlike the immediately preceding capture run which used workflow_dispatch directly against the branch. reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run.",
+    "All 42 Gate D W2 capture hashes recorded below were independently re-verified in this session: the real CI artifact (ui-lab-review-45768348321-1) was downloaded via the GitHub CLI, and every sha256 recomputed directly from the downloaded PNG bytes against the manifest's own recorded value — zero mismatches, zero missing files. D03-GROUNDED and D03-DECISION-FLOW's desktop-dark captures were also visually opened and inspected directly in this session, confirming the corrected player-specific learning-cycle text and the corrected teammate-comparison-free trailing-event hypothesis render as intended.",
+    "This run captures only the \"initial\" interaction state for every Gate D W2 scenario, matching scripts/ui-lab-visual-review.mjs's registration — every simulated Promote/Dismiss/failure/source-expansion interaction and every corrected statement is instead verified by the dedicated e2e/ui-lab-gate-d.spec.ts Playwright suite (146 tests, all passing on this exact run), not by a captured post-interaction screenshot state.",
     "No PASS recorded anywhere in this wave's documentation should be read as evidence that EvidenceSourceInspector or NoDefensibleHypothesis are production capabilities — see VISUAL_VS_CURRENT.md's design/production/verified table. This capture is design-acceptance evidence only."
   ],
   "approvalStatus": "CANDIDATE",
@@ -65,7 +64,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-desktop-dark.png",
-      "sha256": "04006d6c63eab8dbbc87efc9d52e549c0b53824f689da27cea9bc7b1aa11393c"
+      "sha256": "3c5559976067a407b87d735e140712202eb6308e034da1235f23ccbd94f1b4fa"
     },
     {
       "scenarioId": "GATE-D-W2-D03-GROUNDED",
@@ -77,7 +76,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-desktop-light.png",
-      "sha256": "ab12300aebaf127eacd2dccb46871ac7a27456e5e7b010259b9c9cb5bedf0379"
+      "sha256": "9df80fa4a98553b6025994eb4bd862a084af03a3374aec91e5fd88174bdb5224"
     },
     {
       "scenarioId": "GATE-D-W2-D03-GROUNDED",
@@ -89,7 +88,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-mobile-dark.png",
-      "sha256": "b558aa15272d746f130d6bb565434dba24f3e0e6aa86bd14e79e00b4cbe80e1c"
+      "sha256": "3e3d6dcf82052ab42011eb00297c9775c57960f29d33267d857449ad0f9017b1"
     },
     {
       "scenarioId": "GATE-D-W2-D03-GROUNDED",
@@ -101,7 +100,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-mobile-light.png",
-      "sha256": "1d461b10365b9cbaa846ddf8c091a00b07a3dc2fdb6518d99aa0e7d3faf905ca"
+      "sha256": "f744b26a91a2f45152dbd720d1f98f5caae2a675e459c874f399ae10cdd9cea2"
     },
     {
       "scenarioId": "GATE-D-W2-D03-GROUNDED",
@@ -113,7 +112,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-narrow-dark.png",
-      "sha256": "0a6eab892aa82fb17ed810a4a6de8b8af527fc1550ec8c316e9accf3face6699"
+      "sha256": "c311e0b74b6a322e9f941ccdff3b4e3ef0330a8724f925c8f6b42d004eb6561b"
     },
     {
       "scenarioId": "GATE-D-W2-D03-GROUNDED",
@@ -125,7 +124,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-grounded-longitudinal-hypothesis-narrow-light.png",
-      "sha256": "3f84125014048cb8397e8e7c4aff5b1ad5fc0264030699ab1a6e1cf9c5f0769e"
+      "sha256": "8712847db7af37ee5370315171f57e8d9b046df329d2f3cbbdf53b79e02784a3"
     },
     {
       "scenarioId": "GATE-D-W2-D03-SPARSE",
@@ -209,7 +208,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-coach-decision-flow-desktop-dark.png",
-      "sha256": "3a8b4f07ffd5e9f1c8c0380cb1773f733eafb890180cae0f84047d89059fa610"
+      "sha256": "0f4393743080bc26ba81a1377b4c492cb4c1a82a1f10b5c470ccf6d0962ce37b"
     },
     {
       "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
@@ -221,7 +220,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-coach-decision-flow-desktop-light.png",
-      "sha256": "4f02feebf8545bbf5826b9630b28825ad5910affde3399a4b8b76a6acf995b0f"
+      "sha256": "4753f2d134b53ea8be0bf7d143880c6b463e44b825455b051c2657d96cd7209e"
     },
     {
       "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
@@ -233,7 +232,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-coach-decision-flow-mobile-dark.png",
-      "sha256": "4b681bc446fa29a765e310dead8755606ba412957fb894ded70d93823bc63d68"
+      "sha256": "0969b52aa2d0a2a173c08bdfd13777daddb20715d6f29a7cfd38a844c4d03830"
     },
     {
       "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
@@ -245,7 +244,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-coach-decision-flow-mobile-light.png",
-      "sha256": "60166e6c6f7498f907d5241c9c890f1bcc5004e111067fa76fbb67ba73b39681"
+      "sha256": "e64c937751f2d9225d5650ca35bad376ef5e2faf95c80b890d9fbcae8316159d"
     },
     {
       "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
@@ -257,7 +256,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-coach-decision-flow-narrow-dark.png",
-      "sha256": "334a01cd723340033612d9f457c12dd31f242194d5178074bd272ab81b6e852f"
+      "sha256": "9a11697099a24b31855f12549cec01fd46f272aa72d71c42bc23951c626620f5"
     },
     {
       "scenarioId": "GATE-D-W2-D03-DECISION-FLOW",
@@ -269,7 +268,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-d-w2-d03-coach-decision-flow-narrow-light.png",
-      "sha256": "91fbc6c78003b49807c58f8cd18b8c5f40ac5360197375119c83d259f29012b6"
+      "sha256": "1cb82a7a5fe1a3500e3ebf8bf1739960d9fe8f1676b40f908029dc392bc8e673"
     },
     {
       "scenarioId": "GATE-D-W2-D06-COHERENT",
@@ -305,7 +304,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d06-coherent-synthesis-mobile-dark.png",
-      "sha256": "79fca1810ed97d9d715d387b57c59b533052424658acfc7f136940131f768d10"
+      "sha256": "2a798b6775ffc10d87930f7518798c82f5c59c7ef6131c12e0432ed1258971ff"
     },
     {
       "scenarioId": "GATE-D-W2-D06-COHERENT",
@@ -329,7 +328,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d06-coherent-synthesis-narrow-dark.png",
-      "sha256": "68e4b3c3d36324e08fc7bf8cc273c2e1258b42cdcd14c600019be3c9a3ad1d69"
+      "sha256": "ac615933ce211c5dcd0d5e33aa868dca186637713b83d4a4e38fe5d6cdd3cc30"
     },
     {
       "scenarioId": "GATE-D-W2-D06-COHERENT",
@@ -377,7 +376,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-d-w2-d06-genuine-contradiction-mobile-dark.png",
-      "sha256": "f927a636b7b6b7ef44e1bfc464831fedce48bdd566fe25a2c03fb2724a09a68c"
+      "sha256": "9854ceceb8a0ddc08e07dcc4a8828b2da99838a18385b96700b527b1a2bf3c3b"
     },
     {
       "scenarioId": "GATE-D-W2-D06-CONTRADICTION",

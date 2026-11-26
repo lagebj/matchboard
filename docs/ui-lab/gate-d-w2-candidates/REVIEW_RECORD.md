@@ -224,13 +224,92 @@ for the collapsed-by-default pill text) the corrected source classification.
 `docs/ui-lab/gate-d-w2-candidates/capture-attestation.json` records this verification in full,
 including this exact three-attempt history in its own `knownLimitations`.
 
+## Second-round disposition (superseded below — kept, not erased)
+
+**READY_FOR_OWNER_VISUAL_REVIEW** (as of the state described above)
+
+All four P1/P2 code-level findings from the first remediation round were genuinely fixed and
+independently re-verified at that point, with no new defect introduced and no other scenario
+affected by the same defect classes. The documentation-sequencing BLOCKING finding from that round
+was corrected. Fresh, independently re-verified capture evidence existed at that time for the then-
+current code (CI run 45706210938).
+
+## Final remediation round (owner review of PR #847, 2026-11-26) — unsupported cross-player claims
+
+A further owner review found two more real findings, both about unsupported claims regarding
+players other than the one each scenario is about (full technical detail:
+`DATA_TRUTH_AND_FIXTURES.md`'s own "Remediation (2026-11-26)" section, `BLOCKERS.md`):
+
+1. P2 — D03-DECISION-FLOW's `dismissHypothesis` claimed "several teammates show the same pattern"
+   while this exact hypothesis's own `missingEvidence` already disclosed "No comparison against
+   squad-wide trailing-rate baseline yet" — a direct contradiction, unsupported by
+   `trend-amir-trailing-rate`, which contains only Amir Haile's own measurements.
+2. P2 — D03-GROUNDED's `cycleInsight` claimed a "squad-wide recurring theme" with no source
+   records for any player besides Jonas Berg anywhere in the fixture.
+
+A third independent review (a fresh agent, no access to the implementing session's own reasoning,
+same discipline as the first two rounds) verified the corrections directly against the code and by
+running the real tests itself, rather than trusting the fix commit's own claims:
+
+- **Finding 1 — VERIFIED FIXED.** `dismissHypothesis`'s new statement checked word-for-word
+  against `trend-amir-trailing-rate`'s own `detail` field — every number matches exactly (2 events/
+  108 minutes → 3 events/126 minutes). No "demonstrates/proves/confirms/establishes" language.
+  `missingEvidence` is now consistent with the statement (no more contradiction). The only
+  remaining "teammate"/"squad-wide" text in the file is the explanatory code comment describing
+  the historical defect, not any live statement or source field.
+- **Finding 2 — VERIFIED FIXED.** Every claim in the new `cycleInsight.body` checked against
+  `developmentInput.observationTimeline`'s 5 entries and traced to a real observation
+  ("earlier... rushed decisions" → `obs-jonas-w1`; "more composed receiving" → `obs-jonas-w7`/
+  `obs-jonas-w10`; "a continuing giveaway" → `obs-jonas-w9`). No claim references any player besides
+  Jonas. The body explicitly states it does "not establish consistent improvement or a squad-wide
+  pattern" — uncertainty preserved, no confirmed-finding language.
+- **Cross-scenario audit independently re-verified.** The reviewer read all five other Wave 2
+  scenarios directly (not trusting the commit's own claim) and independently agreed none contains
+  an unsupported cross-player claim — including explicitly evaluating D06-SOURCE-INSPECTION's
+  "brought a teammate into the attack" detail and agreeing it is a recorded fact about the subject
+  player's own action, not a claim about the teammate.
+- **Test depth verified, not just presence.** The new `fixtures.test.ts` "remediation" blocks for
+  both fixtures go beyond banned-phrase checks — they assert the replacement statement's exact
+  numbers match the source, assert `missingEvidence` consistency, and assert every rewritten clause
+  traces to a specific observation record.
+- Both Vitest configs re-run independently by the reviewer: 22 files / 93 tests (default), 22
+  files / 112 tests (components) — all passing. Both fixture hashes independently recomputed
+  (one by direct reimplementation, one by confirming the fixture's own recomputation test passed)
+  and confirmed genuine, not copied.
+- No production code touched (`git diff f1b2076e5..HEAD` against `src/components`, `src/lib`,
+  `src/app/(app)/` all empty).
+- Documentation honesty re-verified: this round does **not** repeat the prior "claimed
+  verification that hadn't happened" incident — `REVIEW_RECORD.md` and `capture-attestation.json`
+  were confirmed genuinely byte-unchanged by the code-fix commit, matching `BLOCKERS.md`'s own
+  explicit disclosure that the capture refresh "follows in a later commit."
+
+### MINOR finding
+
+The new `page.test.tsx`/`e2e/ui-lab-gate-d.spec.ts` assertions for both fixes check only that the
+banned phrase is absent and the replacement/disclaimer text is visible — on their own these could
+pass even if some other unsupported claim were substituted in. Mitigated by the much stronger
+`fixtures.test.ts` "remediation" blocks, which do verify traceability to source/observation data;
+not blocking, but noted so a future reader does not rely on the shallower tests alone.
+
+A real CI capture run against this round's actual code (`94d7576bc`) was then obtained — triggered
+automatically this time (the code change touched `src/app/dev/ui-lab/**`, inside this workflow's
+own path filter) — and passed in full: 146/146 Gate D Playwright tests (up from 144 — two new
+tests added this round), all 42 scheduled captures succeeded. The real CI artifact
+(`ui-lab-review-45768348321-1`) was downloaded and all 42 hashes independently recomputed from the
+raw PNG bytes, matching exactly. D03-GROUNDED's and D03-DECISION-FLOW's desktop-dark captures were
+visually opened and inspected directly, confirming the corrected player-specific learning-cycle
+text and the corrected teammate-comparison-free trailing-event hypothesis render as intended.
+`capture-attestation.json` records this verification in full.
+
 ## Final disposition
 
 **READY_FOR_OWNER_VISUAL_REVIEW**
 
-All four P1/P2 code-level findings are genuinely fixed and independently re-verified, with no new
-defect introduced and no other scenario affected by the same defect classes. The documentation-
-sequencing BLOCKING finding from this round is corrected. Fresh, independently re-verified capture
-evidence now exists for the actual remediated code (CI run 45706210938), superseding the stale
-pre-remediation attestation. No further implementation work is required before this wave proceeds
-to the owner's own visual review and `/visual-approve` decision.
+All code-level findings across all three remediation rounds (four evidence-fidelity defects, one
+documentation-sequencing defect, two unsupported cross-player claims) are genuinely fixed and
+independently re-verified, with no new defect introduced anywhere and no scenario affected by any
+of these defect classes left unaudited. One MINOR finding remains (shallow e2e/page-test depth for
+the cross-player-claims fix, mitigated by stronger fixture-level tests) — documented, not blocking.
+Fresh, independently re-verified capture evidence exists for the actual final code (CI run
+45768348321). No further implementation work is required before this wave proceeds to the owner's
+own visual review and `/visual-approve` decision.
