@@ -3,6 +3,29 @@
 No production code (anything outside `src/app/dev/ui-lab/`, `e2e/`, `scripts/`, and
 `docs/ui-lab/`) is touched by this wave.
 
+## Final remediation round (owner review of PR #847, 2026-11-26) — unsupported cross-player claims
+
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/coach-decision-flow/fixtures.ts` — removed the
+  unsupported "several teammates show the same pattern" claim from `dismissHypothesis`; restated
+  with only Amir Haile's own recorded numbers; `fixtureVersion` bumped to 3.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/coach-decision-flow/__tests__/fixtures.test.ts` —
+  new "remediation (finding P2 — unsupported teammate comparison)" test block.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/grounded-longitudinal-hypothesis/fixtures.ts` —
+  replaced `cycleInsight`'s unsupported "squad-wide recurring theme" title/body with a
+  player-specific interpretation traceable to Jonas's own observation timeline; `fixtureVersion`
+  bumped to 3.
+- `src/app/dev/ui-lab/gate-d/d03-development-ai/grounded-longitudinal-hypothesis/__tests__/{fixtures,page}.test.tsx`
+  — new "remediation (finding P2 — unsupported squad-wide learning-cycle conclusion)" coverage.
+- `e2e/ui-lab-gate-d.spec.ts` — added two Playwright tests for the above; no existing assertion
+  needed changing (the old text these fixtures no longer contain was never itself asserted present
+  by any prior test).
+- `docs/ui-lab/gate-d-w2-candidates/{DATA_TRUTH_AND_FIXTURES,EVIDENCE_AND_HYPOTHESIS_CONTRACT,VISUAL_VS_CURRENT,BLOCKERS,CHANGED_FILES,candidate_manifest.json}`
+  — updated to record both findings as genuine history, the bounded five-scenario audit outcome,
+  and their corrections.
+- `REVIEW_RECORD.md` and `capture-attestation.json`: not touched by the code-change commit itself;
+  updated in later commits once a fresh independent review and a real CI capture run against this
+  round's actual code both exist (see `BLOCKERS.md`).
+
 ## Remediation round (owner review of PR #847, 2026-11-25) — modified
 
 - `src/app/dev/ui-lab/gate-d/w2-shared/evidence-source-detail.tsx` — pill label now derived from

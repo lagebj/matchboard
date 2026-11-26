@@ -20,12 +20,20 @@ import type { EvidenceSourceMap } from "../../w2-shared/evidence-source-types";
  * describe "recorded giveaways" (a count), with an explicit caveat that this is not an
  * exposure-adjusted rate. `trend-jonas-giveaway-rate` renamed to `trend-jonas-giveaway-count` to
  * match (XR-A01: units must be explicit and accurate).
+ *
+ * Remediation (owner review of PR #847, finding P2 — unsupported squad-wide learning-cycle
+ * conclusion): `cycleInsight` previously claimed a "squad-wide recurring theme" ("Several
+ * midfielders... most of the group...") with no source records for any player other than Jonas —
+ * the fixture never established how many other midfielders were observed, which ones, or whether
+ * they improved. Corrected to a player-specific interpretation whose every factual claim traces
+ * directly to Jonas's own `observationTimeline` entries above, with an explicit disclosure that it
+ * does not establish a squad-wide pattern.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-D-W2-D03-GROUNDED",
   fixtureId: "gate-d-w2-d03-grounded-longitudinal-hypothesis",
-  fixtureVersion: 2,
-  fixtureSha256: "bcb7d438770c4ade148cb975774b98ea681cc48b7ad885b4b7b320d04809cb40",
+  fixtureVersion: 3,
+  fixtureSha256: "3ebca988f752ae9c0a4a1b7aef4cf0db3bd17613e4d3f90292ba049c7665571c",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: "2026-10-12T09:00:00.000Z",
   viewerTimeZone: "Europe/Oslo",
@@ -88,8 +96,8 @@ export const developmentInput: PlayerDevelopmentViewModelInput = buildPlayerDeve
 });
 
 export const cycleInsight: PlayerDevelopmentCycleInsight = {
-  title: "Composure under pressure is a squad-wide recurring theme",
-  body: "Several midfielders, including Jonas, showed rushed decisions under pressure early in this review window. The pattern eased for most of the group across the final two weeks, though not uniformly.",
+  title: "Defensive-third decision-making across the review window",
+  body: "Jonas's earlier coach observations describe rushed decisions under pressure. Later observations include more composed receiving, alongside a continuing giveaway under pressure. These observations suggest a possible change worth reviewing, but they do not establish consistent improvement or a squad-wide pattern.",
   windowLabel: "30 Aug – 11 Oct 2026",
   teamId: "team-gate-d-w2-u15",
 };

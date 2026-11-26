@@ -14,6 +14,7 @@ captures) versus merely asserted.
 | Every hypothesis backed by a resolvable source | Required (mission §3: "a plausible-looking source label without a corresponding source record" is prohibited) | N/A — fixture-authoring requirement | Remediation, finding P1 #1: D03-DECISION-FLOW had **no** `EvidenceSourceMap` at this PR's first version — confirmed by this wave's own independent review and by the owner's subsequent review. Now backed by a full source map, independently verified by `resolveEvidenceSource` in a dedicated test suite |
 | Honest insufficiency state, no padding (XR-A04) | Required | **Not satisfied today** — an empty hypotheses array renders nothing (`CURRENT_STATE_AUDIT.md`) | This wave's `NoDefensibleHypothesis` is a disclosed directional answer, not a production capability |
 | Promote/Dismiss/failure interaction | Required | Real, already shipped (`AssistantCoachHypothesisPanel`) | Component tests + Playwright, both confirmed green by the real CI run; no real Server Action invoked |
+| Claims only concern the one player the hypothesis is about | Required (no invented cross-player/squad-wide comparison) | N/A — fixture-authoring requirement | Remediation (owner review 2026-11-26): D03-DECISION-FLOW's trailing-event hypothesis previously claimed an unsupported teammate comparison; D03-GROUNDED's learning-cycle insight previously claimed an unsupported squad-wide pattern. Both corrected to player-specific statements; a bounded audit of the remaining five scenarios found no further instance |
 
 ## D06
 

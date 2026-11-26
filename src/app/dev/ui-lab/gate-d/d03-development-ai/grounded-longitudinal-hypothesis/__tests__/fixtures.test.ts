@@ -96,4 +96,38 @@ describe("GATE-D-W2-D03-GROUNDED fixture", () => {
       }
     });
   });
+
+  describe("remediation (owner review of PR #847, finding P2 — unsupported squad-wide learning-cycle conclusion)", () => {
+    it("never affirmatively claims a squad-wide or group-wide pattern — only explicitly disclaims one", () => {
+      expect(cycleInsight.title).not.toMatch(/squad-wide/i);
+      expect(cycleInsight.title).not.toMatch(/recurring theme/i);
+      expect(cycleInsight.body).not.toMatch(/most of the group|several midfielders/i);
+      // The only "squad-wide" mention left is the explicit disclaimer denying one — not a claim.
+      expect(cycleInsight.body).toMatch(/do not establish consistent improvement or a squad-wide pattern/);
+    });
+
+    it("every factual claim in the insight traces to Jonas's own observation timeline, not an invented group pattern", () => {
+      // "earlier... rushed decisions" <- obs-jonas-w1; "more composed receiving" <- obs-jonas-w7/w10;
+      // "a continuing giveaway" <- obs-jonas-w9 (also the hypothesis's own disclosed contradicting ref).
+      expect(cycleInsight.body).toMatch(/rushed decisions/);
+      const rushedObservation = developmentInput.observationTimeline.find((o) => /rushed/i.test(o.note));
+      expect(rushedObservation).toBeDefined();
+      expect(cycleInsight.body).toMatch(/more composed receiving/);
+      const composedObservation = developmentInput.observationTimeline.find((o) => /comfortable receiving/i.test(o.note));
+      expect(composedObservation).toBeDefined();
+      expect(cycleInsight.body).toMatch(/continuing giveaway/);
+      const giveawayObservation = developmentInput.observationTimeline.find((o) => /giveaway under pressure/i.test(o.note));
+      expect(giveawayObservation).toBeDefined();
+    });
+
+    it("preserves uncertainty — a possible change worth reviewing, not a confirmed finding", () => {
+      expect(cycleInsight.body).toMatch(/suggest a possible change worth reviewing/);
+      expect(cycleInsight.body).not.toMatch(/\b(confirms|proves|demonstrates|established)\b/i);
+    });
+
+    it("remains a distinct knowledge-hierarchy class from the coach-established development focus — it never overwrites or restates the focus as its own finding", () => {
+      expect(cycleInsight.title).not.toBe(developmentInput.activeFocus?.focus);
+      expect(cycleInsight.body).not.toContain(developmentInput.activeFocus?.rationale ?? "__never__");
+    });
+  });
 });

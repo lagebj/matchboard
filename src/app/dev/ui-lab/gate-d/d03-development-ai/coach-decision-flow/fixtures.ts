@@ -17,12 +17,20 @@ import type { EvidenceSourceMap } from "../../w2-shared/evidence-source-types";
  * two actual observation records, not one (the original fixture claimed two but cited only one —
  * corrected here by adding the second, genuinely distinct observation rather than weakening the
  * wording).
+ *
+ * Remediation (owner review of PR #847, finding P2 — unsupported teammate comparison):
+ * `dismissHypothesis`'s statement previously claimed "several teammates show the same pattern",
+ * but `trend-amir-trailing-rate` contains only Amir's own measurements, and this same hypothesis's
+ * own `missingEvidence` already disclosed "No comparison against squad-wide trailing-rate baseline
+ * yet" — directly contradicting the claim in the same object. Corrected: the statement now
+ * describes only Amir's own recorded numbers and states plainly that no squad-wide comparison
+ * exists, rather than inventing teammate data to keep the old wording.
  */
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-D-W2-D03-DECISION-FLOW",
   fixtureId: "gate-d-w2-d03-coach-decision-flow",
-  fixtureVersion: 2,
-  fixtureSha256: "b5ee8e1aae8828abb6d05801e527f71e8ce7775c3c6d3cb4b880f0c5777585a2",
+  fixtureVersion: 3,
+  fixtureSha256: "ecd08a477d276f9770b04f4691879baef6662017f187f94ec20aeeece5c12025",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: "2026-10-12T09:00:00.000Z",
   viewerTimeZone: "Europe/Oslo",
@@ -46,7 +54,7 @@ export const confirmHypothesis: AssistantCoachHypothesisViewModel = {
 export const dismissHypothesis: AssistantCoachHypothesisViewModel = {
   id: "gate-d-w2-d03-dismiss-demo",
   statement:
-    "Amir Haile's recorded event rate while trailing has increased slightly across the latest window. This may reflect squad rotation rather than anything specific to Amir — the sample is small and several teammates show the same pattern.",
+    "Amir Haile's recorded event rate while trailing increased between the two comparison windows. The previous window contained 2 recorded events across 108 trailing minutes, compared with 3 across 126 trailing minutes in the latest window. This is a small sample, and the reasons for the difference are unclear. A squad-wide comparison is not available, so this should not be interpreted as a demonstrated change in Amir's performance.",
   uncertainty: "HIGH",
   supportingRefs: [{ kind: "DERIVED_TREND", id: "trend-amir-trailing-rate", label: "Event rate while trailing, previous 3 vs. latest 3 matches" }],
   contradictingRefs: [],

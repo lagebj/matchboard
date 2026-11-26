@@ -83,6 +83,15 @@ source record" — the exact failure mode the mission brief names.
   quality.** D03-DECISION-FLOW's left-midfield-exposure hypothesis states explicitly that
   increased minutes are "not a demonstrated improvement in ability on its own"; its co-presence
   hypothesis states explicitly that shared minutes do "not establish partnership quality."
+- **A claim about other players or a squad-wide pattern is never made without a source record
+  for those other players.** Added by remediation (owner review 2026-11-26): D03-DECISION-FLOW's
+  `dismissHypothesis` previously claimed "several teammates show the same pattern" with evidence
+  covering only Amir Haile himself, directly contradicting its own disclosed `missingEvidence`
+  ("No comparison against squad-wide trailing-rate baseline yet"); D03-GROUNDED's `cycleInsight`
+  previously claimed a "squad-wide recurring theme" with no records for any player besides Jonas
+  Berg. Both are now player-specific, with the absence of a squad-wide comparison stated plainly
+  rather than papered over. A bounded audit of the other five Wave 2 scenarios found no further
+  instance of this defect class (`DATA_TRUTH_AND_FIXTURES.md`'s own "Remediation" section).
 
 ## Coach confirmation boundary
 

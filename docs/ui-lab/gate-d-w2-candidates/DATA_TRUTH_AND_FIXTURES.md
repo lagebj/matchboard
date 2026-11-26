@@ -35,6 +35,40 @@ before this review — not retroactively erased. The corrections and their indep
 are described throughout the rest of this document, updated in place where the underlying fact
 changed.
 
+## Remediation (owner review of PR #847, 2026-11-26) — unsupported cross-player claims
+
+A further owner review, after the above four findings were fixed, found two more real findings:
+
+1. **P2 — D03-DECISION-FLOW's `dismissHypothesis` claimed an unsupported teammate comparison.**
+   The statement said "several teammates show the same pattern," but `trend-amir-trailing-rate`
+   contains only Amir Haile's own measurements, and this same hypothesis's own `missingEvidence`
+   already disclosed "No comparison against squad-wide trailing-rate baseline yet" — two
+   contradictory claims in the same object. Corrected: the statement now describes only Amir's own
+   recorded numbers (2 events / 108 trailing minutes → 3 events / 126 trailing minutes) and states
+   plainly that a squad-wide comparison is unavailable, rather than inventing teammate data to keep
+   the old wording.
+2. **P2 — D03-GROUNDED's `cycleInsight` claimed an unsupported squad-wide pattern.** The title
+   ("...squad-wide recurring theme") and body ("Several midfielders... most of the group...") had
+   no source records for any player other than Jonas Berg anywhere in the fixture — the fixture
+   never established how many other midfielders were observed, which ones, or whether they
+   improved. Corrected: the insight is now a player-specific interpretation whose every factual
+   claim traces directly to Jonas's own `observationTimeline` entries, with an explicit disclosure
+   that it does not establish a squad-wide pattern.
+
+A bounded audit of the other five Wave 2 scenarios (D03-SPARSE, D06-COHERENT, D06-CONTRADICTION,
+D06-SPARSE, D06-SOURCE-INSPECTION) checked every statement for unsupported claims about other
+players, squad-wide behaviour, team-wide patterns, peer-relative performance, position suitability
+derived solely from exposure, and unestablished causes — **no instance of the same defect class
+found**. Every claim in those five fixtures already concerns only the one player the scenario is
+about, and every number traces to that player's own cited source. (The one surface-level mention
+of a second person, D06-SOURCE-INSPECTION's "brought a teammate into the attack," is a single
+in-match action recorded about Sara Dahl herself, not a comparison or claim about the teammate's
+own performance — judged not to be an instance of this defect class.)
+
+`GATE-D-W2-D03-DECISION-FLOW` and `GATE-D-W2-D03-GROUNDED` both have `fixtureVersion` bumped to 3
+for this round; their numeric evidence (the trailing-event numbers, the giveaway counts, the
+six-week window) is unchanged — only the two unsupported sentences above were corrected.
+
 Every candidate fixture is deterministic, explicitly synthetic (`sourceClass:
 "SYNTHETIC_LABELED"`), and typed against real production view-model/component types — no new
 persistent types, no new Prisma models. Each fixture follows the Gate C W3 `FixtureIdentity`
@@ -106,20 +140,21 @@ above) — and is now uniform across every hypothesis-bearing scenario.
 
 ## Per-scenario fixture summary
 
-- **D03-GROUNDED** (`fixtureVersion: 2`) — Jonas Berg, 5 observations over 6 weeks (30 Aug–11 Oct
+- **D03-GROUNDED** (`fixtureVersion: 3`) — Jonas Berg, 5 observations over 6 weeks (30 Aug–11 Oct
   2026, duration now computed from the fixture's own dates), one active development focus
-  ("Composure under pressure in the defensive third"), one "Learning cycle" team-level insight, one
-  hypothesis citing a derived **count** (not a rate — see "Remediation") + 2 supporting
-  observations + 1 contradicting observation, 3 disclosed missing-evidence items (the third added
-  by this remediation: the exposure-normalization caveat).
+  ("Composure under pressure in the defensive third"), one player-specific "Learning cycle" insight
+  (no longer a squad-wide claim — see "Remediation" below), one hypothesis citing a derived
+  **count** (not a rate) + 2 supporting observations + 1 contradicting observation, 3 disclosed
+  missing-evidence items (the exposure-normalization caveat).
 - **D03-SPARSE** — Leah Nilsen, 1 observation, 1 just-opened development thread with no review
   cadence yet (`reviewState: null`), zero hypotheses (mirrors production's real empty-array
   return), a `NoDefensibleHypothesis` state naming 3 concrete available facts.
-- **D03-DECISION-FLOW** (`fixtureVersion: 2`) — Amir Haile, 3 independent hypotheses
+- **D03-DECISION-FLOW** (`fixtureVersion: 3`) — Amir Haile, 3 independent hypotheses
   (`confirm-demo`, `dismiss-demo`, `error-demo`), one simulated confirm-error wired by hypothesis
-  id. Now fully backed by a 5-entry `EvidenceSourceMap` (two left-midfield observations, one
-  left-midfield minutes trend, one trailing-event-rate trend, one co-presence trend) — see
-  "Remediation" above; the original version had no source map at all.
+  id. Fully backed by a 5-entry `EvidenceSourceMap` (two left-midfield observations, one
+  left-midfield minutes trend, one trailing-event-rate trend, one co-presence trend); the
+  trailing-event hypothesis no longer claims an unsupported teammate comparison — see
+  "Remediation" below.
 - **D06-COHERENT** — Noah Fjeld, 1 hypothesis citing a derived trend, 1 observation, and 2
   position intervals (RB → LCB), 1 disclosed missing-evidence item, zero contradicting refs
   (genuine agreement, not a forced absence of conflict).

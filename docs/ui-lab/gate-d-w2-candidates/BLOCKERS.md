@@ -27,6 +27,28 @@ including one it raised against this remediation's own first-pass documentation 
 "Capture evidence superseded by this remediation"). This is recorded as a genuine finding against
 this wave's own earlier claims, not retroactively erased.
 
+## Unsupported cross-player claims — resolved (2026-11-26)
+
+A further owner review, after the four findings above were fixed and re-verified, found two more
+real findings — both about claims regarding players other than the one each scenario is about:
+
+- **P2** — D03-DECISION-FLOW's `dismissHypothesis` claimed "several teammates show the same
+  pattern" while this exact hypothesis's own `missingEvidence` already disclosed "No comparison
+  against squad-wide trailing-rate baseline yet" — a direct contradiction within the same object,
+  and unsupported by `trend-amir-trailing-rate`, which contains only Amir Haile's own measurements.
+- **P2** — D03-GROUNDED's `cycleInsight` claimed a "squad-wide recurring theme" ("Several
+  midfielders... most of the group...") with no source records anywhere in the fixture for any
+  player besides Jonas Berg.
+
+Both are corrected — see `DATA_TRUTH_AND_FIXTURES.md`'s own "Remediation (2026-11-26)" section for
+the full technical account. A bounded audit of the other five Wave 2 scenarios (D03-SPARSE,
+D06-COHERENT, D06-CONTRADICTION, D06-SPARSE, D06-SOURCE-INSPECTION) found no further instance of
+this defect class — recorded in the same section, including the one borderline case considered and
+ruled not an instance (D06-SOURCE-INSPECTION's single in-match "brought a teammate into the
+attack" detail, which is a recorded fact about Sara Dahl's own action, not a comparison claim about
+the teammate). This is recorded as a genuine finding against this wave's own earlier claims, not
+retroactively erased.
+
 ## Resolved before implementation
 
 - **D06's missing XR citation** (`SOURCE_RECONCILIATION.md`) — not a blocker: documented as a
@@ -96,6 +118,13 @@ that found and required fixing a genuine Playwright test bug of its own — see 
 for the full three-attempt account) produced 42 real screenshots, all independently re-hashed
 from the downloaded artifact and matching exactly. `capture-attestation.json` now reflects this
 verified, post-remediation run (CI 45706210938).
+
+**Superseded again by the 2026-11-26 cross-player-claims remediation above**: D03-GROUNDED's
+"Learning cycle" card and D03-DECISION-FLOW's dismiss-demo hypothesis card both render different
+text now. The CI 45706210938 attestation no longer reflects the current rendering for these two
+scenarios and must not be read as evidence for it; a fresh capture against this round's actual
+code follows in a later commit, verified the same way (see `REVIEW_RECORD.md` once that run
+completes — not asserted here before it exists).
 
 ## No unresolved source requirements beyond the disclosed D06 XR gap above
 

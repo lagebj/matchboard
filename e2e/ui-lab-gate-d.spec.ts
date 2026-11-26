@@ -247,6 +247,20 @@ test.describe("D03 — Development/AI: grounded hypothesis, sparse no-hypothesis
     await expect(page.getByText(/five-week/)).toHaveCount(0);
   });
 
+  test("grounded: the learning-cycle insight makes no unsupported squad-wide claim (remediation P2)", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/grounded-longitudinal-hypothesis`);
+    await expect(page.getByText("Defensive-third decision-making across the review window")).toBeVisible();
+    await expect(page.getByText("Composure under pressure is a squad-wide recurring theme")).toHaveCount(0);
+    await expect(page.getByText(/Several midfielders/)).toHaveCount(0);
+    await expect(page.getByText(/do not establish consistent improvement or a squad-wide pattern/)).toBeVisible();
+  });
+
+  test("decision flow: the dismiss-demo hypothesis makes no unsupported teammate comparison (remediation P2)", async ({ page }) => {
+    await page.goto(`${BASE}/d03-development-ai/coach-decision-flow`);
+    await expect(page.getByText(/teammates?/i)).toHaveCount(0);
+    await expect(page.getByText(/squad-wide comparison is not available/)).toBeVisible();
+  });
+
   test("sparse: renders the honest no-hypothesis state, never generic padding advice", async ({ page }) => {
     await page.goto(`${BASE}/d03-development-ai/sparse-no-hypothesis`);
     // exact:true disambiguates from the page's own h1 ("...no defensible hypothesis"), which

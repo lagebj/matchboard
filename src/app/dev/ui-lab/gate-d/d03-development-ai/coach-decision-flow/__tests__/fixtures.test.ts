@@ -118,4 +118,36 @@ describe("GATE-D-W2-D03-DECISION-FLOW fixture", () => {
       expect(errorHypothesis.id).toBe("gate-d-w2-d03-error-demo");
     });
   });
+
+  describe("remediation (owner review of PR #847, finding P2 — unsupported teammate comparison)", () => {
+    it("never claims a squad-wide or teammate comparison the backing source does not contain", () => {
+      expect(dismissHypothesis.statement).not.toMatch(/teammates?/i);
+      expect(dismissHypothesis.statement).not.toMatch(/squad rotation/i);
+      const trend = resolveEvidenceSource(dismissHypothesis.supportingRefs[0]!, sources);
+      expect(trend.detail).not.toMatch(/teammates?/i);
+    });
+
+    it("explicitly discloses that a squad-wide comparison is unavailable, both in the statement and in missingEvidence", () => {
+      expect(dismissHypothesis.statement).toMatch(/squad-wide comparison is not available/);
+      expect(dismissHypothesis.missingEvidence).toContain("No comparison against squad-wide trailing-rate baseline yet");
+    });
+
+    it("does not assert a demonstrated or confirmed change in performance", () => {
+      expect(dismissHypothesis.statement).toMatch(/should not be interpreted as a demonstrated change in Amir's performance/);
+      expect(dismissHypothesis.statement).not.toMatch(/\b(demonstrates|proves|confirms|establishes)\b/i);
+    });
+
+    it("the two comparison windows are both identified by date range, matching the source's own values", () => {
+      expect(dismissHypothesis.statement).toMatch(/previous window contained 2 recorded events across 108 trailing minutes/);
+      expect(dismissHypothesis.statement).toMatch(/3 across 126 trailing minutes in the latest window/);
+      const trend = resolveEvidenceSource(dismissHypothesis.supportingRefs[0]!, sources);
+      expect(trend.detail).toMatch(/30 Aug - 20 Sep/);
+      expect(trend.detail).toMatch(/27 Sep - 11 Oct/);
+    });
+
+    it("preserves the meaningful distinction between event rate and event count — the statement cites both the raw counts and the per-match context, not just a bare rate", () => {
+      expect(dismissHypothesis.statement).toMatch(/2 recorded events across 108 trailing minutes/);
+      expect(dismissHypothesis.statement).toMatch(/3 across 126 trailing minutes/);
+    });
+  });
 });

@@ -61,6 +61,17 @@ describe("Gate D W2 — D03 grounded longitudinal hypothesis", () => {
     expect(screen.queryByText(/five-week/)).not.toBeInTheDocument();
   });
 
+  it("the learning-cycle insight makes no unsupported squad-wide claim and stays visually distinct from the coach focus widget (remediation P2)", () => {
+    renderPage();
+    expect(screen.getByText("Defensive-third decision-making across the review window")).toBeInTheDocument();
+    expect(screen.queryByText("Composure under pressure is a squad-wide recurring theme")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Several midfielders/)).not.toBeInTheDocument();
+    expect(screen.getByText(/do not establish consistent improvement or a squad-wide pattern/)).toBeInTheDocument();
+    // The learning-cycle eyebrow and the development-focus eyebrow remain two separate widgets.
+    expect(screen.getByText("Assistant Coach · Learning cycle")).toBeInTheDocument();
+    expect(screen.getByText("Development focus")).toBeInTheDocument();
+  });
+
   it("Promote is disabled until a development focus is typed, then succeeds without a real Server Action", async () => {
     const user = userEvent.setup();
     renderPage();
