@@ -1,25 +1,25 @@
 {
-  "description": "Gate E W1 (register E01, League temporal orientation/period navigation/context restoration) UI Lab visual-review evidence. Captured after fixing a real CI-caught Playwright locator-precision defect (getByLabel('League season') ambiguity against LeagueSeasonRail's unrelated aria-label, and getByText('Current round') case-insensitive substring-matching each page's own debug subheading) — see BLOCKERS.md BLK-E01-04 and REVIEW_RECORD.md for the full account. No production code was ever implicated; this run's own Gate E Playwright acceptance suite (14 tests) passed in full after that fix, alongside every other gate's existing suite (B08, Gate C, Gate D) unaffected.",
-  "sourceCommitSha": "490ee7a47133f17afd2abf04ea759a140524bd0e",
-  "generatedAt": "2026-11-26T11:35:38.484Z",
+  "description": "Gate E W1 (register E01, League temporal orientation/period navigation/context restoration) UI Lab visual-review evidence, captured after the independent-review remediation (same PR): the mount's header now reuses the real TouchlinePageHeader/TouchlineButton (28/32px title, real 'Create match' link) instead of hand-rolled markup (BLK-E01-05). This run's own Gate E Playwright acceptance suite (14 tests) and every other gate's existing suite passed in full. Supersedes the prior attestation (CI run 45808071999, commit 53ac0a30e), which reflected the pre-fix hand-rolled header rendering.",
+  "sourceCommitSha": "94caf614db67b8b7df853f95d6ce056565a00ea7",
+  "generatedAt": "2026-11-26T12:38:38.793Z",
   "environment": {
     "node": "v24.22.3",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45808071999",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45815450631",
   "ciArtifact": {
-    "id": 15113931615,
-    "name": "ui-lab-review-45808071999-1",
-    "expiresAt": "2026-12-03T11:35:38.000Z"
+    "id": 15117952546,
+    "name": "ui-lab-review-45815450631-2",
+    "expiresAt": "2026-12-03T12:38:38.000Z"
   },
-  "reviewedBranchHeadSha": "53ac0a30eaec22f14ec4ed5a3ff2cb7c1d335b6a",
+  "reviewedBranchHeadSha": "dffaed9cfb9fe3fb3e3e60264afbefc68f330bd7",
   "knownLimitations": [
     "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit, matching the same convention every prior gate's attestation already uses. reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run.",
-    "All 12 Gate E W1 capture hashes recorded below were independently re-verified in this session: the real CI artifact (ui-lab-review-45808071999-1) was downloaded via the GitHub CLI, and every sha256 recomputed directly from the downloaded PNG bytes against this run's own manifest.json — zero mismatches, zero missing files.",
-    "Both desktop-dark captures were also visually opened and inspected directly in this session: mid-season-current-round shows the rail's CURRENT marker on W11/Round 9 with its own real attention items (one BLOCKED, one TACTICS_MISSING) without the round losing its 'Current round' badge, the cancelled Round 7 match rendering 'Cancelled'/'Opponent withdrew' (never a result), and the collapsed 'Show earlier rounds (1)' disclosure; season-closed-no-current-round shows Round 2 labelled 'Needs closure' with no 'Current round' label anywhere on the page and no league-season selector (single period) — exactly the two states this wave set out to prove.",
+    "This run (45815450631) required one retry: its first attempt failed on an unrelated, pre-existing scenario (gate-b-w5-b08-report-completed, a Gate B candidate this PR never touches) with 'Failed to load resource: net::ERR_CONNECTION_RESET' — a transient infra network error, confirmed by inspecting the failure log directly (it crashed before the capture script ever reached any Gate E entry, which are registered near the end of scripts/ui-lab-visual-review.mjs's scenario list). Re-ran via `gh run rerun --failed`; the second attempt (artifact ui-lab-review-45815450631-2, used for all hashes below) completed cleanly.",
+    "All 12 Gate E W1 capture hashes recorded below were independently re-verified in this session: the real CI artifact (ui-lab-review-45815450631-2) was downloaded via the GitHub CLI, and every sha256 recomputed directly from the downloaded PNG bytes against this run's own manifest.json — zero mismatches, zero missing files.",
+    "The mid-season-current-round desktop-dark capture was visually opened and inspected directly in this session, confirming the real TouchlinePageHeader (28px title, 'League teams' link + primary 'Create match' button) now renders exactly as production's own fixtures-page.tsx composition does — the specific regression the independent review caught (BLK-E01-05) is visibly corrected.",
     "This run captures only the \"initial\" interaction state for every Gate E W1 scenario, matching scripts/ui-lab-visual-review.mjs's registration — every period-switch/round-select/disclosure-toggle interaction and every navigation-continuity assertion is instead verified by the dedicated e2e/ui-lab-gate-e.spec.ts Playwright suite (14 tests, all passing on this exact run), not by a captured post-interaction screenshot state.",
-    "This run's CodeQL (`Analyze (python/go/actions/javascript-typescript)`) checks failed on this same PR due to a shared GitHub App installation API rate limit inside CodeQL's own analysis step (confirmed via the run's own annotation: 'API rate limit exceeded for installation'), not this wave's code — this PR's own `gh api rate_limit` check showed ample remaining quota on the author's own token, and the failure occurred uniformly across all four CodeQL language lanes, including ones this wave never touched (Python, Go, Actions). Recorded here for completeness; not a finding against this candidate.",
     "The Visual Authority Gate's own check reports failure, as expected for a brand-new CANDIDATE with no owner approval yet (AWAITING_APPROVAL reports as a failing status check by ADR-0159's own design) — not evidence of a defect in this wave."
   ],
   "approvalStatus": "CANDIDATE",
@@ -46,7 +46,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-mid-season-current-round-desktop-dark.png",
-      "sha256": "3783efe41ff06e2759827b614f8c866b044f0f7b1610b3dfec6ae7de7225fac3"
+      "sha256": "b65dc7034439711c720d68b4ffc8d0f3434aaefa2b12249f31f7b8fae233d1ab"
     },
     {
       "scenarioId": "GATE-E-W1-E01-MID-SEASON",
@@ -58,7 +58,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-mid-season-current-round-desktop-light.png",
-      "sha256": "e79f889bba66efdcbcfd3393e64ef21608f1db9c419a8b0e1a4213abd2fd0bde"
+      "sha256": "7568cd9847ec6808f19351022bf6c93ffa3b14e8239b6b029034f4c30d72847a"
     },
     {
       "scenarioId": "GATE-E-W1-E01-MID-SEASON",
@@ -70,7 +70,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-mid-season-current-round-mobile-dark.png",
-      "sha256": "5bd1d473028e03e57d00ac74f48000d30cb17260c77d8e76a5503a5b781b696a"
+      "sha256": "618e5e05354763345d68d4dcd2a74a09f6a98d6f49e43c08e0bfe98fe80de360"
     },
     {
       "scenarioId": "GATE-E-W1-E01-MID-SEASON",
@@ -82,7 +82,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-mid-season-current-round-mobile-light.png",
-      "sha256": "0c325a2590b0c37f1c4c921bc09a88e8c4643e21cd861645229c85fff910e0f4"
+      "sha256": "dc27299c74e027d0a798d3b8a5b02d1f10b89d174a3b795503984fb7e85b4aa4"
     },
     {
       "scenarioId": "GATE-E-W1-E01-MID-SEASON",
@@ -94,7 +94,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-mid-season-current-round-narrow-dark.png",
-      "sha256": "50816950a812a58569265a08b4020016475ea7536574b792c3beac81b85064ea"
+      "sha256": "72b37308e06136ca2a250eeec8fb7686c09e18e2d9a845761d1b5244eb0a50ea"
     },
     {
       "scenarioId": "GATE-E-W1-E01-MID-SEASON",
@@ -106,7 +106,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-mid-season-current-round-narrow-light.png",
-      "sha256": "2c70198645ce290d013493d1e7cd56471192972021d57daaf45cabf8e7c113fe"
+      "sha256": "c006ec64e8f66456c48b8042f4892c1e0249131d98aae58621ce49e30a0f9145"
     },
     {
       "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
@@ -118,7 +118,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-season-closed-no-current-round-desktop-dark.png",
-      "sha256": "893558f3342ddb83cc8ed5e7efcfa0204ba4efd2737185e67cde8a8f17cd9abc"
+      "sha256": "590aa02d319cb2f76bf49128fe480850d1bc13559e767f93a6bd2a4629086343"
     },
     {
       "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
@@ -130,7 +130,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-season-closed-no-current-round-desktop-light.png",
-      "sha256": "2bdf45bf8f138eb009c1f143416a7a256c00b47b25802a6144c60578a1acf6d5"
+      "sha256": "3bf0c1ef87a217b7557170cddeba65659ca6e9988f9d0689b47bc9beefcef6f6"
     },
     {
       "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
@@ -142,7 +142,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-season-closed-no-current-round-mobile-dark.png",
-      "sha256": "dfcca8b6090025ff4822eb36c7836a068a18789cfeecd940ea522160a4df4ad2"
+      "sha256": "e86b67b1a2166ab021c2040e7fbeef7302a58fdfe3507bf244bbf776a3b9958d"
     },
     {
       "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
@@ -154,7 +154,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-season-closed-no-current-round-mobile-light.png",
-      "sha256": "22aa7d7604e4808f29e6e8ed346e6fb4d3d8d20d9a16e7eb831a0f1b6620688d"
+      "sha256": "7f0daa10e21ec8b8a2f7ddd9a1b8e6d5297471f15f7f9510aed51d15929d1123"
     },
     {
       "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
@@ -166,7 +166,7 @@
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-season-closed-no-current-round-narrow-dark.png",
-      "sha256": "ca11dc34e658fac7d76bc951764f7eeabbb5168b3c1e9f17204796ebe94bf189"
+      "sha256": "6f4bfd8fa3452c96bc71e15170fce7bc6476ae997c290fe0937b7aec2a98cfee"
     },
     {
       "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
@@ -178,7 +178,7 @@
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w1-e01-season-closed-no-current-round-narrow-light.png",
-      "sha256": "302e6365abfae17c7f488698af6f494050a6600978a6399c4ae2815f49c34c67"
+      "sha256": "78192389aea6769d85442deda1b76bc87e0d187072af84e6d8afb1b16c767ef8"
     }
   ]
 }
