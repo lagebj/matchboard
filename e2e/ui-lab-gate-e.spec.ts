@@ -236,7 +236,7 @@ test.describe("E01 — responsive layout", () => {
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 const E02 = "/dev/ui-lab/gate-e/e02-event-day";
 const MIXED = `${E02}/mixed-progression`;
-const mixedId = (n: string) => `gate-e-w2-e02-mixed-${n}`;
+const mixedId = (n: string) => `gate-e-w2-e02-${n}`;
 
 async function openE02(page: Page, url: string) {
   await page.goto(url);
@@ -247,23 +247,23 @@ const e02Panel = (page: Page) => page.locator("[data-e02-selected-match]");
 const e02Timeline = (page: Page) => page.getByRole("list", { name: "Event-day match timeline" });
 
 test.describe("E02 — event-day progression across squads and states", () => {
-  test("upcoming: matches render in kickoff order with exactly one NEXT and no result anywhere", async ({ page }) => {
+  test("upcoming: matches render in kickoff order with both 09:00 matches NEXT and no result anywhere", async ({ page }) => {
     await openE02(page, `${E02}/upcoming`);
     const times = await e02Timeline(page).locator(":scope > li > span:nth-child(2)").allTextContents();
-    expect(times.map((t) => t.trim())).toEqual(["09:00", "09:40", "10:20", "11:00", "12:40", "12:40"]);
-    await expect(e02Timeline(page).getByText("NEXT", { exact: true })).toHaveCount(1);
-    await expect(e02Row(page, "gate-e-w2-e02-upcoming-m01")).toContainText("Nordbyen FK");
+    expect(times.map((t) => t.trim())).toEqual(["09:00", "09:00", "09:40", "10:20", "10:20", "11:20", "12:40", "12:40", "14:00"]);
+    await expect(e02Timeline(page).getByText("NEXT", { exact: true })).toHaveCount(2);
+    await expect(e02Row(page, "gate-e-w2-e02-m01")).toContainText("Nordbyen FK");
     await expect(e02Timeline(page).getByText(/\bFT\b/)).toHaveCount(0);
   });
 
   test("completed: recorded results render; Event finalisation is shown separately from the REPORTED-not-locked match", async ({ page }) => {
     await openE02(page, `${E02}/completed`);
     await expect(page.getByText("Event is finalised", { exact: true })).toBeVisible();
-    const first = e02Row(page, "gate-e-w2-e02-completed-m01");
+    const first = e02Row(page, "gate-e-w2-e02-m01");
     await expect(first).toContainText("Fjellsiden Blå");
     await expect(first).toContainText("3");
     await expect(first).toContainText("FT");
-    await expect(e02Row(page, "gate-e-w2-e02-completed-m05")).toContainText("Result reported · report not locked");
+    await expect(e02Row(page, "gate-e-w2-e02-m07")).toContainText("Result reported · report not locked");
     await expect(e02Timeline(page).getByText("NEXT", { exact: true })).toHaveCount(0);
     await expect(e02Timeline(page).getByText("LIVE", { exact: true })).toHaveCount(0);
   });
@@ -346,7 +346,7 @@ test.describe("E02 — event and match identity continuity (XR-S01, XR-V02)", ()
   });
 
   test("a match id belonging to another Event is rejected, never shown under this Event", async ({ page }) => {
-    await openE02(page, `${MIXED}?match=gate-e-w2-e02-completed-m01`);
+    await openE02(page, `${MIXED}?match=gate-e-w2-e02-other-event-m01`);
     await expect(e02Panel(page)).toHaveCount(0);
     await expect(page.getByRole("status").filter({ hasText: "belongs to Fjellsiden Vårcup" })).toBeVisible();
   });
@@ -376,12 +376,12 @@ test.describe("E02 — event and match identity continuity (XR-S01, XR-V02)", ()
     const allowed = [
       /^\/dev\/ui-lab\//,
       /^\/events$/,
-      /^\/o\/acme\/events\/gate-e-w2-e02-mixed-event\/matches\/gate-e-w2-e02-mixed-m\d\d\/live(\/follow)?$/,
-      /^\/o\/acme\/events\/gate-e-w2-e02-mixed-event\?tab=matches$/,
+      /^\/o\/acme\/events\/gate-e-w2-e02-event\/matches\/gate-e-w2-e02-m\d\d\/live(\/follow)?$/,
+      /^\/o\/acme\/events\/gate-e-w2-e02-event\?tab=matches$/,
     ];
     for (const href of hrefs) expect(allowed.some((r) => r.test(href)), href).toBe(true);
     const live = e02Panel(page).getByRole("link", { name: "Continue live reporting", exact: true });
-    await expect(live).toHaveAttribute("href", `/o/acme/events/gate-e-w2-e02-mixed-event/matches/${mixedId("m06")}/live`);
+    await expect(live).toHaveAttribute("href", `/o/acme/events/gate-e-w2-e02-event/matches/${mixedId("m06")}/live`);
     await live.click();
     await page.waitForURL(/\/signin/, { timeout: 10_000 });
   });
@@ -440,4 +440,57 @@ test.describe("E02 — responsive layout", () => {
     await expect(e02Panel(page)).toBeInViewport();
     await expect(e02Panel(page).getByTestId("e02-selected-squad")).toHaveText("Fjellsiden Blå");
   });
+
+  // Independent review M2: below `medium` the shared ScorebookMatchRow ellipsizes team names
+  // ("Fjel…"), so each row carries a UI-Lab-only identity line with the full squad and opponent.
+  for (const width of [390, 320]) {
+    test(`mixed @ ${width}px: every row's full squad and opponent names are visible and not truncated`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await openE02(page, MIXED);
+      const lines = page.locator("[data-e02-identity-line]");
+      await expect(lines).toHaveCount(9);
+      const measured = await lines.evaluateAll((els) =>
+        els.map((el) => ({
+          text: el.textContent ?? "",
+          visible: el.getBoundingClientRect().height > 0,
+          fits: el.scrollWidth <= el.clientWidth + 1,
+          ellipsis: getComputedStyle(el).textOverflow === "ellipsis",
+        })),
+      );
+      for (const m of measured) {
+        expect(m.visible, m.text).toBe(true);
+        expect(m.fits, m.text).toBe(true);
+        expect(m.ellipsis, m.text).toBe(false);
+        expect(m.text).toMatch(/^Fjellsiden (Blå|Rød) v (Nordbyen FK|Kvisten IL|Sjøvik SK|Bakkely IF)$/);
+      }
+      await expect(e02Row(page, mixedId("m05")).locator("[data-e02-identity-line]")).toHaveText("Fjellsiden Rød v Nordbyen FK");
+      await expect(e02Row(page, mixedId("m01")).locator("[data-e02-identity-line]")).toHaveText("Fjellsiden Blå v Nordbyen FK");
+    });
+  }
+
+  test("desktop: the identity line is not shown (the shared row has room for the names)", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openE02(page, MIXED);
+    await expect(page.locator("[data-e02-identity-line]").first()).toBeHidden();
+  });
+});
+
+test.describe("E02 — XR-S01: the same match keeps one identity across scheduled, live and completed", () => {
+  const states: [string, string, string | null][] = [
+    ["upcoming", "Scheduled", null],
+    ["mixed-progression", "Live — reporting session active", "Continue live reporting"],
+    ["completed", "Result recorded — report completed", null],
+  ];
+  for (const [state, stateLabel, liveLabel] of states) {
+    test(`${state}: Blå vs Kvisten IL 11:20 (${mixedId("m06")}) keeps squad/opponent/kickoff; state is '${stateLabel}'`, async ({ page }) => {
+      await openE02(page, `${E02}/${state}?match=${mixedId("m06")}`);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m06"));
+      await expect(e02Panel(page).getByTestId("e02-selected-squad")).toHaveText("Fjellsiden Blå");
+      await expect(e02Panel(page).getByTestId("e02-selected-kickoff")).toHaveText("SAT 13 MAR · 11:20");
+      await expect(e02Panel(page).getByTestId("e02-selected-state")).toHaveText(stateLabel);
+      if (liveLabel) await expect(e02Panel(page).getByRole("link", { name: liveLabel, exact: true })).toBeVisible();
+      await expect(e02Row(page, mixedId("m06"))).toContainText("Kvisten IL");
+    });
+  }
 });

@@ -14,7 +14,13 @@
 
 - Every match resolves its squad through `eventSquadId` against the Event's own squad list; never
   through a team-name string. The squad name is the own-team line of the real `ScorebookMatchRow`
-  (accent marker), so each row names its squad at every width.
+  (accent marker). At ≥600px (`medium`) that line shows the full name. Below 600px the shared row
+  ellipsizes team names ("Fjel…"), which would make "Fjellsiden Blå" and "Fjellsiden Rød"
+  indistinguishable — the first revision wrongly claimed the squad was named "at every width"
+  (independent review M2). Each row now carries a UI-Lab-only identity line (below 600px only)
+  that wraps the full "Squad v Opponent" text instead of truncating; Playwright asserts at 390 and
+  320px that all nine lines are visible, untruncated (`scrollWidth ≤ clientWidth`, no ellipsis)
+  and name the right squad. The shared row itself is unchanged (BLK-E02-08).
 - An unresolvable `eventSquadId` would render "Unknown squad" (not production's generic "Squad");
   integrity assertion 2 guarantees none of the fixtures contains one.
 - "Nordbyen FK" is the opponent of three MIXED matches (Blå 09:00, Rød 10:20, Rød 14:00). Tests prove
@@ -25,8 +31,25 @@
 - Identity is the Event match id. The same `MatchPresentation` object (built once by the real
   `buildMatchPresentation()`) renders the row in the timeline and the row at the top of the selected
   context — one visual identity, not a second template (XR-S01).
-- A `match` value that is not a match of this Event (e.g. a COMPLETED fixture id loaded on the MIXED
-  page) is rejected with a visible status message; it is never shown under this Event's heading.
+- A `match` value that is not a match of this Event (tested with `gate-e-w2-e02-other-event-m01`) is
+  rejected with a visible status message; it is never shown under this Event's heading.
+
+## Identity across lifecycle (XR-S01)
+
+The three candidates are the same Event day at 08:00, 11:30 and 18:00 (`DATA_TRUTH_AND_FIXTURES.md`).
+Every match keeps its id, squad, opponent and kickoff in all three; only lifecycle facts change.
+The continuity match `gate-e-w2-e02-m06` (11:20 Fjellsiden Blå v Kvisten IL) is:
+
+| Candidate | Row | Selected context state |
+|---|---|---|
+| UPCOMING (08:00) | LATER, "11:20 / SAT 13 MAR", Scheduled | "Scheduled" |
+| MIXED (11:30) | LIVE kicker, "— —", LIVE trailer | "Live — reporting session active", "Continue live reporting" |
+| COMPLETED (18:00) | 2–1, FT · Win | "Result recorded — report completed" |
+
+Same `ScorebookMatchRow` template, same squad marker and names, same kickoff label; the emphasis
+moves from kickoff → live reporting → result. Proof: `fixture-integrity.test.ts` (identity fields
+equal across fixtures, lifecycle planning_open → live → done), Playwright "XR-S01" group (selected
+context in each state), and the three `continuity-match-selected` captures per viewport/theme.
 
 ## Navigation and selection — what is real and what is directional
 

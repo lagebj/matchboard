@@ -378,6 +378,16 @@ function fillAndClick(labelText, value, buttonName) {
 // `interactions` (PR #777 remediation, A01/A12 finding): optional extra captures of the SAME
 // page, in the SAME browser context (no reload), after performing a deterministic interaction —
 // proves initial render AND the reviewable interaction state, and that the action never navigates.
+// Gate E W2 (E02): select the continuity match that all three E02 states share.
+const selectE02ContinuityMatch = {
+  id: "continuity-match-selected",
+  async perform(page) {
+    await page.locator('[data-e02-hydrated="true"]').waitFor({ state: "attached", timeout: 30000 });
+    await page.locator('[data-e02-match-row="gate-e-w2-e02-m06"] a').click();
+    await page.locator('[data-e02-selected-match="gate-e-w2-e02-m06"]').waitFor({ state: "visible", timeout: 10000 });
+  },
+};
+
 const scenarios = [
   { slug: "match-preparation", route: "atlas-followup/match-preparation" },
   { slug: "completed-match", route: "atlas-followup/completed-match" },
@@ -1229,31 +1239,13 @@ const scenarios = [
   // with persistent event and match identity") — CANDIDATE, not approved. Canonical event-match
   // fixture records rendered through the real buildMatchPresentation()/TouchlineTimeline/
   // ScorebookMatchRow. See docs/ui-lab/gate-e-w2-candidates/SOURCE_RECONCILIATION.md and
-  // WAVE_SCOPE.md. Only the mixed state adds one interaction capture: the selected-match context
-  // for the Rød 10:20 DRAFT match, proving the Event heading and that match's own identity
-  // persist through selection (every other transition is covered by e2e/ui-lab-gate-e.spec.ts).
-  {
-    slug: "gate-e-w2-e02-upcoming",
-    route: "gate-e/e02-event-day/upcoming",
-  },
-  {
-    slug: "gate-e-w2-e02-mixed-progression",
-    route: "gate-e/e02-event-day/mixed-progression",
-    interactions: [
-      {
-        id: "match-selected",
-        async perform(page) {
-          await page.locator('[data-e02-hydrated="true"]').waitFor({ state: "attached", timeout: 30000 });
-          await page.locator('[data-e02-match-row="gate-e-w2-e02-mixed-m05"] a').click();
-          await page.locator('[data-e02-selected-match="gate-e-w2-e02-mixed-m05"]').waitFor({ state: "visible", timeout: 10000 });
-        },
-      },
-    ],
-  },
-  {
-    slug: "gate-e-w2-e02-completed",
-    route: "gate-e/e02-event-day/completed",
-  },
+  // WAVE_SCOPE.md. All three states are the SAME Event day observed at three times; each adds one
+  // interaction capture selecting the same continuity match (11:20 Blå vs Kvisten IL,
+  // gate-e-w2-e02-m06) — scheduled / live / completed side by side (XR-S01). Every other
+  // transition is covered by e2e/ui-lab-gate-e.spec.ts.
+  { slug: "gate-e-w2-e02-upcoming", route: "gate-e/e02-event-day/upcoming", interactions: [selectE02ContinuityMatch] },
+  { slug: "gate-e-w2-e02-mixed-progression", route: "gate-e/e02-event-day/mixed-progression", interactions: [selectE02ContinuityMatch] },
+  { slug: "gate-e-w2-e02-completed", route: "gate-e/e02-event-day/completed", interactions: [selectE02ContinuityMatch] },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },

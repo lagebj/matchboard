@@ -33,8 +33,11 @@ match keeps its own report state below", because the Unfinalize control is not r
   originating row on clear or browser Back. A directly-loaded URL does not move focus.
 - States are named in text (kickers, captions, "Selected" label, state/report rows in the context);
   the timeline node shapes differ by size/fill as well as colour (real `TimelineItem`).
-- No hover-only information. Squad, opponent, kickoff, state and result/missing-report are visible
-  in the row or kicker at 320px.
+- No hover-only information. Below 600px the shared row truncates team names, so each row adds a
+  UI-Lab-only identity line with the full "Squad v Opponent" (wrapping, `aria-hidden` because the
+  row link already exposes the full names). Squad, opponent, kickoff, state and
+  result/missing-report are therefore readable at 390 and 320px — asserted by Playwright
+  (independent review M2).
 
 ## Server Actions
 

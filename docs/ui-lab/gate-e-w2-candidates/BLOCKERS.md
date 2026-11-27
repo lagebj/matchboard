@@ -57,9 +57,13 @@ the `w-[4.5rem]` "Scheduled" trailer at every width, and at 390/320px the `shrin
 squeezes the opponent to an ellipsis ("Nordbye…"). This affects every scheduled row in UPCOMING
 and the three upcoming rows in MIXED. It is in the unmodified shared Touchline component (production
 Event day renders it the same way), so it is not fixed in this UI-Lab-only wave: a fix is a
-Visual-Authority-gated shared-component change. Filed as issue #852. Severity for E02: MAJOR for
-mobile opponent readability (spec §10 requires opponent to stay visible); the full opponent name
-is still shown in the selected-match context.
+Visual-Authority-gated shared-component change. Filed as issue #852. The independent review (M3)
+confirmed it and left it as an **owner decision**: fix the shared row first, or approve the E02
+goldens with this defect scoped out. Since review remediation, each row carries a UI-Lab-only
+"Squad v Opponent" line below 600px, so full squad and opponent names stay readable on mobile
+(review M2) — but the shared row's own time/label overlap and truncation are unchanged. Related
+shared-grammar quirk: the row prints "FT" on report-missing/draft rows
+(`TEMPORAL_AND_LIFECYCLE_AUDIT.md`, review m2).
 
 ### Pre-existing residue surfaced
 

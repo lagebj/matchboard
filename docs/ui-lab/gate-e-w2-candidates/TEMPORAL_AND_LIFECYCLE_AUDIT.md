@@ -21,6 +21,23 @@ Sources for the report rules: ADR-0001 §2 (results come from REPORTED or LOCKED
 show nothing"), ADR-0003 §5 (REPORTED remains a readable completed state). `EventMatchesTab`'s
 coach-facing labels ("No report", "Draft", "Reported", "Completed") are reused in the selected context.
 
+**Draft scores (independent review m1).** No draft score is displayed anywhere in the candidate —
+not in the row and not in the selected-match context ("Draft — not final, no result shown"). The
+first revision showed "draft score 1–0, not final" in the selected context while this document
+claimed "DRAFT reports show nothing"; ADR-0001 rejects showing draft scores even as preliminary, so
+the panel was changed to match the rule. Production's `EventMatchesTab` (line ~796) does show a
+DRAFT score next to its "Draft" pill; the candidate deliberately does not follow it.
+
+**"FT" on unreported and draft rows (independent review m2) — shared-component quirk, not fixed.**
+The shared `matchPresentationPhase()` (`src/lib/matches/match-presentation.ts`) maps `played` and
+`report_incomplete` to the `final` phase, so the shared `ScorebookMatchRow` prints "FT" on the
+REPORT MISSING and REPORT DRAFT rows (followed by "· Report missing"/"· Report draft" only at
+≥600px). "FT" there means only that kickoff has passed; it is not a recorded result — no score is
+shown, and the kicker names the missing/draft report. The statement below that completion is
+"never inferred from the clock" holds for the candidate's lifecycle and summary counts, not for
+that shared "FT" glyph. Same root cause family as BLK-E02-08 (shared row grammar), recorded there,
+out of scope for this UI-Lab-only wave.
+
 The real `ScorebookMatchRow` hides the report-attention text below the `medium` (600px) breakpoint
 (it shows only "FT"); the timeline kicker carries the state at every width, so mobile never relies on
 the hidden label.
@@ -38,8 +55,9 @@ the hidden label.
 - **Reference instant:** one frozen `now` per fixture (see `DATA_TRUTH_AND_FIXTURES.md`).
 - **NEXT:** only an upcoming, non-cancelled, unreported, non-live match; all matches at the earliest
   such kickoff are NEXT (MIXED: both 12:40 matches). A cancelled match is never NEXT.
-- **Completion:** never inferred from the clock. A past kickoff with no report is REPORT MISSING, not
-  a result; a past kickoff with no session is never LIVE.
+- **Completion:** never inferred from the clock in the candidate's lifecycle, kickers or counts. A
+  past kickoff with no report is REPORT MISSING, not a result; a past kickoff with no session is
+  never LIVE. (Exception disclosed above: the shared row's "FT" glyph.)
 - **Live:** requires the ACTIVE session. No elapsed time, period clock or score is estimated —
   `EventMatchWithReport` carries no live score, so the live row shows "— —". `livePrimaryAction`
   drives the selected context's entry label ("Continue live reporting").

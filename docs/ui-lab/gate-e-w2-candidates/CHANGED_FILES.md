@@ -8,6 +8,7 @@
 - `src/app/dev/ui-lab/gate-e/e02-event-day/shared/`
   - `event-day-fixture-types.ts` — fixture graph types (canonical `EventMatchWithReport`, type-only import).
   - `fixture-builders.ts` — record builders; live fields via the real `resolveLiveReportingPrimaryAction()`.
+  - `event-day-schedule.ts` — the one Event-day schedule all three fixtures observe (review M1).
   - `event-day-projection.ts` — pure, fixed-clock Event-day projection over the real `buildMatchPresentation()`.
   - `event-day-fixture-mount.tsx` — fixture-safe Event Detail mount (header, banner, tabs, URL state).
   - `event-day-timeline-section.tsx` — real `TouchlineTimeline`/`TimelineItem`/`ScorebookMatchRow`.
@@ -30,8 +31,8 @@
 
 ## Capture/CI wiring (modified)
 
-- `scripts/ui-lab-visual-review.mjs` — registers the three E02 routes, with one `match-selected`
-  interaction capture on the mixed state.
+- `scripts/ui-lab-visual-review.mjs` — registers the three E02 routes, each with one
+  `continuity-match-selected` interaction capture (the same match in all three states).
 - `.github/workflows/ui-lab-visual-review.yml` — job timeout 70 → 75 minutes (same step runs the
   extra Gate E tests; 24 extra captures). No step added or changed.
 

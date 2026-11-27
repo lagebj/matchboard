@@ -2,10 +2,10 @@
 
 ## Status
 
-**This file contains the implementer's own self-audit only. It is NOT an independent review.** A
-separate, context-independent technical review is expected after this PR is opened; its findings
-belong in a new section below, written when that review has actually happened. Nothing here should
-be read as a PASS granted by anyone other than the implementer.
+The sections down to "Implementer disposition (first revision)" are the implementer's own
+self-audit, written before any independent review, and are kept as written apart from the
+corrected Playwright counts. An independent review has since happened; its findings and their
+resolution are in "Independent review" at the end. Nothing here is owner approval.
 
 ## Verification actually run in the implementation session
 
@@ -17,7 +17,7 @@ be read as a PASS granted by anyone other than the implementer.
 | `npm run validate -- --fast` | every step passed except `typecheck`, which hit a V8 heap OOM (BLK-E02-07) |
 | `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit` | exit 0 |
 | `npx eslint src/app/dev/ui-lab/gate-e e2e/ui-lab-gate-e.spec.ts scripts/ui-lab-visual-review.mjs` | clean |
-| Gate E Playwright (`--project=ui-lab-gate-e`) | not run locally (BLK-E02-06). **CI run 46018113731 attempt 1 (head `696681c1`): 42 passed** (20 E01 + 22 E02); B08 164, Gate C 146 passed, Gate D step success in the same run |
+| Gate E Playwright (`--project=ui-lab-gate-e`) | not run locally (BLK-E02-06). **CI run 46018113731 attempt 1 (head `696681c1`): 42 passed** (20 E01 + 22 E02); same run: B08 54, Gate C 164, Gate D 146 passed (corrected — the first revision of this row mislabelled these counts, independent review m4) |
 | UI Lab capture (`scripts/ui-lab-visual-review.mjs`) | not run locally. **CI run 46018113731: success, 24 E02 captures**; artifact downloaded, 24/24 hashes recomputed from PNG bytes and matched, widths match viewports (`capture-attestation.json`) |
 | `npm run build` | not run locally (known sandbox OOM); CI checks on head `696681c1` were green except the expected `Visual Authority Gate` (AWAITING_APPROVAL) |
 
@@ -69,9 +69,30 @@ it weakens E02's mobile opponent readability, so the owner should see it before 
 - BLK-E02-08: scheduled-row overlap/truncation in the shared `ScorebookMatchRow`, visible in the
   UPCOMING and MIXED captures.
 
-## Implementer disposition
+## Implementer disposition (first revision)
 
 `READY_FOR_INDEPENDENT_REVIEW`. CI is green apart from the expected Visual Authority Gate; captures
 are attested. Not marked ready for owner visual review by the implementer because the captures show
 BLK-E02-08, which the owner and reviewer should weigh first (accept as a disclosed shared-component
 defect tracked in #852, or require it fixed before approval).
+
+## Independent review
+
+A fresh, context-independent reviewer (separate worktree, no prior context) audited this PR at head
+`9d199096`. Verdict: no BLOCKING findings; scope, byte-identical production files, live-state
+derivation, REPORTED semantics, outbound links, selection code, desktop width, Server Action
+exclusion, all 24 capture hashes (recomputed independently from both CI runs) and E01/B08/Gate C/
+Gate D regression status were confirmed. Findings and resolution:
+
+| ID | Severity | Finding | Resolution |
+|---|---|---|---|
+| M1 | MAJOR | XR-S01 ("planned/live/completed versions of one fixture remain recognizably the same object") was not demonstrated: the three fixtures were unrelated schedules and a test enforced that no id was shared; SOURCE_RECONCILIATION §7 overclaimed "applied as written" | **Fixed.** One shared Event-day schedule (`shared/event-day-schedule.ts`) observed at 08:00/11:30/18:00; fixtures bumped to v2 and re-hashed. New tests: identity fields identical across fixtures, recorded facts only accumulate, continuity match `gate-e-w2-e02-m06` planning_open → live → done. Playwright XR-S01 group checks its selected context in each state; every capture run now selects it in all three states. §7 rewritten (and self-audit rows 2/5 above are superseded by this). |
+| M2 | MAJOR | Below 600px the shared row ellipsizes names ("Fjel…"), so Blå/Rød are indistinguishable at 320px; the identity contract claimed squads were named "at every width" | **Fixed** without touching the shared row: a UI-Lab-only "Squad v Opponent" line under each row below 600px, wrapping instead of truncating. Playwright asserts at 390 and 320px that all nine lines are visible, not overflowing, not ellipsized, and correct; a desktop test asserts the line is hidden ≥600px. Contract text corrected. |
+| M3 | MAJOR | BLK-E02-08: shared `ScorebookMatchRow` scheduled-time lane overlaps "Scheduled"; opponent squeezed ≤390px | **Left as-is for the owner** (shared Touchline component, issue #852). Owner decides: fix first, or approve with the defect scoped out. |
+| m1 | minor | Selected panel showed "draft score 1–0, not final" while docs claimed DRAFT shows nothing (ADR-0001 rejects preliminary draft scores) | **Fixed** — panel shows "Draft — not final, no result shown"; component test asserts no draft score text. |
+| m2 | minor | Shared row prints "FT" on report-missing/draft rows, contradicting "completion never inferred from the clock" | **Disclosed** in TEMPORAL_AND_LIFECYCLE_AUDIT.md as a shared-grammar quirk (not fixed, same family as BLK-E02-08). |
+| m4 | minor | Playwright counts mislabelled (B08/Gate C/Gate D) | **Fixed** — B08 54, Gate C 164, Gate D 146, Gate E 42 (verified from the CI job log). |
+
+Local verification after remediation: Gate E node tests 109 passed; Gate E component tests 28
+passed; ESLint clean; `tsc --noEmit` (4 GB heap) exit 0. CI and capture results for the remediated
+head are recorded below and in `capture-attestation.json`.

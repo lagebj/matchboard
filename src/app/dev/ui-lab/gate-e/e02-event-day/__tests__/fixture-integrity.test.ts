@@ -5,6 +5,7 @@ import * as mixed from "../mixed-progression/fixtures";
 import * as completed from "../completed/fixtures";
 import { buildEventDayProjection } from "../shared/event-day-projection";
 import type { E02EventDayFixture } from "../shared/event-day-fixture-types";
+import { CONTINUITY_MATCH_ID } from "../shared/event-day-schedule";
 
 /**
  * The 17 mandatory E02 fixture-integrity assertions
@@ -203,9 +204,54 @@ for (const { name, mod } of FIXTURES) {
   });
 }
 
-describe("E02 cross-fixture identity", () => {
-  it("no match, squad or event id is reused between child candidates", () => {
-    const all = FIXTURES.flatMap(({ mod }) => [mod.fixture.event.id, ...mod.fixture.squads.map((s) => s.id), ...mod.fixture.matches.map((m) => m.id)]);
-    expect(new Set(all).size).toBe(all.length);
+describe("E02 cross-fixture identity (XR-S01: one Event day observed at three instants)", () => {
+  const [up, mid, done] = FIXTURES.map(({ mod }) => mod.fixture);
+
+  it("the three candidates are distinct fixtures at strictly increasing reference instants", () => {
+    const ids = FIXTURES.map(({ mod }) => mod.fixture.identity);
+    expect(new Set(ids.map((i) => i.scenarioId)).size).toBe(3);
+    expect(new Set(ids.map((i) => i.fixtureId)).size).toBe(3);
+    expect(up.now.getTime()).toBeLessThan(mid.now.getTime());
+    expect(mid.now.getTime()).toBeLessThan(done.now.getTime());
+  });
+
+  it("every match keeps the same id, Event, squad, opponent and kickoff in all three fixtures", () => {
+    expect(mid.event.id).toBe(up.event.id);
+    expect(done.event.id).toBe(up.event.id);
+    expect(mid.squads).toEqual(up.squads);
+    expect(done.squads).toEqual(up.squads);
+    const identityOf = (f: E02EventDayFixture) =>
+      f.matches.map((m) => [m.id, m.eventId, m.eventSquadId, m.opponentName, m.startsAt.toISOString()]);
+    expect(identityOf(mid)).toEqual(identityOf(up));
+    expect(identityOf(done)).toEqual(identityOf(up));
+  });
+
+  it(`the continuity match ${CONTINUITY_MATCH_ID} is scheduled → live → completed while its identity stays fixed`, () => {
+    const item = (f: E02EventDayFixture) =>
+      buildEventDayProjection({ event: f.event, squads: f.squads, matches: f.matches, now: f.now }).items.find(
+        (i) => i.match.id === CONTINUITY_MATCH_ID,
+      )!;
+    const [a, b, c] = [item(up), item(mid), item(done)];
+    expect([a.lifecycle, b.lifecycle, c.lifecycle]).toEqual(["planning_open", "live", "done"]);
+    for (const x of [b, c]) {
+      expect(x.squad?.name).toBe(a.squad?.name);
+      expect(x.presentation.homeTeam).toBe(a.presentation.homeTeam);
+      expect(x.presentation.awayTeam).toBe(a.presentation.awayTeam);
+      expect(x.timeLabel).toBe(a.timeLabel);
+      expect(x.presentation.kickoffDate).toBe(a.presentation.kickoffDate);
+    }
+    expect(a.presentation.score).toBeNull();
+    expect(b.presentation.score).toBeNull();
+    expect(c.presentation.score).toEqual({ home: 2, away: 1 });
+  });
+
+  it("recorded facts only accumulate: a fact recorded earlier is never withdrawn later (except DRAFT → final)", () => {
+    for (const m of mid.matches) {
+      const later = done.matches.find((x) => x.id === m.id)!;
+      if (m.status === "CANCELLED") expect(later.status).toBe("CANCELLED");
+      if (m.report?.status === "LOCKED") expect(later.report).toEqual(m.report);
+      if (m.report) expect(later.report).not.toBeNull();
+    }
+    for (const m of up.matches) expect(m.report).toBeNull();
   });
 });

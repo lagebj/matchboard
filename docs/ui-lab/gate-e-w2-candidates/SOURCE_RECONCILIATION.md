@@ -148,7 +148,25 @@ workflow's job timeout (75 min, same pattern as W1's bump), and the version bump
 
 ## 7. Outcome
 
-All sources were recovered and read. XR-T01, XR-S01 and XR-V02 are quoted above and applied as
-written. No acceptance criterion in this wave was inferred from a requirement ID alone. Where the
-requirements describe a capability production does not have (an Event Match Detail destination,
-per-match selection state), that gap is recorded in `BLOCKERS.md` instead of being invented.
+All sources were recovered and read; XR-T01, XR-S01 and XR-V02 are quoted above. No acceptance
+criterion was inferred from a requirement ID alone. How each is applied:
+
+- **XR-T01** — one chronology with differentiated past/current/next states, text kickers, NEXT,
+  deterministic order, no fabricated duration or schedule item (`TEMPORAL_AND_LIFECYCLE_AUDIT.md`).
+- **XR-S01** — "side-by-side planned/live/completed versions of one fixture remain recognizably the
+  same object". The three child candidates are **the same Event day** (same Event, squads and nine
+  match ids/opponents/kickoffs, `shared/event-day-schedule.ts`) observed at 08:00, 11:30 and 18:00.
+  The designated continuity match `gate-e-w2-e02-m06` (11:20 Blå vs Kvisten IL) is scheduled →
+  live → LOCKED 2–1 across them, rendered by the same `ScorebookMatchRow` identity each time, and
+  each capture run selects it in all three states. Tests assert identical identity fields with
+  differing lifecycle across fixtures. (Correction: the first revision of this PR used three
+  unrelated schedules and enforced that no id was shared — the opposite of XR-S01 — while this
+  section claimed the XRs were "applied as written". The independent review caught it (M1); the
+  fixtures were redesigned as described.) What is not shown: Today/Match Details versions of the
+  same match, which are outside this UI-Lab-only Event wave.
+- **XR-V02** — partially. Event → match → back preserves the Event, selection and focus, and the
+  outbound live-reporting link is the real route; the full cross-route journey through production
+  workspaces cannot be demonstrated here (`BLOCKERS.md` BLK-E02-02).
+
+Capabilities production lacks (an Event Match Detail destination, per-match selection state) are
+recorded in `BLOCKERS.md`, not invented.

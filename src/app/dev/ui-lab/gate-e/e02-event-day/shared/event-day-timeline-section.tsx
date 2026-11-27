@@ -58,6 +58,22 @@ export function EventDayTimelineSection({
                   >
                     <div data-e02-match-row={item.match.id} data-e02-squad-id={item.match.eventSquadId}>
                       <ScorebookMatchRow presentation={item.presentation} href={selectHref(item.match.id)} />
+                      {/* Below the `medium` breakpoint the shared row's fixed score/trailer lanes leave
+                          too little width for the team names, which it ellipsizes ("Fjel…") — so the
+                          two squads ("Fjellsiden Blå"/"Fjellsiden Rød") become indistinguishable.
+                          This UI-Lab-only line repeats the full squad and opponent names, wrapping
+                          instead of truncating. The shared `ScorebookMatchRow` is not changed
+                          (BLK-E02-08). Hidden from assistive tech: the row link already exposes
+                          the full names. */}
+                      <p
+                        aria-hidden="true"
+                        data-e02-identity-line=""
+                        className="pl-[calc(2px+0.625rem)] text-[12px] leading-snug break-words text-[var(--text-soft)] medium:hidden"
+                      >
+                        <span className="font-[600] text-[var(--foreground)]">{item.squad?.name ?? "Unknown squad"}</span>
+                        {" v "}
+                        {item.match.opponentName}
+                      </p>
                       {item.caption ? (
                         <p className="pl-[calc(2px+0.625rem)] text-[11px] text-[var(--text-muted)]">{item.caption}</p>
                       ) : null}

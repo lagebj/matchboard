@@ -32,7 +32,10 @@ XR-P02) and is explicitly excluded by this wave's brief. **Wave 2 = E02 only.**
 | `GATE-E-W2-E02-MIXED` | The primary acceptance case: one Event mid-day with result, cancelled, report-missing, report-draft, live, next and later matches across two squads. Without it "progression across squads/states" is not demonstrated. |
 | `GATE-E-W2-E02-COMPLETED` | The register's "completed" state, including Event FINALIZED with one REPORTED-not-locked match (finalisation ≠ every report locked). |
 
-These are child candidates of the single official row E02, not new register rows. A live match is
+All three are the same Event day (same Event, squads and nine matches) observed at 08:00, 11:30 and
+18:00, so the same match can be compared across scheduled/live/completed (XR-S01; continuity match
+`gate-e-w2-e02-m06`). These are child candidates of the single official row E02, not new register
+rows. A live match is
 included only in MIXED, and only because the fixture carries a canonical ACTIVE live-session record
 (XR-S01 names planned/live/completed identity). No loading/failure candidate is added: the register
 row does not require one (the production gap is recorded as BLK-E02-03).

@@ -41,6 +41,7 @@ numbers) that E02 prohibits.
 | Lifecycle/kicker/NEXT/order projection | Fixture-safe orchestration (stand-in for the private production function), with the disclosed differences in `TEMPORAL_AND_LIFECYCLE_AUDIT.md` |
 | Live entry label (`describeLiveReportingEntryPointLabel`) | Existing production logic reused |
 | Day summary line, per-squad progression | Directional-only UI Lab presentation |
+| Narrow-width "Squad v Opponent" identity line under each row (<600px) | Directional-only UI Lab presentation (works around the shared row's truncation without changing it) |
 | Match selection (`match` query) and selected-match context | Directional-only UI Lab interaction |
 | Event Match Detail destination | Missing production integration — not shown |
 | Scheduled-row layout | Production `ScorebookMatchRow` defect visible in captures (time overlaps "Scheduled"; opponent truncates on mobile) — BLK-E02-08, issue #852 |

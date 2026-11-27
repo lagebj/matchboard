@@ -37,9 +37,12 @@ export const SelectedMatchContext = forwardRef<HTMLHeadingElement, Props>(functi
   const showLiveEntry = !cancelled && m.report?.status !== "LOCKED";
   const liveLabel = m.livePrimaryAction ? describeLiveReportingEntryPointLabel(m.livePrimaryAction) : "Start live reporting";
 
+  // A DRAFT report's score is never displayed anywhere in this candidate (ADR-0001: "DRAFT
+  // reports show nothing"). Production's `EventMatchesTab` does show it next to a "Draft" pill;
+  // this candidate deliberately does not.
   let reportText = REPORT_STATE_LABELS[item.reportState];
-  if (item.reportState === "DRAFT" && m.report?.ourScore != null && m.report?.opponentScore != null) {
-    reportText = `Draft — draft score ${m.report.ourScore}–${m.report.opponentScore}, not final`;
+  if (item.reportState === "DRAFT") {
+    reportText = "Draft — not final, no result shown";
   } else if (item.reportState === "REPORTED") {
     reportText = "Reported — result recorded, report not locked";
   } else if (item.reportState === "LOCKED") {
