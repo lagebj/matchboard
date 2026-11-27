@@ -112,9 +112,48 @@ continuity-selected (m06 Scheduled, "Start live reporting"), completed mobile-da
 continuity-selected (m06 2–1, "Completed — report locked", no live-reporting entry). BLK-E02-08's
 overlap is still visible on scheduled rows, as expected.
 
-## Final disposition
+## Disposition after review round 1 (superseded by review round 2 below)
 
 `READY_FOR_OWNER_VISUAL_REVIEW` — with one explicit owner decision pending: **BLK-E02-08 /
 issue #852** (shared `ScorebookMatchRow` scheduled-row time/label overlap and name truncation).
 Either require the shared-component fix before approving these goldens, or approve them with that
 defect scoped out. No approval has been posted or assumed.
+
+## Review round 2 (E02-R1 – E02-R6)
+
+A further review round raised six findings. Per finding: original defect, correction, evidence,
+remaining risk, authority, disposition.
+
+| ID | Severity | Defect | Correction in this PR | Evidence | Remaining risk / authority | Disposition |
+|---|---|---|---|---|---|---|
+| E02-R1 | MAJOR | Shared `ScorebookMatchRow`: scheduled kickoff time in the 2.75rem score lane overlaps "Scheduled" at every width (= BLK-E02-08, #852) | None — shared production component | Visible in every scheduled row of the CI captures | Unfixed; shared-component change not authorized (`BLOCKERS.md`) | **Open — owner decision** |
+| E02-R2 | MAJOR | Shared row ellipsizes squad/opponent names below 600px | None in the shared row; the UI-Lab identity line (round 1 M2) mitigates it inside E02 only | 320/390px captures; Playwright truncation tests on the identity line | Canonical row still truncates on every other surface; not authorized | **Open — owner decision** |
+| E02-R3 (#853) | MAJOR | `matchPresentationPhase()` maps `played`/`report_incomplete` to `final`, so the row prints unqualified "FT" without a confirmed result | None — shared presentation contract | REPORT MISSING / REPORT DRAFT rows in MIXED captures show "FT" | Affects ~10 consumers; needs a contract decision; not authorized | **Open — owner decision** |
+| E02-R4 | MINOR | Identity line sat outside the row's link (tapping it did nothing) | One UI-Lab `Link` per match item wrapping the link-less shared row, identity line, caption and "Selected" label (`event-day-timeline-section.tsx`); shared row unchanged | Component test (one link per item, identity line inside, zero nested controls, correct `match` href); Playwright at 390/320px (identity-line tap, row tap, Enter, focus to context, Back-to-event-day focus return, browser Back, Event heading unchanged) | None known | **Fixed** (CI result below) |
+| E02-R5 | MINOR | PR description still described fixture-v1 numbers | PR body rewritten from the v2 fixtures, numbers cross-checked against `shared/event-day-schedule.ts`, the three fixture files and the projection tests | PR #850 body | None | **Fixed** |
+| E02-R6 | Docs | XR-V02 overstated | Verified = context preservation inside the directional candidate; Not verified = production Event Match Detail → Live Reporting → return journey (no such route, BLK-E02-02). Stated in the identity contract, VISUAL_VS_CURRENT, BLOCKERS, SOURCE_RECONCILIATION §7, here and the PR body | — | — | **Fixed** |
+
+Round-1 M3 (BLK-E02-08) is not rewritten as resolved: it is the same defect as E02-R1, still open.
+
+### Track B (shared Match Presentation fix)
+
+Authorization determination: **not authorized**. The bundle-root `02_AUTHORITY_SCOPE_AND_APPROVALS.md`
+forbids production `src/components/**` changes without separate explicit permission and prescribes
+`BLOCKED`; ADR-0159 gates such changes but does not authorize them; the repo allows one open PR at a
+time. No shared-component code was written and no second PR was opened. The decision write-up is
+in `BLOCKERS.md` "Review round 2".
+
+### Local verification for round 2
+
+Gate E component tests 29 passed (including the new R4 structure test); Gate E node tests 109
+passed; ESLint clean; `tsc --noEmit` (4 GB heap) exit 0. Fixture records were not changed, so
+fixture versions and hashes stay at v2.
+
+## Final disposition (after review round 2)
+
+**`BLOCKED_BY_SOURCE_OR_AUTHORITY`** — for the three open MAJOR shared-component defects E02-R1,
+E02-R2 and E02-R3 only. All E02-owned work (Track A, round-1 M1/M2 and minors) is complete and the
+candidates are reviewable. An owner decision lifts the block: (A) authorize a separate shared
+Match Presentation PR, or (B) explicitly approve the E02 candidates with R1–R3 excluded as known
+defects tracked in #852 (R1/R2) and #853 (R3). The implementer cannot take decision B. No approval has been posted
+or assumed.

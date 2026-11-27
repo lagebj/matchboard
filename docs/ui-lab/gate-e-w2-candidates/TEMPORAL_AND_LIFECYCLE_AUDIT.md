@@ -28,7 +28,7 @@ claimed "DRAFT reports show nothing"; ADR-0001 rejects showing draft scores even
 the panel was changed to match the rule. Production's `EventMatchesTab` (line ~796) does show a
 DRAFT score next to its "Draft" pill; the candidate deliberately does not follow it.
 
-**"FT" on unreported and draft rows (independent review m2) — shared-component quirk, not fixed.**
+**"FT" on unreported and draft rows (independent review m2; re-raised as MAJOR E02-R3 in review round 2) — shared-component defect, not fixed, blocked on owner authorization (`BLOCKERS.md`).**
 The shared `matchPresentationPhase()` (`src/lib/matches/match-presentation.ts`) maps `played` and
 `report_incomplete` to the `final` phase, so the shared `ScorebookMatchRow` prints "FT" on the
 REPORT MISSING and REPORT DRAFT rows (followed by "· Report missing"/"· Report draft" only at

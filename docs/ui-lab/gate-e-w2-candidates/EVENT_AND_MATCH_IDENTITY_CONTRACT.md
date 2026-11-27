@@ -1,5 +1,32 @@
 # Gate E W2 — Event and Match Identity Contract (E02)
 
+## What is verified and what is not (E02-R6)
+
+- **Verified** — context preservation **within the directional E02 UI Lab candidate**: Event,
+  squad and match identity stay correct across selection, the `match` URL value, tab switches,
+  direct URL load, browser Back/Forward and focus return; the same match keeps its identity across
+  the three lifecycle snapshots. Evidence: component tests and the Gate E Playwright suite in CI.
+- **Not verified** — the complete **production** cross-route journey: Event day → a real Event
+  Match Detail page → Live Reporting / post-match report → back to the selected Event context.
+  Production has no Event Match Detail route and no per-match selection at all (BLK-E02-02), and
+  this wave touches no production route. The outbound Live Reporting link is a real production
+  route, but its return leg was not exercised (it reaches the unauthenticated auth boundary in UI
+  Lab).
+- Therefore **XR-V02 is directionally demonstrated, not operationally verified.** Nothing in this
+  document set should be read as production verification of the E02 journey.
+
+## Selection target (E02-R4)
+
+Each match item in the timeline is **one** selection target: a single UI-Lab `Link` (same
+`match=<eventMatchId>` URL, `scroll={false}`, `aria-current` when selected) wrapping the real
+`ScorebookMatchRow` rendered **without** its own `href` (so it emits no link), the narrow-width
+identity line, the draft/reported caption and the "Selected" label. There is no second link and no
+nested interactive element. Before E02-R4 the identity line sat outside the row's link, so tapping
+it did nothing. `ScorebookMatchRow` itself is unchanged. Playwright at 390 and 320px: tapping the
+identity line and tapping the scorebook part both select the same match, Enter activates it, focus
+moves to "Selected match", "Back to event day" returns focus to the same link, browser Back restores
+the prior selection, the Event heading never changes; one link per item and zero nested controls.
+
 ## Event identity
 
 - The Event heading is the page's only `h1` (`TouchlinePageHeader`, the same component and the
@@ -56,7 +83,7 @@ context in each state), and the three `continuity-match-selected` captures per v
 | Capability | Production status | In this candidate |
 |---|---|---|
 | Event Detail tabs via `?tab=` | REAL (`event-detail.tsx` `setActiveTab`) | Same URL authority; non-overview tab bodies are not reproduced and say so |
-| Select one match on Event day | NOT IN PRODUCTION (timeline rows have no `href`) | DIRECTIONAL: row `href` = same page + `match=<eventMatchId>`, all other query values preserved |
+| Select one match on Event day | NOT IN PRODUCTION (timeline rows have no `href`) | DIRECTIONAL: one UI-Lab link per match item (wrapping the link-less shared row and the identity line, E02-R4) → same page + `match=<eventMatchId>`, all other query values preserved |
 | Selected-match context | NOT IN PRODUCTION | DIRECTIONAL `CONTEXT_INSPECTOR` (aside on desktop ≥1200px, below the timeline on mobile) |
 | Return to Event day | — | "Back to event day" clears only `match`; focus returns to that match's row; browser Back steps through prior selections |
 | Direct URL restore | — | Loading `?match=<id>` restores the selection without a click |

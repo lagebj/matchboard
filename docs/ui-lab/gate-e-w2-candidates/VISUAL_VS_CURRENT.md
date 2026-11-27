@@ -57,6 +57,17 @@ the 17 integrity assertions across three fixtures), jsdom component tests, the G
 suite in CI, and the CI capture run. `capture-attestation.json` is the single source of truth for
 which capture run and artifact back these candidates.
 
+**Precisely (E02-R6):** *verified* = context preservation within this directional E02 candidate
+(Event/squad/match identity across selection, URL state and browser history). *Not verified* = the
+complete production journey Event day → Event Match Detail → Live Reporting/report → back to the
+selected Event context, because production has no Event Match Detail route (BLK-E02-02). XR-V02 is
+directionally demonstrated, not operationally verified.
+
+**Open shared-component defects visible in these captures (not fixed, owner decision):** E02-R1
+(scheduled kickoff time overlaps "Scheduled"), E02-R2 (shared row truncates names below 600px —
+only mitigated by the UI-Lab identity line), E02-R3 (unqualified "FT" for played-no-report and
+draft rows). See `BLOCKERS.md`.
+
 ## Summary
 
 | Claim | UPCOMING | MIXED | COMPLETED |
@@ -65,4 +76,6 @@ which capture run and artifact back these candidates.
 | Built on real production presentation components | Yes | Yes | Yes |
 | Contains directional-only behaviour | Summary/squad aside, selection | Same | Same |
 | Production route changed | No | No | No |
+| XR-V02 production journey verified | No — directional only | No — directional only | No — directional only |
+| Shared-row defects E02-R1/R2/R3 resolved | No (R1, R2 visible) | No (R1, R2, R3 visible) | No (R2 visible) |
 | Owner approval | None — `CANDIDATE` | None — `CANDIDATE` | None — `CANDIDATE` |

@@ -5,7 +5,7 @@ representation; server/domain owner; feedback; context restoration; navigation; 
 
 | Action | Origin | Host / decision | Domain owner | Navigation | Restoration | Provenance |
 |---|---|---|---|---|---|---|
-| Select a match | Event-day row (real `ScorebookMatchRow` link) | `CONTEXT_INSPECTOR` on the same view | none (read-only) | URL query only (`match`), same path | direct URL, browser Back, focus moves to "Selected match" heading | DIRECTIONAL |
+| Select a match | Event-day match item (one UI-Lab link around the real, link-less `ScorebookMatchRow` + identity line, E02-R4) | `CONTEXT_INSPECTOR` on the same view | none (read-only) | URL query only (`match`), same path | direct URL, browser Back, focus moves to "Selected match" heading | DIRECTIONAL |
 | Back to event day | Selected context button | `SAME_VIEW` | none | URL query only | focus returns to the row link of that match; other query values kept | DIRECTIONAL |
 | Switch Event tab | real `TabRail` | `SAME_OBJECT_TAB` | none | `?tab=` (production convention) | Overview restores the `match` selection | REAL convention; non-overview bodies not reproduced |
 | Live reporting entry | Selected context | `SEPARATE_WORKSPACE` (XR-I02 exception 1) | Live Reporting | real route | production's own live page return (not exercised here) | REAL destination |

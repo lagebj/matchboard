@@ -156,6 +156,18 @@ describe("E02 UPCOMING", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(9);
   });
 
+  it("E02-R4: each match item is exactly one link containing the row and identity line, with no nested interactive element", () => {
+    const { container } = renderWith(UpcomingPage, "/dev/ui-lab/gate-e/e02-event-day/upcoming");
+    for (const r of container.querySelectorAll<HTMLElement>("[data-e02-match-row]")) {
+      const links = r.querySelectorAll("a");
+      expect(links).toHaveLength(1);
+      const link = links[0];
+      expect(link.querySelector("[data-e02-identity-line]")).not.toBeNull();
+      expect(link.querySelectorAll("a, button, input, select, textarea, [tabindex]")).toHaveLength(0);
+      expect(new URL(link.getAttribute("href")!, "http://x").searchParams.get("match")).toBe(r.getAttribute("data-e02-match-row"));
+    }
+  });
+
   it("every row carries a full squad + opponent identity line (narrow-width fallback)", () => {
     const { container } = renderWith(UpcomingPage, "/dev/ui-lab/gate-e/e02-event-day/upcoming");
     expect(row(container, "gate-e-w2-e02-m02").querySelector("[data-e02-identity-line]")).toHaveTextContent("Fjellsiden Rød v Kvisten IL");

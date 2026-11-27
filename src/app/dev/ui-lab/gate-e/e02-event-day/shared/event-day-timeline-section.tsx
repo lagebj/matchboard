@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ScorebookMatchRow, TouchlineTimeline, TimelineItem } from "@/components/touchline";
 import { describeSummary, type E02EventDayProjection } from "./event-day-projection";
 
@@ -8,8 +9,9 @@ import { describeSummary, type E02EventDayProjection } from "./event-day-project
  * `ScorebookMatchRow` primitives production's `EventDayTimeline` uses, rendering the fixture
  * projection instead of a self-fetched list. Same section title ("Event day") as production.
  *
- * Selection (DIRECTIONAL, UI Lab only): each row's real `ScorebookMatchRow` `href` points at
- * this same page with a `match=<eventMatchId>` query value. Production's timeline passes no
+ * Selection (DIRECTIONAL, UI Lab only): each match item is one UI-Lab `Link` (wrapping the
+ * real, link-less `ScorebookMatchRow`) pointing at this same page with a `match=<eventMatchId>`
+ * query value. Production's timeline passes no
  * `href` at all and no production route or URL parameter selects an individual Event match —
  * see `docs/ui-lab/gate-e-w2-candidates/EVENT_AND_MATCH_IDENTITY_CONTRACT.md`.
  */
@@ -57,31 +59,43 @@ export function EventDayTimelineSection({
                     isLast={idx === day.items.length - 1}
                   >
                     <div data-e02-match-row={item.match.id} data-e02-squad-id={item.match.eventSquadId}>
-                      <ScorebookMatchRow presentation={item.presentation} href={selectHref(item.match.id)} />
-                      {/* Below the `medium` breakpoint the shared row's fixed score/trailer lanes leave
-                          too little width for the team names, which it ellipsizes ("Fjel…") — so the
-                          two squads ("Fjellsiden Blå"/"Fjellsiden Rød") become indistinguishable.
-                          This UI-Lab-only line repeats the full squad and opponent names, wrapping
-                          instead of truncating. The shared `ScorebookMatchRow` is not changed
-                          (BLK-E02-08). Hidden from assistive tech: the row link already exposes
-                          the full names. */}
-                      <p
-                        aria-hidden="true"
-                        data-e02-identity-line=""
-                        className="pl-[calc(2px+0.625rem)] text-[12px] leading-snug break-words text-[var(--text-soft)] medium:hidden"
+                      {/* E02-R4: the whole visual match item is ONE selection target. The shared
+                          `ScorebookMatchRow` is rendered WITHOUT `href` (so it emits no link of its
+                          own) inside a single UI-Lab-only `Link` that carries the same classes the
+                          row uses for its own link. The identity line, caption and "Selected" label
+                          therefore sit inside the same link — no second link, no nested
+                          interactive element. `ScorebookMatchRow` is unchanged. */}
+                      <Link
+                        href={selectHref(item.match.id)}
+                        scroll={false}
+                        aria-current={isSelected ? "true" : undefined}
+                        className="-mx-2 block rounded-[var(--tl-c-radius-control)] px-2 no-underline transition-colors hover:bg-[var(--tl-c-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                       >
-                        <span className="font-[600] text-[var(--foreground)]">{item.squad?.name ?? "Unknown squad"}</span>
-                        {" v "}
-                        {item.match.opponentName}
-                      </p>
-                      {item.caption ? (
-                        <p className="pl-[calc(2px+0.625rem)] text-[11px] text-[var(--text-muted)]">{item.caption}</p>
-                      ) : null}
-                      {isSelected ? (
-                        <p className="pl-[calc(2px+0.625rem)] text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-soft)]">
-                          Selected
-                        </p>
-                      ) : null}
+                        <ScorebookMatchRow presentation={item.presentation} />
+                        {/* Below the `medium` breakpoint the shared row's fixed score/trailer lanes
+                            leave too little width for the team names, which it ellipsizes ("Fjel…"),
+                            so the two squads become indistinguishable. This UI-Lab-only line repeats
+                            the full squad and opponent names, wrapping instead of truncating
+                            (BLK-E02-08 / E02-R2 remain open in the shared row). Hidden from
+                            assistive tech: the link's accessible name already has the full names. */}
+                        <span
+                          aria-hidden="true"
+                          data-e02-identity-line=""
+                          className="block pb-1.5 pl-[calc(2px+0.625rem)] text-[12px] leading-snug break-words text-[var(--text-soft)] medium:hidden"
+                        >
+                          <span className="font-[600] text-[var(--foreground)]">{item.squad?.name ?? "Unknown squad"}</span>
+                          {" v "}
+                          {item.match.opponentName}
+                        </span>
+                        {item.caption ? (
+                          <span className="block pl-[calc(2px+0.625rem)] text-[11px] text-[var(--text-muted)]">{item.caption}</span>
+                        ) : null}
+                        {isSelected ? (
+                          <span className="block pb-1 pl-[calc(2px+0.625rem)] text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-soft)]">
+                            Selected
+                          </span>
+                        ) : null}
+                      </Link>
                     </div>
                   </TimelineItem>
                 );

@@ -164,7 +164,7 @@ criterion was inferred from a requirement ID alone. How each is applied:
   section claimed the XRs were "applied as written". The independent review caught it (M1); the
   fixtures were redesigned as described.) What is not shown: Today/Match Details versions of the
   same match, which are outside this UI-Lab-only Event wave.
-- **XR-V02** — partially. Event → match → back preserves the Event, selection and focus, and the
+- **XR-V02** — directionally demonstrated only, not operationally verified (E02-R6). Event → match → back preserves the Event, selection and focus, and the
   outbound live-reporting link is the real route; the full cross-route journey through production
   workspaces cannot be demonstrated here (`BLOCKERS.md` BLK-E02-02).
 

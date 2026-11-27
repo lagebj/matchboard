@@ -11,7 +11,8 @@
   - `event-day-schedule.ts` — the one Event-day schedule all three fixtures observe (review M1).
   - `event-day-projection.ts` — pure, fixed-clock Event-day projection over the real `buildMatchPresentation()`.
   - `event-day-fixture-mount.tsx` — fixture-safe Event Detail mount (header, banner, tabs, URL state).
-  - `event-day-timeline-section.tsx` — real `TouchlineTimeline`/`TimelineItem`/`ScorebookMatchRow`.
+  - `event-day-timeline-section.tsx` — real `TouchlineTimeline`/`TimelineItem`/`ScorebookMatchRow`;
+    each match item is one UI-Lab link wrapping the link-less shared row and identity line (E02-R4).
   - `selected-match-context.tsx` — directional selected-match context with real outbound routes.
   - `event-day-aside.tsx` — squad progression and Event facts.
   - `e02-candidate-page.tsx` — shared page frame (UI-Lab chrome + production-width product surface).

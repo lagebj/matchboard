@@ -468,6 +468,47 @@ test.describe("E02 — responsive layout", () => {
     });
   }
 
+  // E02-R4: the identity line is part of the SAME selection target as the row (one link).
+  for (const width of [390, 320]) {
+    test(`mixed @ ${width}px: row and identity line are one selection target (tap, keyboard, focus, Back)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await openE02(page, MIXED);
+      const row = e02Row(page, mixedId("m05"));
+      // Exactly one link per match item, containing the identity line, no nested controls.
+      await expect(row.locator("a")).toHaveCount(1);
+      await expect(row.locator("a [data-e02-identity-line]")).toHaveCount(1);
+      await expect(row.locator("a").locator("a, button, input, select, textarea, [tabindex]")).toHaveCount(0);
+
+      // Tap the identity line → selects that match.
+      await row.locator("[data-e02-identity-line]").click();
+      await page.waitForURL(new RegExp(`match=${mixedId("m05")}`));
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m05"));
+      await expect(page.getByRole("heading", { name: "Selected match", exact: true })).toBeFocused();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+
+      // Tap the scorebook part of another row → selects that match.
+      await e02Row(page, mixedId("m07")).locator("a > div").first().click();
+      await page.waitForURL(new RegExp(`match=${mixedId("m07")}`));
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m07"));
+
+      // Browser Back restores the prior URL selection.
+      await page.goBack();
+      await expect(page).toHaveURL(new RegExp(`match=${mixedId("m05")}`));
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m05"));
+
+      // "Back to event day" clears it and returns focus to that match's single link.
+      await e02Panel(page).getByRole("button", { name: "Back to event day", exact: true }).click();
+      await expect(page).not.toHaveURL(/match=/);
+      await expect(row.locator("a")).toBeFocused();
+
+      // Keyboard activation of the same link.
+      await page.keyboard.press("Enter");
+      await page.waitForURL(new RegExp(`match=${mixedId("m05")}`));
+      await expect(page.getByRole("heading", { name: "Selected match", exact: true })).toBeFocused();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+    });
+  }
+
   test("desktop: the identity line is not shown (the shared row has room for the names)", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openE02(page, MIXED);
