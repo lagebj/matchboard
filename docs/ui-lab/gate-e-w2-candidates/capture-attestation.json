@@ -1,21 +1,26 @@
 {
-  "description": "Gate E W2 (register E02, Events / Event day) UI Lab visual-review evidence for the independent-review remediation head (fixtures v2: one shared Event day observed at 08:00/11:30/18:00; narrow-width identity line; no draft score in the selected panel). This run's Gate E Playwright acceptance step passed (48 tests: 20 unchanged E01 + 28 E02), alongside B08 (54), Gate C (164) and Gate D (146). Supersedes the attestation for run 46018113731 (head 696681c1, fixtures v1), whose rendered code no longer matches.",
-  "sourceCommitSha": "05223b7ff615f2004fcb46b4141ac4866de588ad",
-  "generatedAt": "2026-11-27T17:35:15.570Z",
+  "description": "Gate E W2 (register E02, Events / Event day) UI Lab visual-review evidence for the review-round-2 head (fixtures v2 unchanged; E02-R4: each match item is one UI-Lab link wrapping the link-less shared row and identity line). This run's Gate E Playwright acceptance step passed (50 tests: 20 unchanged E01 + 30 E02, incl. the E02-R4 single-selection-target tests at 390/320px), alongside B08 (54), Gate C (164) and Gate D (146). Supersedes runs 46040100407 (head 53dd5a0b, pre-R4 rendering) and 46018113731 (head 696681c1, fixtures v1).",
+  "sourceCommitSha": "2dd5283c4f0a19667cf2771aa7eb53e8bfd956fe",
+  "generatedAt": "2026-11-27T22:00:46.720Z",
   "environment": {
     "node": "v24.22.3",
     "platform": "linux",
     "ci": true
   },
-  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/46040100407",
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/46071828625",
   "ciWorkflowRunAttempt": 1,
   "ciArtifact": {
-    "id": 15220602469,
-    "name": "ui-lab-review-46040100407-1",
-    "expiresAt": "2026-12-04T17:35:15Z"
+    "id": 15234102326,
+    "name": "ui-lab-review-46071828625-1",
+    "expiresAt": "2026-12-04T22:00:46Z"
   },
-  "reviewedBranchHeadSha": "53dd5a0b6bd9700656cd9a8fad5522b0cef0e661",
+  "reviewedBranchHeadSha": "697f21e5777875b50aa0a5a02427222b0aa9a956",
   "supersedes": [
+    {
+      "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/46040100407",
+      "reviewedBranchHeadSha": "53dd5a0b6bd9700656cd9a8fad5522b0cef0e661",
+      "reason": "pre-E02-R4 rendering (identity line outside the row link)"
+    },
     {
       "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/46018113731",
       "reviewedBranchHeadSha": "696681c13505040eca934da3b57fe8f4df2d3080",
@@ -48,7 +53,7 @@
     "The capture script does not embed fixture identity in its manifest; captures are tied to the listed fixture versions/hashes through reviewedBranchHeadSha.",
     "continuity-match-selected captures select the same match (gate-e-w2-e02-m06, 11:20 Fjellsiden Bla v Kvisten IL) in all three states: the XR-S01 side-by-side comparison (scheduled / live / completed).",
     "Screenshots inspected directly in the implementation session are listed in REVIEW_RECORD.md.",
-    "BLK-E02-08 (issue #852) is still visible in these captures: the unmodified shared ScorebookMatchRow overlaps a scheduled row's kickoff time with its 'Scheduled' label, and truncates names below 600px (now complemented by a UI-Lab-only full-name identity line). Left for the owner's decision per independent review M3.",
+    "Open shared Match Presentation defects visible in these captures, NOT fixed and NOT authorized for change in this PR (owner decision, BLOCKERS.md Review round 2): E02-R1 / BLK-E02-08 (#852) scheduled kickoff time overlaps the Scheduled label; E02-R2 (#852) shared row truncates names below 600px (mitigated in E02 only by the UI-Lab identity line); E02-R3 (#853) unqualified FT on report-missing/draft rows (MIXED).",
     "Visual Authority Gate reports failure (AWAITING_APPROVAL) as designed for new CANDIDATE scenarios; no approval has been posted or assumed."
   ],
   "approvalStatus": "CANDIDATE",
@@ -94,11 +99,11 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "pngWidth": 1440,
-      "pngHeight": 1475,
+      "pngHeight": 1479,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-upcoming-desktop-dark-continuity-match-selected.png",
-      "sha256": "3487843ec09f24f5b254534e6116d8ef86ac712f76e9ed820cf9ba64f01d34f0"
+      "sha256": "14d5875ba2dc30bc3cbcb92391fee0327394c4d50a6b84814e148eb29e1552c5"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -122,11 +127,11 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "pngWidth": 1440,
-      "pngHeight": 1475,
+      "pngHeight": 1479,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-upcoming-desktop-light-continuity-match-selected.png",
-      "sha256": "8f40cd7c65a10b85b70ba42d157a9cbb7beda7b8b061dbfd8eacd2cfa7246b54"
+      "sha256": "e657a45bb337bc4dfa8417b28daea27ab0aaa25279e550cf5c411123091b05a5"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -136,11 +141,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2018,
+      "pngHeight": 2072,
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-upcoming-mobile-dark.png",
-      "sha256": "91fd38ab3ff3c39509fcd8381541e003a58c2b8b4158a6820a724beb0cf6bbd1"
+      "sha256": "1895315f029e994db1e1aa30ba05b4612d904d67a4acb5efa7ceca8c8fe56f54"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -150,11 +155,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2433,
+      "pngHeight": 2491,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-upcoming-mobile-dark-continuity-match-selected.png",
-      "sha256": "fa9a1a0328b7f3005238bc5ded93aa3f9b9d9712a288d53f3246235bc2a4be22"
+      "sha256": "71de2693a16505b0a8b79e248481171f038b1cd23474a876aa02d13d2cd3191e"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -164,11 +169,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2018,
+      "pngHeight": 2072,
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-upcoming-mobile-light.png",
-      "sha256": "762d398280b3f33320d6a0edad3320e70da824c19ff830e0a6058578bad97754"
+      "sha256": "e5e71b00e7bd26344cf53f0bd9d478b00ff06c793493e37d403a553085b2f623"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -178,11 +183,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2433,
+      "pngHeight": 2491,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-upcoming-mobile-light-continuity-match-selected.png",
-      "sha256": "a47ada55ddf6752c909a811e48316074e3b504fe9d73b0e584f7e3deca8cef1a"
+      "sha256": "bca648fd20b228e837b387cd1427986c570f6e969a967b1cd1d7b3b59304eb23"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -192,11 +197,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2095,
+      "pngHeight": 2149,
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-upcoming-narrow-dark.png",
-      "sha256": "de3997e46e77ba84d112dce8ae28f8aff6238cbe3efcfcf810f9dc1e584b93cc"
+      "sha256": "3861b16ca033e750aba124c2551cd87b3ccd61d232095b5a611f9221f6e39784"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -206,11 +211,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2510,
+      "pngHeight": 2568,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-upcoming-narrow-dark-continuity-match-selected.png",
-      "sha256": "5baf7ba7921a4ecfdebc4c301e741fd54307528565760fa5fd3985b47b28d2ab"
+      "sha256": "3a12862185cd19ebdc0792953fd826d4e952b923c763b66b2c7b46e016ba843e"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -220,11 +225,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2095,
+      "pngHeight": 2149,
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-upcoming-narrow-light.png",
-      "sha256": "9666f5a8c20793c88f5257a83a0d798178c871ed63a1258dae6c7a31e319344e"
+      "sha256": "7bb56bd65377232856542d2c79d949da49fa81aa94569172f431ba4d8131efef"
     },
     {
       "scenarioId": "GATE-E-W2-E02-UPCOMING",
@@ -234,11 +239,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2510,
+      "pngHeight": 2568,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-upcoming-narrow-light-continuity-match-selected.png",
-      "sha256": "e10b0ccb83370a1884130f2ba7090e96c9c04757b496c5217aaa9b2eb3c65b2f"
+      "sha256": "0dee6ed6a086d933b358130afe608f59137c5848b8f75f88b2268f93c1e4992c"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -262,11 +267,11 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "pngWidth": 1440,
-      "pngHeight": 1518,
+      "pngHeight": 1522,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-mixed-progression-desktop-dark-continuity-match-selected.png",
-      "sha256": "915d0ac6c3890f6c75766089df7da36c609837a86e4603fde9fa62fcbd2b8e32"
+      "sha256": "a6691a13e8f66d8478cd05d30e1ea500539913bdadf00181c6267ecd39f5f1f7"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -290,11 +295,11 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "pngWidth": 1440,
-      "pngHeight": 1518,
+      "pngHeight": 1522,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-mixed-progression-desktop-light-continuity-match-selected.png",
-      "sha256": "1b6cd74041453d52f662859b9569a6faee8a9f8c7c850f043b9a6a3a87c5d047"
+      "sha256": "b3043a2e21808c569ac8565d26d3d3f0b059e320923292f1347474af6f02048e"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -304,11 +309,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2106,
+      "pngHeight": 2160,
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-mixed-progression-mobile-dark.png",
-      "sha256": "3738e1cd30ea146385a8e2fd8668dc12c514c1b35ee22c5de7fe0eff5bf9efaa"
+      "sha256": "162a4c690c1dfb395bdf53d4f9f27a812eb64cf0a3c15139fa05978c9148aee0"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -318,11 +323,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2527,
+      "pngHeight": 2585,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-mixed-progression-mobile-dark-continuity-match-selected.png",
-      "sha256": "ce67dd2e59bef17ed83d8823e022be3c51811911c4f3f988ebee2ef8576a95cc"
+      "sha256": "69f9d827600aaab4710dd1969783958a7a1fd30303b66c0437c178e4383f8221"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -332,11 +337,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2106,
+      "pngHeight": 2160,
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-mixed-progression-mobile-light.png",
-      "sha256": "e344ec6324b78a1880b25d141b9ea661ad9c297a56ba2181fac2768adb3110e9"
+      "sha256": "583f4aa3912dd3f2fb2dfa3a5e58d991b214f58829e1de1197bcff276b4050ab"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -346,11 +351,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2527,
+      "pngHeight": 2585,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-mixed-progression-mobile-light-continuity-match-selected.png",
-      "sha256": "00e7f8ace017e11d401d6e94f564821f1b97fa7aba60e3a5e8c5acad45f229f1"
+      "sha256": "36102c37b6a40ea572b799c8546bcb0b2c717ac7ce80a5efbbfa679a3b1a58de"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -360,11 +365,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2216,
+      "pngHeight": 2270,
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-mixed-progression-narrow-dark.png",
-      "sha256": "8e045c0f2f473dc881c33f3db587eb26b1066c47487f9e62cee6123a990c7f79"
+      "sha256": "42ec6f19f5888caf53de953f3024ae270f731b132ece591157bbff769be9d9c2"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -374,11 +379,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2697,
+      "pngHeight": 2755,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-mixed-progression-narrow-dark-continuity-match-selected.png",
-      "sha256": "1464ea47390febf2735caedb333ae0b0f838e5ee807ee1c403fafa986e6e2eaa"
+      "sha256": "a911c3a0f41767508dab9cd7e0fe07087e6632ac0186f273b6827566ec8f1f17"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -388,11 +393,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2216,
+      "pngHeight": 2270,
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-mixed-progression-narrow-light.png",
-      "sha256": "d731b21e7b6aadb991e1ac341c485844334815e31caf0aea47c790cdf4ce76d2"
+      "sha256": "c48a23334cf89e341881a1579ed95d858ffe3eed37a02fc515871d3c8f9600f3"
     },
     {
       "scenarioId": "GATE-E-W2-E02-MIXED",
@@ -402,11 +407,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2697,
+      "pngHeight": 2755,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-mixed-progression-narrow-light-continuity-match-selected.png",
-      "sha256": "39a66bc4176ecdec3fd06143b96d538cc1b68a0f1f1ae16fe130a5b2a42de2ce"
+      "sha256": "c790f6edc10054ed92a53cb57637dcd330c1d007bf0a847b6128982d01502263"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -430,11 +435,11 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "pngWidth": 1440,
-      "pngHeight": 1504,
+      "pngHeight": 1508,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-completed-desktop-dark-continuity-match-selected.png",
-      "sha256": "9738ceee13bd5d15134679bbd2244f8f02e34122fa74f3cb287903a193498534"
+      "sha256": "d7939a9c0592fb6ebc0627fd575bf5376cce0617a4081260516b338eaf0e31b4"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -458,11 +463,11 @@
       "viewportWidth": 1440,
       "viewportHeight": 900,
       "pngWidth": 1440,
-      "pngHeight": 1504,
+      "pngHeight": 1508,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-completed-desktop-light-continuity-match-selected.png",
-      "sha256": "226842cfcb4b7fcc33c16c3aae83096d06f30da431ff21d3cd586a3255c3790c"
+      "sha256": "1ab1bd1ff2a558c1e8e1c9046cec0770c3a655960d465749e400857ef9eb219d"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -472,11 +477,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2060,
+      "pngHeight": 2114,
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-completed-mobile-dark.png",
-      "sha256": "b50466d11f93ec0e8286802f0006221f2ec0f3bbc3a25150fcf1799fd80db0eb"
+      "sha256": "a282460701e8b370153115c6a8586479ce225b4ab71b7b7998bbbed947b6e9a1"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -486,11 +491,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2441,
+      "pngHeight": 2499,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-completed-mobile-dark-continuity-match-selected.png",
-      "sha256": "785f1a32cb17f39cffca132aa11dd55fb186b3feb73da587200efc22380a3595"
+      "sha256": "4745c19d7c7d443ba3baf6ef64b5d105f0b4a4d744cc7709c5b376756a9b62be"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -500,11 +505,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2060,
+      "pngHeight": 2114,
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-completed-mobile-light.png",
-      "sha256": "a2cac44e1ff3eaff4b14caa8bc346e8544d381d0e9b154399af6f30bd156415f"
+      "sha256": "7caf67c4846c0791b1ed99e39b8668bf279d41e32832df5965231181257c626e"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -514,11 +519,11 @@
       "viewportWidth": 390,
       "viewportHeight": 844,
       "pngWidth": 390,
-      "pngHeight": 2441,
+      "pngHeight": 2499,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-completed-mobile-light-continuity-match-selected.png",
-      "sha256": "beaeff28a112f35e10d266de9c3e394eaf2632e6deb5b8e7232762bbfbf17a0d"
+      "sha256": "5b64fd5a2b3fe8be4227be259bc353679691ba39ea219bdca732d3ba2a1d8451"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -528,11 +533,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2154,
+      "pngHeight": 2208,
       "theme": "dark",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-completed-narrow-dark.png",
-      "sha256": "b8c08512a87840480bc7f7dd856a5fd245dd3b081d9550f51222f7604061dea7"
+      "sha256": "4dd5d98f4022aff92c04101d8acaeec69f64cedf545e95887cae7befa14842a8"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -542,11 +547,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2595,
+      "pngHeight": 2653,
       "theme": "dark",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-completed-narrow-dark-continuity-match-selected.png",
-      "sha256": "05d50a2e180a7a2a73ab7a31f9ad06fc19a14b6bd6355de76aa8b361b37a018d"
+      "sha256": "684bf32ce41d96916579c8b9794ac88cf20019ed2f722149a6042043c622b404"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -556,11 +561,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2154,
+      "pngHeight": 2208,
       "theme": "light",
       "interactionState": "initial",
       "file": "gate-e-w2-e02-completed-narrow-light.png",
-      "sha256": "75e91e4be84807d306edff04331296b28552d99e6ce9ff99068fcff318cf284c"
+      "sha256": "9d8a1c26efe6ce617c3c1c1dfd2edaf526de9daf38c953e6be47d166398f91e0"
     },
     {
       "scenarioId": "GATE-E-W2-E02-COMPLETED",
@@ -570,11 +575,11 @@
       "viewportWidth": 320,
       "viewportHeight": 720,
       "pngWidth": 320,
-      "pngHeight": 2595,
+      "pngHeight": 2653,
       "theme": "light",
       "interactionState": "continuity-match-selected",
       "file": "gate-e-w2-e02-completed-narrow-light-continuity-match-selected.png",
-      "sha256": "d490396faef4e60d5bd7a3e88fe6bd783a34c72748bae280be7dd9735bf0d9f9"
+      "sha256": "3e4ba0e152a11ce3230140935161a37901f0d33d094c681ea091775d4fcd5418"
     }
   ]
 }

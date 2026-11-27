@@ -129,7 +129,7 @@ remaining risk, authority, disposition.
 | E02-R1 | MAJOR | Shared `ScorebookMatchRow`: scheduled kickoff time in the 2.75rem score lane overlaps "Scheduled" at every width (= BLK-E02-08, #852) | None — shared production component | Visible in every scheduled row of the CI captures | Unfixed; shared-component change not authorized (`BLOCKERS.md`) | **Open — owner decision** |
 | E02-R2 | MAJOR | Shared row ellipsizes squad/opponent names below 600px | None in the shared row; the UI-Lab identity line (round 1 M2) mitigates it inside E02 only | 320/390px captures; Playwright truncation tests on the identity line | Canonical row still truncates on every other surface; not authorized | **Open — owner decision** |
 | E02-R3 (#853) | MAJOR | `matchPresentationPhase()` maps `played`/`report_incomplete` to `final`, so the row prints unqualified "FT" without a confirmed result | None — shared presentation contract | REPORT MISSING / REPORT DRAFT rows in MIXED captures show "FT" | Affects ~10 consumers; needs a contract decision; not authorized | **Open — owner decision** |
-| E02-R4 | MINOR | Identity line sat outside the row's link (tapping it did nothing) | One UI-Lab `Link` per match item wrapping the link-less shared row, identity line, caption and "Selected" label (`event-day-timeline-section.tsx`); shared row unchanged | Component test (one link per item, identity line inside, zero nested controls, correct `match` href); Playwright at 390/320px (identity-line tap, row tap, Enter, focus to context, Back-to-event-day focus return, browser Back, Event heading unchanged) | None known | **Fixed** (CI result below) |
+| E02-R4 | MINOR | Identity line sat outside the row's link (tapping it did nothing) | One UI-Lab `Link` per match item wrapping the link-less shared row, identity line, caption and "Selected" label (`event-day-timeline-section.tsx`); shared row unchanged | Component test (one link per item, identity line inside, zero nested controls, correct `match` href); Playwright at 390/320px (identity-line tap, row tap, Enter, focus to context, Back-to-event-day focus return, browser Back, Event heading unchanged) | None known | **Fixed** (CI run 46071828625: 50 passed) |
 | E02-R5 | MINOR | PR description still described fixture-v1 numbers | PR body rewritten from the v2 fixtures, numbers cross-checked against `shared/event-day-schedule.ts`, the three fixture files and the projection tests | PR #850 body | None | **Fixed** |
 | E02-R6 | Docs | XR-V02 overstated | Verified = context preservation inside the directional candidate; Not verified = production Event Match Detail → Live Reporting → return journey (no such route, BLK-E02-02). Stated in the identity contract, VISUAL_VS_CURRENT, BLOCKERS, SOURCE_RECONCILIATION §7, here and the PR body | — | — | **Fixed** |
 
@@ -148,6 +148,18 @@ in `BLOCKERS.md` "Review round 2".
 Gate E component tests 29 passed (including the new R4 structure test); Gate E node tests 109
 passed; ESLint clean; `tsc --noEmit` (4 GB heap) exit 0. Fixture records were not changed, so
 fixture versions and hashes stay at v2.
+
+### CI evidence for round 2
+
+CI capture run 46071828625 (attempt 1) on head `697f21e5`: Gate E Playwright **50 passed** (20
+unchanged E01 + 30 E02, including the two new E02-R4 single-selection-target tests at 390/320px);
+B08 54, Gate C 164, Gate D 146 passed. 36 E02 captures; artifact `ui-lab-review-46071828625-1`
+downloaded and 36/36 sha256 recomputed from the PNG bytes, matching the run manifest —
+`capture-attestation.json` attests this run (supersedes 46040100407 and 46018113731). Inspected
+directly: mixed-progression narrow-dark continuity-selected (320px) — each match item renders as
+one block with the identity line inside it, the selected item is highlighted, the Event heading is
+unchanged; R1 (time/label overlap), R2 (truncated shared row) and R3 ("FT" on report-missing/draft
+rows) remain visible, as expected for unfixed shared defects.
 
 ## Final disposition (after review round 2)
 
