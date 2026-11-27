@@ -96,3 +96,25 @@ Gate D regression status were confirmed. Findings and resolution:
 Local verification after remediation: Gate E node tests 109 passed; Gate E component tests 28
 passed; ESLint clean; `tsc --noEmit` (4 GB heap) exit 0. CI and capture results for the remediated
 head are recorded below and in `capture-attestation.json`.
+
+### CI evidence for the remediated head
+
+CI capture run 46040100407 (attempt 1) on head `53dd5a0b`: Gate E Playwright **48 passed** (20
+unchanged E01 + 28 E02, including the new 390/320px truncation tests and the XR-S01 continuity
+group); B08 54, Gate C 164, Gate D 146 passed. 36 E02 captures (3 states × 6 initial + 6
+`continuity-match-selected`); artifact `ui-lab-review-46040100407-1` downloaded and 36/36 sha256
+recomputed from the PNG bytes, matching the run manifest — `capture-attestation.json` now attests
+this run and records the superseded v1 run.
+
+Screenshots inspected directly: mixed-progression narrow-dark (320px — every row shows
+"Fjellsiden Blå/Rød v Opponent" in full under the truncated shared row), upcoming desktop-dark
+continuity-selected (m06 Scheduled, "Start live reporting"), completed mobile-dark
+continuity-selected (m06 2–1, "Completed — report locked", no live-reporting entry). BLK-E02-08's
+overlap is still visible on scheduled rows, as expected.
+
+## Final disposition
+
+`READY_FOR_OWNER_VISUAL_REVIEW` — with one explicit owner decision pending: **BLK-E02-08 /
+issue #852** (shared `ScorebookMatchRow` scheduled-row time/label overlap and name truncation).
+Either require the shared-component fix before approving these goldens, or approve them with that
+defect scoped out. No approval has been posted or assumed.

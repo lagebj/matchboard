@@ -79,7 +79,7 @@ checkout, outside the project root; the first attempt also stopped on Next.js's 
 upgrade notice (W1 BLK-E01-02 saw the same notice). Independently, this devcontainer is known not to
 complete Playwright hydration (HMR WebSocket). The E02 Playwright tests and captures were therefore
 not run locally; the CI `ui-lab-visual-review.yml` run is the browser evidence. That run
-(46018113731, attempt 1) has since completed: Gate E Playwright 42 passed, 24 E02 captures — see
+for the current head is 46040100407 (Gate E Playwright 48 passed, 36 E02 captures) — see
 `capture-attestation.json`.
 
 ### BLK-E02-07 — `tsc` with default heap runs out of memory here
