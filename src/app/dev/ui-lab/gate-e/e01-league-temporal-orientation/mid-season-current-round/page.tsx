@@ -25,6 +25,11 @@ export default function E01MidSeasonCurrentRoundPage() {
         E01 &middot; Mid-season state
       </h2>
       <Suspense fallback={<div className="p-4 text-sm text-[var(--text-muted)]">Loading…</div>}>
+        {/* Matches the real app shell's own container width/horizontal-padding classes exactly
+            (`src/app/(app)/layout.tsx`: `max-w-[96rem] px-4 ... sm:px-6`). Top padding is
+            deliberately `pb-8` only (no `pt-*`) rather than copying the shell's `py-5` verbatim —
+            the UI-Lab chrome block above already supplies its own top spacing (`pt-8`), and
+            stacking both would double it; this is a disclosed difference, not an overlooked one. */}
         <div className="mx-auto w-full max-w-[96rem] px-4 pb-8 sm:px-6">
           <LeagueFixtureMount periods={periods} now={now} />
         </div>

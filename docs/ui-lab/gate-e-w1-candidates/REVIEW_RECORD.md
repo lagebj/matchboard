@@ -88,11 +88,40 @@ verify these fixes before finalizing — see below.
 
 ## Review round 3 (fresh independent review of the round-2 remediation)
 
-<!-- Filled in after a freshly-spawned review agent inspects the remediated code, tests, and a
-new CI capture run. Not self-assessed. -->
+A genuinely fresh review agent — no memory of either prior round or this implementation session —
+independently re-verified every one of round 2's six findings against the actual remediated code,
+not against this document's own account of them:
+
+| ID | Disposition |
+|---|---|
+| E01-R1 | **CONFIRMED CORRECT** — independently recomputed every `offsetDays()` value in Node against both fixtures; all labels now match exactly. Read `fixture-temporal-integrity.test.ts` and confirmed its invariants would genuinely have caught every original bug, not just that it passes now. Ran it: 21/21 pass. |
+| E01-R2 | **CONFIRMED CORRECT, not cosmetic** — confirmed the product-surface container's width-governing classes (`max-w-[96rem] px-4 ... sm:px-6`) match `src/app/(app)/layout.tsx` verbatim; confirmed the new Playwright width assertion (`> 1200px` at 1440px viewport) is substantive, not tautological (the old 720px cap would fail it). |
+| E01-R3/R4/R5 | **CONFIRMED CORRECT** — re-grepped the whole folder; no remaining stale match-count, "Create match omitted," or dangling-CI-run claim outside historical remediation prose correctly describing a past, now-fixed state. |
+| E01-R6 | **CONFIRMED CORRECT, genuine fix not a relabel** — independently re-read XR-T01's real source text and confirmed it matches this PR's quote; confirmed the new browser-Back/direct-URL/keyboard tests assert on real resulting state (URL, content), not merely reachability. |
+
+Also independently verified: `fixtureVersion`/`fixtureSha256` discipline (genuinely recomputed,
+not copied); zero regressions (33/33 + 11/11 Gate E tests, lint, typecheck all clean); zero
+production code touched (`git diff` against `src/components/fixtures/` and
+`league-view-model.ts` empty); no self-approval (`candidate_manifest.json`'s `approval` fields
+still `null`, no `/visual-approve` string in this PR's diff); capture-attestation integrity
+(downloaded the real CI artifact, spot-checked 4/12 hashes, visually confirmed both fixes render
+correctly in the real screenshots).
+
+**New findings (neither prior review caught):** two trivial MINORs — (1) the product-surface
+wrapper's `pb-8` (vs. the real app shell's `py-5`) was undisclosed as a deliberate choice (the
+UI-Lab chrome block above already supplies its own top padding, so copying `py-5` verbatim would
+double it) — fixed by adding an explicit disclosure comment, not by copying the class verbatim,
+since doing so would reintroduce doubled spacing; (2) a process note to confirm the newest CI run
+on the final commit goes green before approval (routine housekeeping, not a code defect).
+
+**Summary:** 0 BLOCKING, 0 MAJOR, 2 trivial MINOR (addressed). **Recommendation: ready for owner
+Visual Authority review.**
 
 ## Disposition
 
-Pending review round 3's outcome — see above. Round 1 and round 2's own findings are fully
-remediated with no unaddressed BLOCKING or MAJOR item as of this writing. Owner Visual Authority
-approval has not been requested or assumed by this review.
+`READY_FOR_OWNER_VISUAL_REVIEW`. Three review rounds (one self-contained independent review, one
+external review, one fresh independent re-review of that remediation) found and this PR fixed: one
+production-fidelity MAJOR (header), two further MAJORs (temporal-label drift, desktop-width cap),
+and several MINORs/an acceptance-language clarification — all confirmed genuinely resolved, none
+merely asserted. No unaddressed BLOCKING or MAJOR item remains. Owner Visual Authority approval
+has not been requested or assumed by this review.
