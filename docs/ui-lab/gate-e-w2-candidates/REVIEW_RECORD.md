@@ -17,9 +17,17 @@ be read as a PASS granted by anyone other than the implementer.
 | `npm run validate -- --fast` | every step passed except `typecheck`, which hit a V8 heap OOM (BLK-E02-07) |
 | `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit` | exit 0 |
 | `npx eslint src/app/dev/ui-lab/gate-e e2e/ui-lab-gate-e.spec.ts scripts/ui-lab-visual-review.mjs` | clean |
-| Gate E Playwright (`--project=ui-lab-gate-e`) | **not run locally** (BLK-E02-06) — CI result recorded below once available |
-| UI Lab capture (`scripts/ui-lab-visual-review.mjs`) | **not run locally** — CI result in `capture-attestation.json` once available |
-| `npm run build` | not run locally (known sandbox OOM); CI Build job is authoritative |
+| Gate E Playwright (`--project=ui-lab-gate-e`) | not run locally (BLK-E02-06). **CI run 46018113731 attempt 1 (head `696681c1`): 42 passed** (20 E01 + 22 E02); B08 164, Gate C 146 passed, Gate D step success in the same run |
+| UI Lab capture (`scripts/ui-lab-visual-review.mjs`) | not run locally. **CI run 46018113731: success, 24 E02 captures**; artifact downloaded, 24/24 hashes recomputed from PNG bytes and matched, widths match viewports (`capture-attestation.json`) |
+| `npm run build` | not run locally (known sandbox OOM); CI checks on head `696681c1` were green except the expected `Visual Authority Gate` (AWAITING_APPROVAL) |
+
+## Finding from inspecting the real captures
+
+Inspecting the CI screenshots found one visual defect the jsdom/Playwright assertions did not
+catch: in the unmodified production `ScorebookMatchRow`, scheduled rows' kickoff time overlaps the
+"Scheduled" label at every width, and on 390/320px the opponent name truncates ("Nordbye…").
+Recorded as BLK-E02-08 (issue #852). It is a shared-component defect outside this wave's scope, but
+it weakens E02's mobile opponent readability, so the owner should see it before approving.
 
 ## Implementer self-audit against the 24 review questions
 
@@ -40,13 +48,13 @@ be read as a PASS granted by anyone other than the implementer.
 | 13 | Canonical presentation primitives reused? | Yes | Provenance table in `VISUAL_VS_CURRENT.md`; Oslo override of two presentation fields disclosed |
 | 14 | Directional behaviour disclosed? | Yes | `VISUAL_VS_CURRENT.md`, identity contract, manifest note |
 | 15 | Fixtures temporally/numerically consistent? | Yes | 17 assertions × 3 fixtures |
-| 16 | Desktop uses representative production width? | Expected yes | `max-w-[96rem]` container; Playwright width test pending CI |
-| 17 | Mobile dark usable? | Unverified until CI | Playwright mobile-dark test + captures pending |
-| 18 | Browser tests verify identity continuity? | Written; result pending CI | `e2e/ui-lab-gate-e.spec.ts` E02 groups |
-| 19 | Real Server Actions excluded? | Yes by construction; browser proof pending CI | no action imports; `next-action` header test |
-| 20 | Screenshots consistent with final code? | Pending | `capture-attestation.json` must cite the run for the final head |
-| 21 | Capture hashes independently verified? | Pending | to be recomputed from the downloaded artifact |
-| 22 | Gate E W1 / Match Presentation tests stable? | Yes locally (Vitest); W1 Playwright pending CI | E01 Playwright tests unchanged in the spec |
+| 16 | Desktop uses representative production width? | Yes | `max-w-[96rem]` container; CI Playwright width test passed; desktop captures 1440px wide |
+| 17 | Mobile dark usable? | Mostly — one defect | CI mobile-dark and overflow tests passed; captures show scheduled-row time/label overlap and opponent truncation from the shared `ScorebookMatchRow` (BLK-E02-08, #852) |
+| 18 | Browser tests verify identity continuity? | Yes | E02 identity group passed in CI run 46018113731 |
+| 19 | Real Server Actions excluded? | Yes | no action imports; `next-action` header test passed in CI |
+| 20 | Screenshots consistent with final code? | Yes | run on head `696681c1`; later commits change only docs/attestation |
+| 21 | Capture hashes independently verified? | Yes, by the implementer | 24/24 recomputed from downloaded PNG bytes; an independent reviewer should re-check |
+| 22 | Gate E W1 / Match Presentation tests stable? | Yes | full Vitest suite green; all 20 E01 Playwright tests passed in CI |
 | 23 | Docs avoid claiming unimplemented production functionality? | Intended yes | Reviewer should check "directional" labelling |
 | 24 | Earlier approved goldens unaffected? | Yes | No shared component or earlier candidate file changed; only the shared Gate E index/spec gained E02 entries |
 
@@ -58,3 +66,12 @@ be read as a PASS granted by anyone other than the implementer.
 - REPORTED-as-completed is an interpretation of ADR-0001/0003; `EventMatchesTab` still shows it as
   "Reported" without a Complete action.
 - The finalised banner's last sentence differs from production copy (Unfinalize is not rendered).
+- BLK-E02-08: scheduled-row overlap/truncation in the shared `ScorebookMatchRow`, visible in the
+  UPCOMING and MIXED captures.
+
+## Implementer disposition
+
+`READY_FOR_INDEPENDENT_REVIEW`. CI is green apart from the expected Visual Authority Gate; captures
+are attested. Not marked ready for owner visual review by the implementer because the captures show
+BLK-E02-08, which the owner and reviewer should weigh first (accept as a disclosed shared-component
+defect tracked in #852, or require it fixed before approval).

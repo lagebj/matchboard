@@ -21,13 +21,19 @@
       ],
       "lifecycle": "production",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["E02", "XR-T01", "XR-S01", "XR-V02"],
+      "requirementRefs": [
+        "E02",
+        "XR-T01",
+        "XR-S01",
+        "XR-V02"
+      ],
       "experienceContractRef": "docs/ui-lab/gate-e-w2-candidates/SCENARIO_REGISTER.md row GATE-E-W2-E02-UPCOMING",
       "dataContractRef": "docs/ui-lab/gate-e-w2-candidates/DATA_TRUTH_AND_FIXTURES.md",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY for a rendered comparison — production Event day renders only after an authenticated fetch; current behaviour is described from code in CURRENT_STATE_AUDIT.md.",
       "knownGaps": [
         "BLK-E02-01: production EventDayTimeline's lifecycle projection differs from the candidate's (live/draft/reported/cancelled/simultaneous handling).",
-        "BLK-E02-02: match selection and the selected-match context are directional; production has no Event Match Detail route."
+        "BLK-E02-02: match selection and the selected-match context are directional; production has no Event Match Detail route.",
+        "BLK-E02-08 (issue #852): in the unmodified production ScorebookMatchRow, scheduled rows show the kickoff time overlapping the Scheduled label, and the opponent name truncates at 390/320px. Visible in this candidate's captures; not fixed in this UI-Lab-only wave."
       ],
       "approval": null
     },
@@ -50,13 +56,19 @@
       ],
       "lifecycle": "production",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["E02", "XR-T01", "XR-S01", "XR-V02"],
+      "requirementRefs": [
+        "E02",
+        "XR-T01",
+        "XR-S01",
+        "XR-V02"
+      ],
       "experienceContractRef": "docs/ui-lab/gate-e-w2-candidates/SCENARIO_REGISTER.md row GATE-E-W2-E02-MIXED",
       "dataContractRef": "docs/ui-lab/gate-e-w2-candidates/DATA_TRUTH_AND_FIXTURES.md",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY for a rendered comparison — see CURRENT_STATE_AUDIT.md.",
       "knownGaps": [
         "BLK-E02-01 (as above). The live match is shown from a canonical ACTIVE session record; EventMatchWithReport carries no live score, so none is shown.",
-        "BLK-E02-02: the 'Report and lineup in Matches tab' link opens the Event's Matches tab but cannot target the specific match (production has no anchor)."
+        "BLK-E02-02: the 'Report and lineup in Matches tab' link opens the Event's Matches tab but cannot target the specific match (production has no anchor).",
+        "BLK-E02-08 (issue #852): in the unmodified production ScorebookMatchRow, scheduled rows show the kickoff time overlapping the Scheduled label, and the opponent name truncates at 390/320px. Visible in this candidate's captures; not fixed in this UI-Lab-only wave."
       ],
       "approval": null
     },
@@ -78,7 +90,12 @@
       ],
       "lifecycle": "production",
       "assistantCoachState": "NOT_APPLICABLE",
-      "requirementRefs": ["E02", "XR-T01", "XR-S01", "XR-V02"],
+      "requirementRefs": [
+        "E02",
+        "XR-T01",
+        "XR-S01",
+        "XR-V02"
+      ],
       "experienceContractRef": "docs/ui-lab/gate-e-w2-candidates/SCENARIO_REGISTER.md row GATE-E-W2-E02-COMPLETED",
       "dataContractRef": "docs/ui-lab/gate-e-w2-candidates/DATA_TRUTH_AND_FIXTURES.md",
       "baselineAssetRef": "NO_BASELINE_CAPABILITY for a rendered comparison — see CURRENT_STATE_AUDIT.md.",

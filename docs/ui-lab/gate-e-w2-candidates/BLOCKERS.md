@@ -15,8 +15,8 @@ ADR-0001/0003), labels cancelled matches LATER, has no tie-break for equal kicko
 one NEXT. The candidate's projection shows the corrected behaviour in UI Lab only
 (`TEMPORAL_AND_LIFECYCLE_AUDIT.md`). Production adoption needs a separate, authorised change to
 that component (and, ideally, an exported pure projection shared by production and UI Lab so the
-two cannot drift). Severity: important for E02 production conformance. Suggested follow-up: a
-GitHub issue for the timeline defects (not filed by this session — see "Not done" below).
+two cannot drift). Severity: important for E02 production conformance. Filed together with
+BLK-E02-03 as issue #851.
 
 ### BLK-E02-02 — No Event Match Detail destination or per-match selection exists
 
@@ -48,6 +48,19 @@ components merely to enable fixture injection).
 at a time and remounting re-fetches, so no divergence was found in the normal flow; recorded, not a
 second source of truth.
 
+### BLK-E02-08 — `ScorebookMatchRow` scheduled rows: kickoff time overlaps "Scheduled"; opponent truncates on mobile
+
+Found by inspecting this PR's real CI captures (run 46018113731), not by code reading. In the
+`scheduled` phase the production row renders the kickoff time (e.g. "12:40") in the 2rem
+`tl-score-list` style inside a `w-[2.75rem]` value lane sized for a score; the time overflows over
+the `w-[4.5rem]` "Scheduled" trailer at every width, and at 390/320px the `shrink-0` date span
+squeezes the opponent to an ellipsis ("Nordbye…"). This affects every scheduled row in UPCOMING
+and the three upcoming rows in MIXED. It is in the unmodified shared Touchline component (production
+Event day renders it the same way), so it is not fixed in this UI-Lab-only wave: a fix is a
+Visual-Authority-gated shared-component change. Filed as issue #852. Severity for E02: MAJOR for
+mobile opponent readability (spec §10 requires opponent to stay visible); the full opponent name
+is still shown in the selected-match context.
+
 ### Pre-existing residue surfaced
 
 The header "Back" link reproduces production's bare `/events` href (ARR-0035, as in W1).
@@ -61,8 +74,9 @@ package (next/package.json)") because the worktree's `node_modules` is a symlink
 checkout, outside the project root; the first attempt also stopped on Next.js's one-time security
 upgrade notice (W1 BLK-E01-02 saw the same notice). Independently, this devcontainer is known not to
 complete Playwright hydration (HMR WebSocket). The E02 Playwright tests and captures were therefore
-not run locally; the CI `ui-lab-visual-review.yml` run is the browser evidence. Results are recorded
-in `REVIEW_RECORD.md` and `capture-attestation.json` only after that run has completed.
+not run locally; the CI `ui-lab-visual-review.yml` run is the browser evidence. That run
+(46018113731, attempt 1) has since completed: Gate E Playwright 42 passed, 24 E02 captures — see
+`capture-attestation.json`.
 
 ### BLK-E02-07 — `tsc` with default heap runs out of memory here
 
@@ -73,5 +87,6 @@ authoritative.
 
 ## Not done in this session
 
-- No GitHub issue was filed for BLK-E02-01/03 — they are recorded here for the owner to triage.
+- BLK-E02-01/03 → issue #851; BLK-E02-08 → issue #852. BLK-E02-02/04/05 are product/architecture
+  decisions recorded here, not filed.
 - No owner Visual Authority approval was requested, posted or assumed.

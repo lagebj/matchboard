@@ -25,7 +25,7 @@ numbers) that E02 prohibits.
    per-squad progression, and an in-place selected-match context that keeps the Event heading and
    links to the real live/report destinations.
 4. **User-impact proof:** component and browser tests listed in `SCENARIO_REGISTER.md`; screenshots
-   from the CI capture run recorded in `capture-attestation.json` (once that run exists).
+   from CI capture run 46018113731, recorded in `capture-attestation.json`.
 5. **Accepted trade-offs:** the selection parameter and context panel are UI-Lab-only; the report
    link opens the Matches tab, not the specific match; production admin blocks are omitted.
 
@@ -43,6 +43,7 @@ numbers) that E02 prohibits.
 | Day summary line, per-squad progression | Directional-only UI Lab presentation |
 | Match selection (`match` query) and selected-match context | Directional-only UI Lab interaction |
 | Event Match Detail destination | Missing production integration — not shown |
+| Scheduled-row layout | Production `ScorebookMatchRow` defect visible in captures (time overlaps "Scheduled"; opponent truncates on mobile) — BLK-E02-08, issue #852 |
 
 **This candidate is not 100% production parity.** It is the proposed E02 Event-day experience built
 from real Matchboard presentation primitives, not a screenshot of how production Event Detail looks
