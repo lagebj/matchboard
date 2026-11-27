@@ -15,7 +15,13 @@
 
 - `src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/mid-season-current-round/__tests__/{fixtures.test.ts,page.test.tsx}`
 - `src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/season-closed-no-current-round/__tests__/{fixtures.test.ts,page.test.tsx}`
-- `e2e/ui-lab-gate-e.spec.ts` — real-browser navigation/interaction/responsive assertions.
+- `src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/__tests__/fixture-temporal-integrity.test.ts`
+  (E01-R1 remediation) — independent reconciliation layer verifying every period/round display
+  label agrees with its real `startDate`/`endDate`/`startsAt` record.
+- `e2e/ui-lab-gate-e.spec.ts` — real-browser navigation/interaction/responsive assertions,
+  including (E01-R6 remediation) direct-URL round restoration, browser Back context restoration,
+  real keyboard operation of the season rail and season selector, and (E01-R2 remediation) a
+  1440px desktop product-surface width assertion.
 
 ## Capture/CI wiring (modified)
 
@@ -26,11 +32,13 @@
 - `.github/workflows/ui-lab-visual-review.yml` — added the Gate E Playwright acceptance step
   (same pattern as the Gate C/D steps), bumped the job timeout 65 → 70 minutes.
 
-## Documentation (new)
+## Documentation (new, then twice revised during remediation)
 
-- `docs/ui-lab/gate-e-w1-candidates/{SOURCE_RECONCILIATION,CURRENT_STATE_AUDIT,WAVE_SCOPE,SCENARIO_REGISTER,DATA_TRUTH_AND_FIXTURES,INTERACTION_AND_STATE_AUDIT,VISUAL_VS_CURRENT,BLOCKERS,CHANGED_FILES}.md`,
-  `candidate_manifest.json` (this document set). `capture-attestation.json` and
-  `REVIEW_RECORD.md` are added once this PR's own CI capture run and independent review exist.
+- `docs/ui-lab/gate-e-w1-candidates/{SOURCE_RECONCILIATION,CURRENT_STATE_AUDIT,WAVE_SCOPE,SCENARIO_REGISTER,DATA_TRUTH_AND_FIXTURES,INTERACTION_AND_STATE_AUDIT,VISUAL_VS_CURRENT,BLOCKERS,CHANGED_FILES,REVIEW_RECORD}.md`,
+  `candidate_manifest.json`, `capture-attestation.json` (this document set). Remediation round 1
+  (header-fidelity fix, BLK-E01-05) and remediation round 2 (temporal-label fixes E01-R1,
+  desktop-width fix E01-R2, documentation corrections E01-R3/R4, context-restoration clarification
+  E01-R6) are both recorded in `REVIEW_RECORD.md` and `BLOCKERS.md` rather than edited away.
 
 ## Not changed
 

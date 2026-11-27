@@ -64,9 +64,35 @@ code/test diffs, and real GitHub Actions evidence directly — not this document
   disclosed in `CHANGED_FILES.md`; this record now exists, resolving the dangling reference for
   any future reader.
 
+## Review round 2 (external review, after round 1's remediation had already landed)
+
+A further review — external to this implementation session, not a self-review — re-examined the
+already-fixed PR and found six additional findings round 1's reviewer had missed, all independently
+re-verified against the actual fixture dates, rendered layout, and documentation in this session
+before any change was made (exact computed dates via Node, exact `grep`/file reads for every
+documentation claim):
+
+| ID | Severity | Finding | Verified? |
+|---|---|---|---|
+| E01-R1 | MAJOR | Several display labels (period `dateRange`, round `dateRange`, one period's title/id) contradicted their real underlying dates | Confirmed — recomputed every `offsetDays()` value independently and compared |
+| E01-R2 | MAJOR | Both candidate pages capped the actual League product surface at `max-w-[720px]` against the real app shell's `max-w-[96rem]` | Confirmed — read both page files and `src/app/(app)/layout.tsx` directly |
+| E01-R3 | MINOR | `DATA_TRUTH_AND_FIXTURES.md` claimed "eleven matches"; real count is ten | Confirmed — counted matches directly from the fixture source |
+| E01-R4 | MINOR | Three docs still claimed "Create match" was omitted; it is rendered | Confirmed — `grep` found the stale claims in `INTERACTION_AND_STATE_AUDIT.md`/`WAVE_SCOPE.md`/`candidate_manifest.json` |
+| E01-R5 | MINOR | `VISUAL_VS_CURRENT.md` referenced a since-superseded CI run | Confirmed — two further successful runs existed beyond the one cited |
+| E01-R6 | Acceptance-language gap | "Context restoration" was conflated with default-focus re-resolution; XR-T01's actual text is about real selected-context restoration on return navigation | Confirmed by re-reading `13_DISTINCTIVE_EXPERIENCE_REQUIREMENTS.md`'s XR-T01 entry directly |
+
+**Summary:** 0 BLOCKING, 2 MAJOR, 3 MINOR, 1 acceptance-language gap — all six fixed in this PR
+(see `BLOCKERS.md` BLK-E01-06 for the full remediation account). A genuinely fresh,
+context-independent review (round 3, not this session's own judgment) was then commissioned to
+verify these fixes before finalizing — see below.
+
+## Review round 3 (fresh independent review of the round-2 remediation)
+
+<!-- Filled in after a freshly-spawned review agent inspects the remediated code, tests, and a
+new CI capture run. Not self-assessed. -->
+
 ## Disposition
 
-No confirmed BLOCKING or unaddressed MAJOR finding remains. `READY_FOR_OWNER_VISUAL_REVIEW` —
-implementation, documentation, local validation, CI (build, tests, capture, Gate E Playwright
-suite), and independent review are complete. Owner Visual Authority approval has not been
-requested or assumed by this review.
+Pending review round 3's outcome — see above. Round 1 and round 2's own findings are fully
+remediated with no unaddressed BLOCKING or MAJOR item as of this writing. Owner Visual Authority
+approval has not been requested or assumed by this review.

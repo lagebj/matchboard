@@ -84,9 +84,10 @@ None on any other Gate E row. One dependency on the existing `TeamIdentityStrip`
 ### Authority constraints
 
 UI-Lab-only, per §2 of `SOURCE_RECONCILIATION.md`. No production route, domain service, or Prisma
-schema change. No new mutation surface — "Generate all draft squads" and "Create match" are
-intentionally not reproduced in the fixture mount (mission brief §11, "never invoke real Server
-Actions from synthetic UI Lab controls").
+schema change. No new mutation surface — "Generate all draft squads" (the one real Server Action
+in this composition) is intentionally not reproduced in the fixture mount (mission brief §11,
+"never invoke real Server Actions from synthetic UI Lab controls"). "Create match" is reproduced,
+since it is a plain navigation link, not a mutation.
 
 ## Deferred scenarios and reasons
 

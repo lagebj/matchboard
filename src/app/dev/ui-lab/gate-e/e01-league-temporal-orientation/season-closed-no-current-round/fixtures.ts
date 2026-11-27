@@ -74,9 +74,9 @@ const round3Match = match({
 });
 
 export const closedPeriod: FixturePeriod = {
-  id: "gate-e-w1-e01-closed-period-autumn-2026",
-  title: "Autumn 2026",
-  dateRange: "Jan – Mar 2027",
+  id: "gate-e-w1-e01-closed-period-winter-2027",
+  title: "Winter 2027",
+  dateRange: "Jan – Feb 2027",
   startDate: offsetDays(-70),
   endDate: offsetDays(-30),
   blockerCount: 0,
@@ -130,8 +130,8 @@ export const periods: FixturePeriod[] = [closedPeriod];
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-E-W1-E01-SEASON-CLOSED",
   fixtureId: "gate-e-w1-e01-season-closed-no-current-round",
-  fixtureVersion: 1,
-  fixtureSha256: "73f8c9c7c6fff6c3840da8fd0bd353d76d2f2c33108047fc2f6d5ddc3174781a",
+  fixtureVersion: 2,
+  fixtureSha256: "d69b25da7d12ebee6156e8f4062dc69723e9e3b77880cbe208044a6fe4971968",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: ANCHOR.toISOString(),
   viewerTimeZone: "Europe/Oslo",

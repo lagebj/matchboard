@@ -34,14 +34,19 @@ brief §11 — "Create match" is kept, since it is a plain navigation link, not 
 
 Not performed against a deployed environment. This wave verifies correctness via:
 
-- Component tests (`fixtures.test.ts`, `page.test.tsx`) calling the real production functions
-  directly against the fixture data — 12 node + 11 component tests, all passing.
+- Component tests (`fixtures.test.ts`, `page.test.tsx`) plus the new independent reconciliation
+  layer (`fixture-temporal-integrity.test.ts`, E01-R1 remediation) calling the real production
+  functions directly against the fixture data — 33 node + 11 component tests, all passing.
 - `e2e/ui-lab-gate-e.spec.ts` — real Chromium navigation/interaction assertions against the local
-  dev server, run in CI (blocked locally in this sandbox, see `BLOCKERS.md`). 14/14 passing on CI
-  run `45808071999`, after fixing a real Playwright locator-precision defect an earlier CI run
-  (`45801842024`) caught (BLK-E01-04).
-- CI's `ui-lab-visual-review.yml` capture run (`45808071999`) completed; all 12 screenshot hashes
-  independently re-verified against the downloaded artifact — see `capture-attestation.json`.
+  dev server, run in CI (blocked locally in this sandbox, see `BLOCKERS.md`); 20 tests (expanded
+  from 14 during remediation round 2 with direct-URL/browser-Back context-restoration tests, real
+  keyboard-interaction tests, and a desktop-width-fidelity test, E01-R2/R6).
+- CI's `ui-lab-visual-review.yml` capture run against the fully remediated code — see
+  `capture-attestation.json` for the authoritative run id, artifact, and independently re-verified
+  hashes. This supersedes every earlier attestation (runs `45808071999`, `45815450631`,
+  `45823024629`), each of which reflected an earlier, since-superseded revision of this code —
+  none of those are themselves authoritative any longer; `capture-attestation.json` and
+  `REVIEW_RECORD.md` are the single current source of truth for which run to trust.
 
 No claim is made here that the *real, authenticated* `/o/{orgSlug}/fixtures` route has been
 re-verified in this PR — it was not touched, and ADR-0144's own merged acceptance already covers
@@ -54,5 +59,5 @@ that same real behaviour for these two specific temporal fixtures.
 |---|---|---|
 | Design-accepted per register | Yes | Yes |
 | Backed by real production component/view-model | Yes (100%, no directional presentation) | Yes (100%) |
-| Independently CI-verified (capture + Playwright) | Yes — CI run 45808071999, 6/6 captures hash-verified | Yes — CI run 45808071999, 6/6 captures hash-verified |
+| Independently CI-verified (capture + Playwright) | Yes — see `capture-attestation.json` for the current authoritative run | Yes — see `capture-attestation.json` for the current authoritative run |
 | Production route itself changed | No | No |

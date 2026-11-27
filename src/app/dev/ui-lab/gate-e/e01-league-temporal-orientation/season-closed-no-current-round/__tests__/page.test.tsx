@@ -52,7 +52,7 @@ describe("Gate E W1 — E01 season closed, no current round", () => {
     await waitFor(() => {
       expect(screen.getByRole("link", { name: /review season/i })).toHaveAttribute(
         "href",
-        "/o/acme/season?leagueSeasonId=gate-e-w1-e01-closed-period-autumn-2026",
+        "/o/acme/season?leagueSeasonId=gate-e-w1-e01-closed-period-winter-2027",
       );
     });
   });

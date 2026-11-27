@@ -2,13 +2,13 @@
   "programmeRevision": "0.169.16",
   "baseCommitSha": "69b0687624c693706481caf71d0bb6354acb43f3",
   "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-e/. Not a production implementation, not an authorization, not a security proof. Scope and authority sources: docs/ui-lab/gate-e-w1-candidates/SOURCE_RECONCILIATION.md.",
-  "note": "Gate E W1 — E01 (League temporal orientation, period navigation, context restoration). Two states: mid-season-current-round and season-closed-no-current-round. Both reuse the real, unmodified buildLeagueOperatingViewModel() and LeagueSurface (ADR-0144) via a new fixture-safe URL-state mount (league-fixture-mount.tsx), the same actions-override-mount pattern precedent Gate C W3/Gate D W2 established for self-fetching production components. Unlike every prior Gate A directional study and Gate D's D07/D08/D09, this wave introduces zero new or directional presentation component — 100% real, already-shipped production code. scripts/ui-lab-visual-review.mjs registers both routes for CI capture. Both candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved. E02-E08 are deferred to later Gate E waves (docs/ui-lab/gate-e-w1-candidates/WAVE_SCOPE.md). REMEDIATION (independent review, same PR): the mount's header was originally hand-rolled markup instead of the real TouchlinePageHeader/TouchlineButton primitives, a MAJOR finding (BLK-E01-05) directly contradicting the 'zero divergence' claim below — corrected to reuse the real header components verbatim, including the real 'Create match' navigation link (not a mutation, safe to keep). No fixture data changed; fixtureVersion unchanged on both candidates. capture-attestation.json now reflects a real, independently re-verified CI capture run against the actual remediated code (run 45815450631, commit dffaed9c, one retry required after an unrelated transient infra network error on a pre-existing Gate B scenario) — see REVIEW_RECORD.md for the full account.",
+  "note": "Gate E W1 — E01 (League temporal orientation, period navigation, context restoration). Two states: mid-season-current-round and season-closed-no-current-round. Both reuse the real, unmodified buildLeagueOperatingViewModel() and LeagueSurface (ADR-0144) via a new fixture-safe URL-state mount (league-fixture-mount.tsx), the same actions-override-mount pattern precedent Gate C W3/Gate D W2 established for self-fetching production components. Unlike every prior Gate A directional study and Gate D's D07/D08/D09, this wave introduces zero new or directional presentation component — 100% real, already-shipped production code. scripts/ui-lab-visual-review.mjs registers both routes for CI capture. Both candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved. E02-E08 are deferred to later Gate E waves (docs/ui-lab/gate-e-w1-candidates/WAVE_SCOPE.md). REMEDIATION ROUND 1 (independent review, same PR): the mount's header was originally hand-rolled markup instead of the real TouchlinePageHeader/TouchlineButton primitives, a MAJOR finding (BLK-E01-05) directly contradicting the 'zero divergence' claim below — corrected to reuse the real header components verbatim, including the real 'Create match' navigation link (not a mutation, safe to keep). REMEDIATION ROUND 2 (external review, same PR): several manually-authored display labels (period dateRange, round dateRange, one period's title/id) had drifted from their real underlying startDate/endDate/startsAt records — e.g. Round 6 labelled '15 Feb 2027' against a real kickoff of 22 Feb 2027; the season-closed fixture's only period named 'Autumn 2026' against real boundaries entirely in January-February 2027 (renamed 'Winter 2027'). Corrected, fixtureVersion bumped 1 -> 2 on both candidates, fixtureSha256 recomputed, and a new independent reconciliation test layer (__tests__/fixture-temporal-integrity.test.ts) added so a future kickoff edit without a matching label update fails the suite mechanically. The desktop product surface was also found artificially capped at max-w-[720px] against the real app shell's max-w-[96rem] (E01-R2) — corrected, with a real 1440px-viewport width assertion added. DATA_TRUTH_AND_FIXTURES.md's match count ('eleven') was corrected to the real count ('ten'), independently asserted from the fixture records. Documentation that still claimed 'Create match' was omitted (it is rendered; only 'Generate all draft squads' is) was corrected across INTERACTION_AND_STATE_AUDIT.md/WAVE_SCOPE.md/this manifest. 'Context restoration' acceptance language was clarified to distinguish default-focus re-resolution (what period-switching proves) from real selected-context restoration (direct URL load, browser Back, now covered by new Playwright tests) per XR-T01's actual text, and real keyboard-interaction tests (ArrowRight+Enter on the rail, ArrowDown on the season select) were added. capture-attestation.json reflects a fresh CI run against this remediated code — see REVIEW_RECORD.md for the full account of both remediation rounds.",
   "candidates": [
     {
       "scenarioId": "GATE-E-W1-E01-MID-SEASON",
       "status": "CANDIDATE",
       "fixtureId": "gate-e-w1-e01-mid-season-current-round",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/lib/touchline/presentation/league-view-model.ts",
         "src/components/fixtures/league-surface.tsx",
@@ -17,7 +17,8 @@
         "src/components/fixtures/league-operational-match-row.tsx",
         "src/components/fixtures/league-history-rounds.tsx",
         "src/app/dev/ui-lab/gate-e/shared/league-fixture-mount.tsx",
-        "src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/mid-season-current-round/page.tsx"
+        "src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/mid-season-current-round/page.tsx",
+        "src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/__tests__/fixture-temporal-integrity.test.ts"
       ],
       "lifecycle": "production",
       "assistantCoachState": "NOT_APPLICABLE",
@@ -31,7 +32,7 @@
       "baselineAssetRef": "Real, unmodified buildLeagueOperatingViewModel()/LeagueSurface and children; the fixture-safe URL-state mount is new but reproduces FixturesPage's own existing orchestration logic verbatim, not a second implementation.",
       "knownGaps": [
         "ARR-0035 (pre-existing, already-tracked): the real view-model's own focusedRound.matches[].href/roundBoardHref are bare unscoped paths, not org-scoped. Not introduced or fixed by this wave — see BLOCKERS.md.",
-        "'Generate all draft squads' and 'Create match' (real production Server Actions/mutations) are intentionally not rendered in this fixture mount — no safe way to represent either without invoking a real Server Action from a synthetic control."
+        "'Generate all draft squads' (a real production Server Action) is intentionally not rendered in this fixture mount — no safe way to represent it without invoking a real Server Action from a synthetic control. 'Create match' IS rendered — it is a plain navigation link, not a mutation."
       ],
       "approval": null
     },
@@ -39,7 +40,7 @@
       "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
       "status": "CANDIDATE",
       "fixtureId": "gate-e-w1-e01-season-closed-no-current-round",
-      "fixtureVersion": 1,
+      "fixtureVersion": 2,
       "componentOwners": [
         "src/lib/touchline/presentation/league-view-model.ts",
         "src/components/fixtures/league-surface.tsx",
@@ -48,7 +49,8 @@
         "src/components/fixtures/league-operational-match-row.tsx",
         "src/components/fixtures/league-history-rounds.tsx",
         "src/app/dev/ui-lab/gate-e/shared/league-fixture-mount.tsx",
-        "src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/season-closed-no-current-round/page.tsx"
+        "src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/season-closed-no-current-round/page.tsx",
+        "src/app/dev/ui-lab/gate-e/e01-league-temporal-orientation/__tests__/fixture-temporal-integrity.test.ts"
       ],
       "lifecycle": "production",
       "assistantCoachState": "NOT_APPLICABLE",

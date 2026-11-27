@@ -157,7 +157,7 @@ const round11Match = match({
 export const springPeriod: FixturePeriod = {
   id: "gate-e-w1-e01-mid-period-spring-2027",
   title: "Spring 2027",
-  dateRange: "Mar – Jun 2027",
+  dateRange: "Feb – Apr 2027",
   startDate: offsetDays(-28),
   endDate: offsetDays(35),
   blockerCount: 1,
@@ -167,7 +167,7 @@ export const springPeriod: FixturePeriod = {
     {
       id: "gate-e-w1-e01-mid-round-6",
       title: "Round 6",
-      dateRange: "15 Feb 2027",
+      dateRange: "22 Feb 2027",
       selectionState: "FINALIZED",
       hasDraftSelections: true,
       hasMatches: true,
@@ -272,7 +272,7 @@ const autumnMatchNeedsClosure = match({
 export const autumnPeriod: FixturePeriod = {
   id: "gate-e-w1-e01-mid-period-autumn-2026",
   title: "Autumn 2026",
-  dateRange: "Aug – Nov 2026",
+  dateRange: "Aug – Sep 2026",
   startDate: offsetDays(-210),
   endDate: offsetDays(-170),
   blockerCount: 0,
@@ -282,7 +282,7 @@ export const autumnPeriod: FixturePeriod = {
     {
       id: "gate-e-w1-e01-mid-autumn-round-1",
       title: "Round 1",
-      dateRange: "15 Aug 2026",
+      dateRange: "6 Sep 2026",
       selectionState: "FINALIZED",
       hasDraftSelections: true,
       hasMatches: true,
@@ -295,7 +295,7 @@ export const autumnPeriod: FixturePeriod = {
     {
       id: "gate-e-w1-e01-mid-autumn-round-2",
       title: "Round 2",
-      dateRange: "22 Aug 2026",
+      dateRange: "16 Sep 2026",
       selectionState: "FINALIZED",
       hasDraftSelections: true,
       hasMatches: true,
@@ -313,8 +313,8 @@ export const periods: FixturePeriod[] = [springPeriod, autumnPeriod];
 export const identity: FixtureIdentity = {
   scenarioId: "GATE-E-W1-E01-MID-SEASON",
   fixtureId: "gate-e-w1-e01-mid-season-current-round",
-  fixtureVersion: 1,
-  fixtureSha256: "68db81708989e3f1e505dc94f04230e5069279128b4e5e46d12df4bc22257897",
+  fixtureVersion: 2,
+  fixtureSha256: "0d081a1e132084ee58cbdc652d17a8e84c2cce4d7f0a1897a052ce39fdc6a137",
   sourceClass: "SYNTHETIC_LABELED",
   fixedDateTimeUtc: ANCHOR.toISOString(),
   viewerTimeZone: "Europe/Oslo",

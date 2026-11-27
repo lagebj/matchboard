@@ -21,9 +21,26 @@ the fixture's own dates, and nothing here hand-asserts a classification outcome 
 didn't actually produce. `fixtures.test.ts` for both states independently verifies this by calling
 the real function and checking its output, not by trusting the fixture author's intent.
 
+## Remediation (E01-R1): display-label reconciliation
+
+A later review found that several manually-authored display labels (period `dateRange`, round
+`dateRange`) had drifted from the actual dates the fixtures' own `offsetDays()` offsets produced —
+e.g. Round 6 was labelled "15 Feb 2027" while its real kickoff (`ANCHOR-21d`) is 22 Feb 2027; the
+season-closed fixture's only period was named "Autumn 2026" while its real boundaries
+(`ANCHOR-70d` .. `ANCHOR-30d`) fall entirely in January–February 2027. These were genuine
+authoring errors in hand-typed label strings, not a classification defect — `fixtureVersion`
+bumped to 2 on both fixtures, `fixtureSha256` recomputed, and every label corrected to match its
+real underlying date. A new, independent reconciliation test layer
+(`__tests__/fixture-temporal-integrity.test.ts`) now mechanically verifies that every period
+title/date-range and every round date-range agrees with the real `startDate`/`endDate`/`startsAt`
+records, so a future edit to a kickoff without updating its label fails the suite rather than
+passing silently.
+
 ## `GATE-E-W1-E01-MID-SEASON` — reconciliation
 
-Two `FixturePeriod`s, eight rounds, eleven matches:
+Two `FixturePeriod`s, eight rounds, ten matches (six rounds/eight matches in Spring 2027, two
+rounds/two matches in Autumn 2026 — independently asserted from the fixture records themselves,
+not a hand-typed count, in `__tests__/fixture-temporal-integrity.test.ts`):
 
 - **Spring 2027** (current period, `isCurrent: true`): Round 6 (`ANCHOR-21d`, FINAL, 1 match,
   done) → pushed into the collapsed "earlier rounds" disclosure (verified:
@@ -52,7 +69,7 @@ independently-typed expectation.
 
 ## `GATE-E-W1-E01-SEASON-CLOSED` — reconciliation
 
-One `FixturePeriod` ("Autumn 2026", `isCurrent: false`), three rounds, all in the past relative to
+One `FixturePeriod` ("Winter 2027", `isCurrent: false`), three rounds, all in the past relative to
 `ANCHOR`: Round 1 (`ANCHOR-60d`, FINAL, 1–3), Round 2 (`ANCHOR-50d`, NEEDS_CLOSURE,
 played/report-missing), Round 3 (`ANCHOR-40d`, FINAL, 2–2). With no CURRENT and no FUTURE round
 anywhere, `resolveDefaultFocus()`'s real fallback chain lands on the most recent round still

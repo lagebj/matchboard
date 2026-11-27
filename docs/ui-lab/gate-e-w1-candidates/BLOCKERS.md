@@ -89,7 +89,57 @@ link to `/o/{orgSlug}/matches/new`, not a mutation, so it was safe to keep — o
 draft squads", a real Server Action, remains intentionally omitted). All local tests re-verified
 green after the fix. See `CHANGED_FILES.md`/git history for the exact commit.
 
+### BLK-E01-06 — a second, external review found real temporal-label and layout-fidelity defects (fixed)
+
+A further review (external to this session) found six findings the first independent review had
+missed:
+
+1. **E01-R1 (MAJOR, fixed)** — several manually-authored display labels had drifted from the
+   fixtures' own real dates: Round 6 was labelled "15 Feb 2027" against a real kickoff
+   (`ANCHOR-21d`) of 22 Feb 2027; Spring 2027's `dateRange` said "Mar – Jun 2027" against real
+   boundaries of Feb 15 – Apr 19 2027; the mid-season Autumn 2026 period's `dateRange` and two
+   round labels were similarly off by three weeks; the season-closed fixture's only period was
+   named "Autumn 2026" (and dated "Jan – Mar 2027") while its real boundaries fall entirely in
+   January–February 2027. Every discrepancy was independently recomputed and confirmed with Node
+   before editing anything. Fixed: every label corrected to its real date;
+   `fixtureVersion` bumped 1 → 2 on both fixtures; `fixtureSha256` recomputed; the season-closed
+   period renamed "Winter 2027" (id `...-period-winter-2027`); a new, independent reconciliation
+   test layer (`fixture-temporal-integrity.test.ts`) added so a future kickoff edit without a
+   matching label update fails mechanically rather than silently.
+2. **E01-R2 (MAJOR, fixed)** — both candidate pages capped their actual League product surface at
+   `max-w-[720px]`, materially narrower than the real app shell's `max-w-[96rem]`
+   (`src/app/(app)/layout.tsx`), distorting the desktop composition's real density/spacing. Fixed:
+   the product surface now uses the real `max-w-[96rem]` container; UI-Lab-only chrome (back link,
+   appearance control, scenario label) stays at a narrower reading width, deliberately separated
+   from the product surface; a real 1440px-viewport width assertion (`> 1200px`) was added to
+   `e2e/ui-lab-gate-e.spec.ts`.
+3. **E01-R3 (MINOR, fixed)** — `DATA_TRUTH_AND_FIXTURES.md` claimed "eleven matches"; the real
+   count (independently asserted from the fixture records in the new reconciliation test) is ten
+   (eight in Spring, two in Autumn).
+4. **E01-R4 (MINOR, fixed)** — `INTERACTION_AND_STATE_AUDIT.md` and `WAVE_SCOPE.md` still claimed
+   both "Generate all draft squads" and "Create match" were omitted; "Create match" is in fact
+   rendered (a plain navigation link, not a mutation) — corrected everywhere this was stated.
+5. **E01-R5 (MINOR, fixed)** — `VISUAL_VS_CURRENT.md` referenced a since-superseded CI run.
+   Corrected to point at `capture-attestation.json` as the single current source of truth, with
+   the full chain of superseded runs recorded rather than silently overwritten.
+6. **E01-R6 (acceptance-language gap, fixed)** — "context restoration" in the acceptance question
+   traces to XR-T01's own "back restores the selected context" text, a claim about real
+   selected-context restoration (direct URL load, browser Back) — not about a period remembering a
+   manually-selected round after switching away and back, which production does not implement.
+   The existing tests only proved default-focus re-resolution. Fixed: `INTERACTION_AND_STATE_AUDIT.md`
+   now states this distinction explicitly, and `e2e/ui-lab-gate-e.spec.ts` gained real tests for
+   direct-URL round restoration, browser Back restoration, explicit confirmation that the `round`
+   param is cleared (not merely unobserved) on period switch, and real keyboard-interaction tests
+   (`ArrowRight`+`Enter` on the season rail, `ArrowDown` on the season `<select>`) — none of this
+   invents a production capability that doesn't exist.
+
+**Also investigated, found immaterial:** the external review noted a screenshot hash variation for
+`gate-e-w1-e01-mid-season-current-round-mobile-dark.png` between two successful CI capture runs
+(`45815450631` and `45823024629`) against byte-identical application code. Both PNGs were
+downloaded and diffed pixel-by-pixel: the difference is a 178×258px region with a maximum
+per-channel delta of 1 across 26 of 457,860 total pixels — sub-perceptual font-rasterization
+jitter in headless Chromium, not a layout or content regression. Not re-investigated further; not
+a blocker.
+
 No confirmed BLOCKING or unaddressed MAJOR item remains for E01. See `REVIEW_RECORD.md` for the
-independent review's full account, including the two MINOR findings (no explicit keyboard-only
-interaction test; a forward-reference to this very `REVIEW_RECORD.md` from documents written
-before it existed) that remain as disclosed, non-blocking limitations.
+full independent-review account across both rounds.
