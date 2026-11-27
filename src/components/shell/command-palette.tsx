@@ -323,11 +323,20 @@ export function CommandPaletteTrigger({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-muted)]/30 px-3 text-xs text-[var(--text-soft)] transition-colors hover:border-[var(--accent)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 medium:h-8 medium:min-h-0 medium:min-w-0"
-      aria-label="Open command palette"
     >
-      <Search className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+      {/* No `aria-label` here: it used to override this button's own visible "Search…" text,
+          failing axe-core's `label-content-name-mismatch` (WCAG 2.5.3 Label in Name) on every
+          page, since this trigger lives in the global shell (issue #849). The accessible name is
+          now computed from real content instead: "Search…" where it's visible (`sm:` and up), and
+          this `sr-only` fallback below `sm` where "Search…" itself is hidden. The icon and
+          keyboard-shortcut hint are decorative and excluded from the accessible name. */}
+      <Search aria-hidden="true" className="h-3.5 w-3.5 text-[var(--text-muted)]" />
       <span className="hidden sm:inline">Search…</span>
-      <kbd className="ml-1 hidden items-center gap-0.5 rounded border border-[var(--border-soft)] px-1 py-0.5 text-[10px] font-mono text-[var(--text-muted)] lg:inline-flex">
+      <span className="sr-only sm:hidden">Open command palette</span>
+      <kbd
+        aria-hidden="true"
+        className="ml-1 hidden items-center gap-0.5 rounded border border-[var(--border-soft)] px-1 py-0.5 text-[10px] font-mono text-[var(--text-muted)] lg:inline-flex"
+      >
         <Command className="h-2.5 w-2.5" />K
       </kbd>
     </button>

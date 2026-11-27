@@ -6,6 +6,25 @@ Unlike Gate D's D07/D08 at their outset, **no authority conflict, undecided doma
 missing production capability blocks E01.** `buildLeagueOperatingViewModel()`/`LeagueSurface` are
 already real, shipped, and sufficient.
 
+### BLK-E01-07 — one unrelated production shell fix bundled in, at explicit owner direction (scope exception)
+
+This wave's documentation elsewhere states "zero production code changed." That is no longer
+literally true as of this entry: `src/components/shell/command-palette.tsx`'s
+`CommandPaletteTrigger` had a pre-existing, unrelated WCAG 2.2 AA violation (`aria-label` overriding
+its own visible "Search…" text — axe-core `label-content-name-mismatch`) that fails
+`e2e/accessibility.spec.ts` on every authenticated page, which in turn blocks the `/visual-review
+deploy`/`acceptance`-label Test-slot flow for **every** PR, not just this one (filed as
+[issue #849](https://github.com/lagebj/matchboard/issues/849) when first found). The owner
+explicitly chose to bundle the one-file fix into this PR rather than opening a second PR while
+#848 remains open, to unblock getting this wave's own candidates live on the Test slot for visual
+verification. The fix removes the overriding `aria-label` and lets the button's own visible
+content (plus an `sr-only` fallback below the `sm` breakpoint, where "Search…" itself is hidden)
+compose the accessible name — no League/Gate-E domain logic touched, and `League`/`fixtures`
+components remain byte-identical to `main` (`git diff ...HEAD -- src/components/fixtures/
+src/lib/touchline/presentation/league-view-model.ts` is still empty). Every other "zero production
+code changed" statement in this document set refers specifically to the League/Gate-E domain, not
+to this one unrelated shell fix.
+
 ## Open items (disclosed, not blocking)
 
 ### BLK-E01-01 — ARR-0035 residue surfaces, not fixed

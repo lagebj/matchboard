@@ -40,6 +40,13 @@
   desktop-width fix E01-R2, documentation corrections E01-R3/R4, context-restoration clarification
   E01-R6) are both recorded in `REVIEW_RECORD.md` and `BLOCKERS.md` rather than edited away.
 
+## Production shell fix (modified, out-of-band — see `BLOCKERS.md` BLK-E01-07)
+
+- `src/components/shell/command-palette.tsx` — fixed a pre-existing, unrelated WCAG violation
+  (`aria-label` overriding visible text on the global command-palette trigger) that blocked
+  `/visual-review deploy` for every PR. Bundled into this PR at the owner's explicit direction
+  rather than opening a second PR while #848 is open. No League/Gate-E logic touched.
+
 ## Not changed
 
 No production route (`src/app/(app)/**`), domain service (`src/domain/**`,
