@@ -1,0 +1,184 @@
+{
+  "description": "Gate E W1 (register E01, League temporal orientation/period navigation/context restoration) UI Lab visual-review evidence, captured after remediation round 2 (temporal-label fixes E01-R1, desktop-width fix E01-R2, documentation corrections E01-R3/R4/R5, context-restoration clarification E01-R6 — see BLOCKERS.md BLK-E01-06 and REVIEW_RECORD.md). This run's own Gate E Playwright acceptance suite (20 tests, up from 14 — six new tests added for context restoration, keyboard operation, and desktop width) passed in full, alongside every other gate's existing suite. Supersedes every earlier attestation (runs 45808071999, 45815450631, 45823024629), each of which reflected an earlier, since-superseded revision of this code.",
+  "sourceCommitSha": "65358cbef1a44983706029cc49f7203b79eef510",
+  "generatedAt": "2026-11-27T07:10:48.274Z",
+  "environment": {
+    "node": "v24.22.3",
+    "platform": "linux",
+    "ci": true
+  },
+  "ciWorkflowRun": "https://github.com/lagebj/matchboard/actions/runs/45954232466",
+  "ciArtifact": {
+    "id": 15179177113,
+    "name": "ui-lab-review-45954232466-1",
+    "expiresAt": "2026-12-04T07:10:48.000Z"
+  },
+  "reviewedBranchHeadSha": "927728d756a88559ca36390d38e2e98312b0d8a4",
+  "knownLimitations": [
+    "sourceCommitSha above is the GitHub Actions pull_request-trigger synthetic merge commit (base main + this PR head), not the branch-tip commit, matching the same convention every prior gate's attestation already uses. reviewedBranchHeadSha above is this PR's own real branch-tip commit at the time of this run.",
+    "All 12 Gate E W1 capture hashes recorded below were independently re-verified in this session: the real CI artifact (ui-lab-review-45954232466-1) was downloaded via the GitHub CLI, and every sha256 recomputed directly from the downloaded PNG bytes against this run's own manifest.json — zero mismatches, zero missing files.",
+    "Both desktop-dark captures were visually opened and inspected directly in this session, confirming both E01-R1 and E01-R2's fixes render correctly: mid-season-current-round shows 'Spring 2027 · Feb – Apr 2027' (the corrected date range) and the full-width production-equivalent desktop layout (no 720px cap); season-closed-no-current-round shows 'Winter 2027 · Jan – Feb 2027' (the corrected season name and range) with Round 2 honestly labelled 'Needs closure', never 'Current round'.",
+    "This run captures only the \"initial\" interaction state for every Gate E W1 scenario, matching scripts/ui-lab-visual-review.mjs's registration — every period-switch/round-select/disclosure-toggle/keyboard/browser-history interaction is instead verified by the dedicated e2e/ui-lab-gate-e.spec.ts Playwright suite (20 tests, all passing on this exact run), not by a captured post-interaction screenshot state.",
+    "The Visual Authority Gate's own check reports failure, as expected for a brand-new CANDIDATE with no owner approval yet (AWAITING_APPROVAL reports as a failing status check by ADR-0159's own design) — not evidence of a defect in this wave.",
+    "A prior pair of successful capture runs (45815450631, 45823024629) against byte-identical application code showed one screenshot hash difference (mid-season mobile-dark); investigated by direct pixel diff and found to be sub-perceptual font-rasterization jitter (max channel delta of 1 across 26 of 457,860 pixels), not a content or layout regression — recorded in BLOCKERS.md BLK-E01-06, not re-investigated for this run."
+  ],
+  "approvalStatus": "CANDIDATE",
+  "captureCountsByScenario": {
+    "gate-e-w1-e01-mid-season-current-round": 6,
+    "gate-e-w1-e01-season-closed-no-current-round": 6
+  },
+  "interactionStateCountsByScenario": {
+    "gate-e-w1-e01-mid-season-current-round": {
+      "initial": 6
+    },
+    "gate-e-w1-e01-season-closed-no-current-round": {
+      "initial": 6
+    }
+  },
+  "captures": [
+    {
+      "scenarioId": "GATE-E-W1-E01-MID-SEASON",
+      "scenario": "gate-e-w1-e01-mid-season-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/mid-season-current-round",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-mid-season-current-round-desktop-dark.png",
+      "sha256": "bbb2e2991f5ce04a363960f7bd8aa50ce09b8d48a57b64498490654cbff360e8"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-MID-SEASON",
+      "scenario": "gate-e-w1-e01-mid-season-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/mid-season-current-round",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-mid-season-current-round-desktop-light.png",
+      "sha256": "ab085f95ef34bed4152b1548a91da9eae399051d34842dc202f6def468fa9028"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-MID-SEASON",
+      "scenario": "gate-e-w1-e01-mid-season-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/mid-season-current-round",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-mid-season-current-round-mobile-dark.png",
+      "sha256": "8c542f5bacc607c5ea653619f521f3ad13580a558a4feb9c0bff290b38f34d72"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-MID-SEASON",
+      "scenario": "gate-e-w1-e01-mid-season-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/mid-season-current-round",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-mid-season-current-round-mobile-light.png",
+      "sha256": "f7167e5fef878490bb3c3bf5671549d467b3aecf73d0d97aa99ab4e392865c73"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-MID-SEASON",
+      "scenario": "gate-e-w1-e01-mid-season-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/mid-season-current-round",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-mid-season-current-round-narrow-dark.png",
+      "sha256": "1da91aeb90853d29451d8d4e338b82c8366dcec913f39c461150f70a99fa519e"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-MID-SEASON",
+      "scenario": "gate-e-w1-e01-mid-season-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/mid-season-current-round",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-mid-season-current-round-narrow-light.png",
+      "sha256": "323ddd4877979aecd3f1509a9e98e4e18232aa4c88bf112571b4682f7b55f523"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
+      "scenario": "gate-e-w1-e01-season-closed-no-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/season-closed-no-current-round",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-season-closed-no-current-round-desktop-dark.png",
+      "sha256": "c7294c1b588adc99dca4bd7b92d4324a4c62e808bedcda98899fdddf2676e62d"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
+      "scenario": "gate-e-w1-e01-season-closed-no-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/season-closed-no-current-round",
+      "viewport": "desktop",
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-season-closed-no-current-round-desktop-light.png",
+      "sha256": "e7576ff0d72196c88978e4d51f87e92facfaffe45ab789c7bdb53ba574265a62"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
+      "scenario": "gate-e-w1-e01-season-closed-no-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/season-closed-no-current-round",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-season-closed-no-current-round-mobile-dark.png",
+      "sha256": "c4d57d0000c3b28c07440f370f8980d5a46f73e38826df5e9f1601aca5ea8a3d"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
+      "scenario": "gate-e-w1-e01-season-closed-no-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/season-closed-no-current-round",
+      "viewport": "mobile",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-season-closed-no-current-round-mobile-light.png",
+      "sha256": "9abda2db885c1aec1af99e1347fe5f420242894a0ba5dbbf87cd15596357cf48"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
+      "scenario": "gate-e-w1-e01-season-closed-no-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/season-closed-no-current-round",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "dark",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-season-closed-no-current-round-narrow-dark.png",
+      "sha256": "da322ee7002f777bc76dd6f22059e557284f026e1bf2c3a36bba86f160450c15"
+    },
+    {
+      "scenarioId": "GATE-E-W1-E01-SEASON-CLOSED",
+      "scenario": "gate-e-w1-e01-season-closed-no-current-round",
+      "route": "gate-e/e01-league-temporal-orientation/season-closed-no-current-round",
+      "viewport": "narrow",
+      "viewportWidth": 320,
+      "viewportHeight": 720,
+      "theme": "light",
+      "interactionState": "initial",
+      "file": "gate-e-w1-e01-season-closed-no-current-round-narrow-light.png",
+      "sha256": "da41a50550c1681dda00d5101c0e1dab85942a04dc1cb46fb09b5d0fd1c015fc"
+    }
+  ]
+}

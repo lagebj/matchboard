@@ -1213,6 +1213,18 @@ const scenarios = [
     slug: "gate-d-w2-d06-source-inspection-confirmation",
     route: "gate-d/d06-cross-source-hypothesis/source-inspection-confirmation",
   },
+  // Gate E W1 (register E01, "League — temporal orientation, period navigation, context
+  // restoration") — CANDIDATE, not approved. Reuses the real, unmodified
+  // buildLeagueOperatingViewModel()/LeagueSurface via a fixture-safe URL-state mount. See
+  // docs/ui-lab/gate-e-w1-candidates/SOURCE_RECONCILIATION.md and WAVE_SCOPE.md for scope.
+  {
+    slug: "gate-e-w1-e01-mid-season-current-round",
+    route: "gate-e/e01-league-temporal-orientation/mid-season-current-round",
+  },
+  {
+    slug: "gate-e-w1-e01-season-closed-no-current-round",
+    route: "gate-e/e01-league-temporal-orientation/season-closed-no-current-round",
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
