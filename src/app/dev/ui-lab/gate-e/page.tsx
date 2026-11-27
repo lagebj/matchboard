@@ -6,11 +6,13 @@ import { AppearanceControl } from "@/components/touchline";
  * `25_OFFICIAL_GOLDEN_WAVE_REGISTER.csv`, rows E01–E08). Dev-only, fixture-backed, `CANDIDATE`
  * only.
  *
- * Wave 1: E01 (League — temporal orientation, period navigation, context restoration). E02–E08
- * are deferred; see `docs/ui-lab/gate-e-w1-candidates/WAVE_SCOPE.md`.
+ * Wave 1: E01 (League — temporal orientation, period navigation, context restoration).
+ * Wave 2: E02 (Events — event-day progression and identity). E03–E08 are deferred; see
+ * `docs/ui-lab/gate-e-w2-candidates/WAVE_SCOPE.md`.
  */
 const SCENARIOS = [
   { href: "/dev/ui-lab/gate-e/e01-league-temporal-orientation", id: "E01", title: "League — temporal orientation" },
+  { href: "/dev/ui-lab/gate-e/e02-event-day", id: "E02", title: "Events — event day" },
 ];
 
 export default function GateEIndexPage() {
@@ -21,8 +23,8 @@ export default function GateEIndexPage() {
       </Link>
       <h1 className="mt-2 text-[22px] font-[650] text-[var(--foreground)]">Gate E — Complete-product convergence</h1>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-        Wave 1: E01 (League). See docs/ui-lab/gate-e-w1-candidates/ for the full review record and
-        the deferred E02–E08 scope.
+        Wave 1: E01 (League). Wave 2: E02 (Events). See docs/ui-lab/gate-e-w1-candidates/ and
+        docs/ui-lab/gate-e-w2-candidates/ for the review records and the deferred E03–E08 scope.
       </p>
 
       <div className="mt-6">

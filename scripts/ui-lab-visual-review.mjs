@@ -1225,6 +1225,35 @@ const scenarios = [
     slug: "gate-e-w1-e01-season-closed-no-current-round",
     route: "gate-e/e01-league-temporal-orientation/season-closed-no-current-round",
   },
+  // Gate E W2 (register E02, "Events — Event day: multi-match progression across squads/states
+  // with persistent event and match identity") — CANDIDATE, not approved. Canonical event-match
+  // fixture records rendered through the real buildMatchPresentation()/TouchlineTimeline/
+  // ScorebookMatchRow. See docs/ui-lab/gate-e-w2-candidates/SOURCE_RECONCILIATION.md and
+  // WAVE_SCOPE.md. Only the mixed state adds one interaction capture: the selected-match context
+  // for the Rød 10:20 DRAFT match, proving the Event heading and that match's own identity
+  // persist through selection (every other transition is covered by e2e/ui-lab-gate-e.spec.ts).
+  {
+    slug: "gate-e-w2-e02-upcoming",
+    route: "gate-e/e02-event-day/upcoming",
+  },
+  {
+    slug: "gate-e-w2-e02-mixed-progression",
+    route: "gate-e/e02-event-day/mixed-progression",
+    interactions: [
+      {
+        id: "match-selected",
+        async perform(page) {
+          await page.locator('[data-e02-hydrated="true"]').waitFor({ state: "attached", timeout: 30000 });
+          await page.locator('[data-e02-match-row="gate-e-w2-e02-mixed-m05"] a').click();
+          await page.locator('[data-e02-selected-match="gate-e-w2-e02-mixed-m05"]').waitFor({ state: "visible", timeout: 10000 });
+        },
+      },
+    ],
+  },
+  {
+    slug: "gate-e-w2-e02-completed",
+    route: "gate-e/e02-event-day/completed",
+  },
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },

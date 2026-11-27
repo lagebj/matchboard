@@ -43,7 +43,9 @@ jobs:
     # responsive-overflow coverage, per the owner's remediation brief §8).
     # Gate E W1: bumped 65 -> 70 for the new Gate E Playwright acceptance step below (E01
     # temporal-orientation/period-navigation/context-restoration coverage).
-    timeout-minutes: 70
+    # Gate E W2: bumped 70 -> 75 for E02's additional Gate E Playwright tests (same step, same
+    # project) and its 24 additional event-day captures.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
