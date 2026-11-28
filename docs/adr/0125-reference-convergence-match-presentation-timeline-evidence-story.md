@@ -10,6 +10,12 @@ export, not a behaviour change. Everywhere else in this ADR, read `MatchScoreRow
 This ADR's own body is left as the historical record, per this repository's append-only ADR
 convention.
 
+**§1's "Final → ... `FT · Report incomplete`" line retired by ADR-0162 (2026-11-28):** that
+wording described a confirmed/final rendering for a match whose report was only a `DRAFT` or not
+yet locked, which issues #852/#853 identified as a real lifecycle-truth defect, not an intended
+"final" state. `report_incomplete` (and `played`) are now the `awaiting_report` phase and never
+render `FT` — see ADR-0162 for the corrected phase grammar.
+
 ## Context
 
 ADR-0124 established adaptive contextual UI composition and named three reference

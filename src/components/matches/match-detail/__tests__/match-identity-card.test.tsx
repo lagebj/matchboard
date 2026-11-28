@@ -109,6 +109,39 @@ describe("MatchIdentityCard", () => {
     expect(screen.getAllByText("37′")).toHaveLength(2);
   });
 
+  it("played match (kicked off, no report): shows the em dash and 'Played', never FT", () => {
+    const presentation = buildMatchPresentation({
+      id: "m1",
+      teamName: "Hvit",
+      opponentName: "Huringen 1",
+      isHome: true,
+      kickoffAt: new Date("2026-09-23T18:00:00"),
+      lifecycleStatus: "played",
+    });
+    render(<MatchIdentityCard presentation={presentation} ownKitColor={null} />);
+    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getAllByText("Played")).toHaveLength(2);
+    expect(screen.queryByText("FT")).not.toBeInTheDocument();
+  });
+
+  it("report_incomplete (draft) match: never shows FT, even though its draft score stays visible — issue #853", () => {
+    const presentation = buildMatchPresentation({
+      id: "m1",
+      teamName: "Hvit",
+      opponentName: "Huringen 1",
+      isHome: true,
+      kickoffAt: new Date("2026-09-23T18:00:00"),
+      lifecycleStatus: "report_incomplete",
+      ownGoals: 2,
+      opponentGoals: 0,
+      outcome: "WON",
+    });
+    render(<MatchIdentityCard presentation={presentation} ownKitColor={null} />);
+    expect(screen.getAllByText("2 - 0")).toHaveLength(2);
+    expect(screen.getAllByText("Report incomplete")).toHaveLength(2);
+    expect(screen.queryByText("FT")).not.toBeInTheDocument();
+  });
+
   it("cancelled match: shows the em dash and 'Cancelled', never a fabricated score", () => {
     const presentation = buildMatchPresentation({
       id: "m1",

@@ -57,6 +57,12 @@ export function TodayMatchday({
   });
 
   const isPostMatch = phase === "POST_MATCH";
+  // `POST_MATCH` also covers `played` (kicked off, no report at all) and `report_incomplete` (a
+  // DRAFT/not-yet-locked report) — only `done` is a confirmed result (issue #853). `match.score`
+  // may legitimately be shown even before that (e.g. a draft report's recorded goals) — the
+  // defect was the literal "FT" word implying a final result, not the score number itself.
+  const isDone = match.lifecycleStatus === "done";
+  const postMatchStatusWord = isDone ? "FT" : match.lifecycleStatus === "report_incomplete" ? "Report incomplete" : "Played";
   const kickoffTime = match.startsAt ? formatKickoffTime(new Date(match.startsAt)) : null;
   const countdown = headerCountdown(phase, minutesToKickoff);
   const metaParts = [match.venueLabel, match.containerLabel].filter(Boolean);
@@ -80,7 +86,7 @@ export function TodayMatchday({
         </div>
         {isPostMatch ? (
           <span className="font-mono text-[18px] font-semibold text-[var(--foreground)]">
-            {match.score ? `${match.score.own}\u2013${match.score.opponent}` : "FT"}
+            {match.score ? `${match.score.own}\u2013${match.score.opponent}` : "\u2014"}
           </span>
         ) : (
           countdown && kickoffTime && (
@@ -91,8 +97,9 @@ export function TodayMatchday({
 
       {isPostMatch ? (
         <p className="text-[13px] text-[var(--text-soft)]">
-          FT{match.containerLabel ? ` · ${match.containerLabel}` : ""} ·{" "}
-          {match.lifecycleStatus === "done" ? "Report complete" : "Report incomplete"}
+          {postMatchStatusWord}
+          {match.containerLabel ? ` · ${match.containerLabel}` : ""}
+          {isDone ? " · Report complete" : ""}
         </p>
       ) : (
         <div className="flex flex-col gap-1 text-[13px] text-[var(--text-soft)]">

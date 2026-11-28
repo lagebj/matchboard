@@ -239,8 +239,7 @@ type MatchLiveStripProps = {
 export function MatchLiveStrip({ presentation: p, className }: MatchLiveStripProps) {
   const phase = matchPresentationPhase(p);
   const isLive = phase === "live";
-  const score =
-    p.score != null ? `${p.score.home} \u2013 ${p.score.away}` : phase === "final" ? "\u2013" : null;
+  const score = p.score != null ? `${p.score.home} \u2013 ${p.score.away}` : phase === "final" ? "\u2013" : null;
 
   return (
     <div

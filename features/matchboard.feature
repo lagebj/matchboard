@@ -4898,6 +4898,14 @@ Feature: Matchboard football operations workspace
       And a placeholder value must never be shown as if it were a final score
       And a match whose planning boundary has closed but which has not been played must not read as Done
 
+    Scenario: A match that has kicked off with no confirmed report never reads as FT (ADR-0162)
+      Given a match's lifecycle status is "played" or "report_incomplete"
+      Then its canonical match grammar must not render an unqualified "FT"
+      And it must instead show the same "Played" or "Report incomplete" label the lifecycle status badge uses
+      And that label must be truthful at every supported viewport width, not only on a wider one
+      And a real in-progress score may still be shown, but never paired with an "FT" or final-result claim
+      And only a match whose lifecycle status is "done" may render "FT"
+
     Scenario: Compact Round Board selects one match and moves a player without drag
       Given a match round with more than one match
       And the coach opens the Round Board on a compact viewport

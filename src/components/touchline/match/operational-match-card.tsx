@@ -63,7 +63,15 @@ export function OperationalMatchCard({
 
   const resolvedKicker =
     kicker ??
-    (phase === "live" ? "LIVE" : phase === "final" ? "RESULT" : phase === "cancelled" ? "CANCELLED" : "NEXT");
+    (phase === "live"
+      ? "LIVE"
+      : phase === "final"
+        ? "RESULT"
+        : phase === "awaiting_report"
+          ? "REPORT NEEDED"
+          : phase === "cancelled"
+            ? "CANCELLED"
+            : "NEXT");
 
   const resolvedHero =
     heroValue ??

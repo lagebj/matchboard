@@ -3,6 +3,7 @@ import { cn } from "@/lib/cn";
 import {
   type MatchPresentation,
   matchPresentationPhase,
+  awaitingReportLabel,
 } from "@/lib/matches/match-presentation";
 
 /**
@@ -38,6 +39,7 @@ export function MatchScoreHeader({
   const isLive = phase === "live";
   const isScheduled = phase === "scheduled";
   const isCancelled = phase === "cancelled";
+  const isAwaitingReport = phase === "awaiting_report";
 
   const hero = isScheduled
     ? (p.kickoffTime ?? "—")
@@ -51,9 +53,11 @@ export function MatchScoreHeader({
     ? p.clockLabel ?? "LIVE"
     : phase === "final"
       ? `FT${p.outcomeLabel ? ` · ${title(p.outcomeLabel)}` : ""}`
-      : isCancelled
-        ? "Cancelled"
-        : [p.kickoffDate, p.kickoffTime].filter(Boolean).join(" · ") || "Scheduled";
+      : isAwaitingReport
+        ? awaitingReportLabel(p)
+        : isCancelled
+          ? "Cancelled"
+          : [p.kickoffDate, p.kickoffTime].filter(Boolean).join(" · ") || "Scheduled";
 
   return (
     <div
