@@ -161,9 +161,14 @@ check. The process:
 
 1. Implement and test locally, as above.
 2. Open the PR; let the normal required checks (`ci-checks.yml`, `security.yml`) go green.
-3. Complete technical review as usual.
-4. Let CI produce real capture evidence (the existing `ui-lab-visual-review.yml` job) if the PR
-   is a UI Lab candidate wave.
+3. Complete technical review as usual. `ui-lab-visual-review.yml`'s `acceptance` job (B08/Gate
+   C/D/E Playwright suites) still runs automatically on the same path filter as before.
+4. Screenshot capture is now on-demand, not automatic (ADR-0161) — `ui-lab-visual-review.yml`'s
+   `capture` job only runs via a manual `workflow_dispatch`, with `mode: targeted` (default,
+   requires a `scenarios` input listing the slugs this PR actually touches) or `mode: full`
+   (requires `confirm_full: FULL CAPTURE`). Request it only when real capture evidence is
+   actually useful for this review — most UI Lab candidate waves are reviewed via the live
+   deployment in step 5 below instead.
 5. Request a live preview **only when actually needed** — comment `/visual-review deploy` on the
    PR. This is explicit and deliberate, exactly like the `acceptance` label above: it deploys the
    PR's exact revision into the existing `test` Custom Environment (no Neon branch, no migration,
