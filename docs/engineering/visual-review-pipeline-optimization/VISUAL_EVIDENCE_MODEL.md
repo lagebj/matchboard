@@ -19,10 +19,12 @@ scenario, into exactly one of:
   against `capture-attestation.json`, and archived as a GitHub Release.
 - **`DEPLOYMENT_REVIEW`** — no capture run exists, but the PR's own comment thread contains a real
   `visual-review-deploy.yml`-posted "Deployed PR #<n> (\`<sha>\`) to the Test slot" comment matching
-  the approved revision (matched by exact string pattern, including SHA-prefix tolerance — see
-  `findDeploymentCommentForRevision`). Archived as a notes-only GitHub Release: same tagging
-  convention as `CAPTURE_REVIEW`, zero screenshot assets, notes stating plainly that this was a
-  deployment review with no capture.
+  the approved revision, from a comment whose `user.login`/`user.type` are verified to be
+  `github-actions[bot]`/`Bot` — not body text alone (see `findDeploymentCommentForRevision`; an
+  independent review round caught and fixed a version that trusted the string match without
+  checking who posted it, which would have let any PR commenter forge this record). Archived as a
+  notes-only GitHub Release: same tagging convention as `CAPTURE_REVIEW`, zero screenshot assets,
+  notes stating plainly that this was a deployment review with no capture.
 - **`NO_EVIDENCE_RECORDED`** — neither exists. Logged explicitly as such. The approval remains
   fully valid regardless (unchanged from before this PR) — this case is about honest archival
   logging, not approval gating.

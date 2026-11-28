@@ -47,7 +47,7 @@ No schema version bump was needed because nothing existing was removed or reshap
 
 ## Unit tests
 
-`scripts/ui-lab-visual-review/__tests__/select-scenarios.test.ts` — 15 cases covering: single/
+`scripts/ui-lab-visual-review/__tests__/select-scenarios.test.ts` — 14 cases covering: single/
 multiple selection, whitespace trimming, `--all`/`--scenarios=` mutual exclusivity, empty selection,
 empty-entry selection, duplicate rejection, registration-order preservation regardless of requested
 order, unknown-id rejection (including "one valid + one unknown" rejecting the whole request, never

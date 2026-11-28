@@ -19,6 +19,16 @@ PR close) is untouched by this PR. `visual-authority-gate.yml`'s `archive-eviden
 new env var (`PR_NUMBER`, already available from its own `resolve-pr` job output) to support the
 deployment-review evidence lookup in `VISUAL_EVIDENCE_MODEL.md` — its trigger is unchanged.
 
+## Known limitation carried over, unchanged, from before this PR
+
+`concurrency: group: ui-lab-review-${{ github.ref }}` / `cancel-in-progress: true` is shared by
+both the `acceptance` and `capture` jobs (same as the single job it used to be). A manual `capture`
+dispatch on a branch with an in-flight automatic `acceptance` run (or vice versa) cancels that
+run — pre-existing behavior, not introduced by this PR, but worth noting now that `acceptance`
+carries real automatic regression coverage on every push and a cancelled run could be mistaken for
+a failure. Not fixed in this PR — out of scope for a capture-cost optimization, and the fix (a
+second concurrency group) is a one-line follow-up if the owner wants it.
+
 ## Required-check continuity
 
 `gh api repos/lagebj/matchboard/rulesets/21317362 --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'`

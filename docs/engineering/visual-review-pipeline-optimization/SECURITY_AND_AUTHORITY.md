@@ -29,13 +29,20 @@
 
 ## New data read: PR comment bodies, for a narrow purpose
 
-`archive-evidence.mjs` now reads the PR's `issue_comment`s only to look for an exact-format
-`Deployed PR #<n> (\`<sha>\`) to the Test slot:` string — a comment `visual-review-deploy.yml`
-itself already posts, from a privileged workflow, using the same `GH_TOKEN` archive-evidence
-already holds. This is not new privileged access: `run-gate.mjs` (the `gate` job, same workflow)
-already reads this exact PR's full comment thread for approval resolution. `archive-evidence.mjs`
-only runs after `gate` already reported `APPROVED` for this PR, so it is reading the comment thread
-of a PR whose approval has already been independently verified.
+`archive-evidence.mjs` now reads the PR's `issue_comment`s to look for an exact-format
+`Deployed PR #<n> (\`<sha>\`) to the Test slot:` string — but body text alone is never trusted:
+`findDeploymentCommentForRevision` (`evidence-model.mjs`) additionally requires the matched
+comment's `user.login === "github-actions[bot]"` **and** `user.type === "Bot"`, verified against a
+real "Deployed PR #..." comment on this repository (PR #805) before writing the check. An
+independent review round found the first version of this matching trusted body text alone — fixed
+before merge, with unit tests covering a forged comment from an unprivileged human login, a
+login-text match with the wrong `type`, and a comment with no `user` field at all. This is not new
+privileged access: `run-gate.mjs` (the `gate` job, same workflow) already reads this exact PR's
+full comment thread for approval resolution. `archive-evidence.mjs` only runs after `gate` already
+reported `APPROVED` for this PR, so it is reading the comment thread of a PR whose approval has
+already been independently verified — and the deployment-comment check above ensures the specific
+comment this feature reads really was posted by `visual-review-deploy.yml` itself, not fabricated
+by any other commenter.
 
 ## No new secrets or session data are ever archived
 

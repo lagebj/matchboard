@@ -6,9 +6,9 @@
 | `.github/workflows/ui-lab-visual-review.yml` | Split into `acceptance` (automatic, Playwright only) and `capture` (`workflow_dispatch` only, mode/scenarios/confirm_full inputs) |
 | `scripts/ui-lab-visual-review.mjs` | Minimal wiring to the new selection module; every scenario/interaction/viewport definition unchanged |
 | `scripts/ui-lab-visual-review/select-scenarios.mjs` | New — pure, unit-tested scenario-selection and validation logic |
-| `scripts/ui-lab-visual-review/__tests__/select-scenarios.test.ts` | New — 15 unit tests for the above |
-| `scripts/visual-authority/evidence-model.mjs` | New — pure, unit-tested evidence classification (`CAPTURE_REVIEW`/`DEPLOYMENT_REVIEW`/`NO_EVIDENCE_RECORDED`) and deployment-comment matching |
-| `scripts/visual-authority/__tests__/evidence-model.test.ts` | New — unit tests for the above |
+| `scripts/ui-lab-visual-review/__tests__/select-scenarios.test.ts` | New — 14 unit tests for the above |
+| `scripts/visual-authority/evidence-model.mjs` | New — pure, unit-tested evidence classification (`CAPTURE_REVIEW`/`DEPLOYMENT_REVIEW`/`NO_EVIDENCE_RECORDED`) and deployment-comment matching, including a bot-identity check on the matched comment (not body text alone) |
+| `scripts/visual-authority/__tests__/evidence-model.test.ts` | New — 11 unit tests for the above, including rejection of a forged/wrong-author/wrong-type deploy comment |
 | `scripts/visual-authority/archive-evidence.mjs` | Extended to derive and archive `DEPLOYMENT_REVIEW`/`NO_EVIDENCE_RECORDED` evidence when no capture run exists; `CAPTURE_REVIEW` path behavior unchanged |
 | `.github/workflows/visual-authority-gate.yml` | One line: pass `PR_NUMBER` (already computed) to the `archive-evidence` job's env, for the new comment lookup |
 | `docs/development/coding-agent-working-session.md` | Updated Visual Authority Gate process steps 3-4 to describe on-demand capture |

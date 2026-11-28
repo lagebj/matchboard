@@ -26,15 +26,28 @@ export function classifyEvidence({ captureRunFound, deploymentCommentFound }) {
 // so a wording drift in one place is a visible test failure in the other, not a silent gap.
 const DEPLOY_COMMENT_PATTERN = /^Deployed PR #(\d+) \(`([0-9a-f]{7,40})`\) to the Test slot:/m;
 
+// The real, verified login visual-review-deploy.yml's own `gh pr comment` (run with the default
+// GITHUB_TOKEN) posts as — confirmed against real "Deployed PR #..." comments on this repository
+// (e.g. PR #805: {"login":"github-actions[bot]","type":"Bot"}). Checking this is required, not
+// optional: without it, any commenter on the PR — no permission check at all, unlike
+// check-actor-permission.mjs's real-time collaborator check used for the actual approval decision
+// — could post the literal deploy-comment text themselves and have this archive a permanent
+// GitHub Release whose notes falsely claim a real deployment review happened.
+const TRUSTED_DEPLOY_COMMENT_LOGIN = "github-actions[bot]";
+
 /**
- * @param {{ body: string }[]} comments - this PR's full comment thread (same source
- *   archive-evidence.mjs and run-gate.mjs already read elsewhere — no new storage).
+ * @param {{ body: string, user?: { login?: string, type?: string } }[]} comments - this PR's full
+ *   comment thread (same source archive-evidence.mjs and run-gate.mjs already read elsewhere — no
+ *   new storage).
  * @param {string} approvedRevision - the exact approved SHA to match against.
  * @returns {boolean}
  */
 export function findDeploymentCommentForRevision(comments, approvedRevision) {
   const target = approvedRevision.toLowerCase();
   return comments.some((comment) => {
+    if (comment.user?.login !== TRUSTED_DEPLOY_COMMENT_LOGIN || comment.user?.type !== "Bot") {
+      return false; // only visual-review-deploy.yml's own bot-posted comment is trusted — body text alone is never sufficient, no matter who posted it.
+    }
     const match = DEPLOY_COMMENT_PATTERN.exec(comment.body ?? "");
     if (!match) return false;
     const [, , deployedSha] = match;

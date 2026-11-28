@@ -94,12 +94,12 @@ mechanism intact. Before doing even that:
 2. Update `evaluate-gate.mjs`'s and `run-deploy-request.mjs`'s `excludeContexts` coupling (the
    2026-10-21 circularity fix) — if `visual-review-deploy.yml` is removed, this exclusion becomes
    dead code in `required-checks.mjs`; verify nothing else depends on it before deleting.
-2. Update `coding-agent-working-session.md`'s step 5 (currently documents `/visual-review deploy`)
+3. Update `coding-agent-working-session.md`'s step 5 (currently documents `/visual-review deploy`)
    to point at the `acceptance` label exclusively.
-3. **Do not** perform step 4 below (ruleset/required-check removal) — `Visual Authority Gate`
+4. **Do not** perform step 5 below (ruleset/required-check removal) — `Visual Authority Gate`
    should remain required regardless of which deployment path feeds it, since it is the approval
    record, not the deployment mechanism.
-4. If `visual-review-deploy.yml` is removed: delete the workflow file and
+5. If `visual-review-deploy.yml` is removed: delete the workflow file and
    `scripts/visual-authority/{deploy-pr-revision.sh,run-deploy-request.mjs}` only after confirming
    via a fresh `gh api repos/lagebj/matchboard/rulesets/21317362` read that nothing in the live
    ruleset references it by name (nothing currently does — verified in this PR — but re-verify
