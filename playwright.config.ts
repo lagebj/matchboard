@@ -113,6 +113,17 @@ export default defineConfig({
       },
       testMatch: /ui-lab-gate-e\.spec\.ts/,
     },
+    // Shared Match Presentation correction (issues #852/#853) — same no-auth/no-database
+    // rationale and same local dev-server target as the Gate C/D/E projects above; its own
+    // project, scoped to its own spec file, same convention. Not a Gate wave.
+    {
+      name: "ui-lab-scorebook-match-row",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: process.env.UI_LAB_BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3333",
+      },
+      testMatch: /scorebook-match-row-regression\.spec\.ts/,
+    },
     {
       name: "chromium",
       use: {
@@ -124,7 +135,15 @@ export default defineConfig({
       // it under the full-access coach persona would make its "denied" assertions false. It runs
       // only under the "chromium-viewer" project below (ADR-0078). mobile-critical.spec.ts is a
       // compact-viewport-only contract — it runs under the two mobile-critical-* projects below.
-      testIgnore: [/authz-failure\.spec\.ts/, /mobile-critical\.spec\.ts/, /ui-lab-b08\.spec\.ts/, /ui-lab-gate-c\.spec\.ts/, /ui-lab-gate-d\.spec\.ts/, /ui-lab-gate-e\.spec\.ts/],
+      testIgnore: [
+        /authz-failure\.spec\.ts/,
+        /mobile-critical\.spec\.ts/,
+        /ui-lab-b08\.spec\.ts/,
+        /ui-lab-gate-c\.spec\.ts/,
+        /ui-lab-gate-d\.spec\.ts/,
+        /ui-lab-gate-e\.spec\.ts/,
+        /scorebook-match-row-regression\.spec\.ts/,
+      ],
     },
     {
       name: "chromium-viewer",

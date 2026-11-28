@@ -2,6 +2,7 @@ import { cn } from "@/lib/cn";
 import {
   type MatchPresentation,
   matchPresentationPhase,
+  awaitingReportLabel,
 } from "@/lib/matches/match-presentation";
 
 /**
@@ -46,7 +47,13 @@ export function LiveScoreStrip({ presentation: p, className }: Props) {
         {isLive ? (
           <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[var(--tl-c-live)]" aria-hidden="true" />
         ) : null}
-        {isLive ? p.clockLabel ?? "LIVE" : phase === "final" ? "FT" : (p.clockLabel ?? "")}
+        {isLive
+          ? p.clockLabel ?? "LIVE"
+          : phase === "final"
+            ? "FT"
+            : phase === "awaiting_report"
+              ? awaitingReportLabel(p)
+              : (p.clockLabel ?? "")}
       </span>
     </div>
   );

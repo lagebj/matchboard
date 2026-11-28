@@ -348,15 +348,21 @@ grammar owners (§0.6) render the same variants with Touchline's visual language
 - **Football order is always home then away.** Never reorder to put Matchboard's own team first.
   Mark the own team only subtly (accent weight on its name). No team logo — Matchboard has no
   canonical logo asset; do not require or invent one.
-- **Score and kickoff time share one stable right-aligned value lane** (fixed width, tabular
-  numerals) so a vertical list of matches aligns and scans.
-- Scheduled → kickoff time in the value lane; date subordinate (under the away team); planning
-  attention on the status line (`Planning open · 2 decisions`). Live → score in the value lane;
-  `LIVE · <clock>` (`--live`, not `--danger`); no mutating controls in a list row. Final → final
-  score; `FT` + optional `Won`/`Drawn`/`Lost`; `FT · Report incomplete` when the report is not
-  complete. Cancelled → em dash in both value lanes; `CANCELLED`; never `0-0`. Result colour is
-  neutral — a win is never green, a loss is never a danger colour; the outcome word carries the
-  meaning.
+- **A score occupies a stable right-aligned value lane** (fixed width, tabular numerals) so a
+  vertical list of matches aligns and scans. **A scheduled kickoff time is not a score** (issue
+  #852: forcing it into the score lane's condensed typography overflowed into the trailing status
+  label) — it gets its own non-condensed, auto-width typography, right-aligned but not fixed-width.
+- Scheduled → kickoff time (its own typography, see above) in place of the value lane; date
+  subordinate (under the away team, may wrap to its own line at the narrowest supported widths
+  rather than truncating the opponent name); planning attention on the status line (`Planning
+  open · 2 decisions`). Live → score in the value lane; `LIVE · <clock>` (`--live`, not
+  `--danger`); no mutating controls in a list row. Final (`done` only — ADR-0162) → final score;
+  `FT` + optional `Won`/`Drawn`/`Lost`. Kicked off but not yet confirmed (`played`/
+  `report_incomplete` — ADR-0162's `awaiting_report` phase) → the real score may still show
+  transparently, but the status line uses the same `Played`/`Report incomplete` words as the
+  lifecycle badge (ADR-0101) — **never** an unqualified `FT`, at any width. Cancelled → em dash in
+  both value lanes; `CANCELLED`; never `0-0`. Result colour is neutral — a win is never green, a
+  loss is never a danger colour; the outcome word carries the meaning.
 - Long names: allow up to two lines for a team name; never shrink a team name below the standard
   row-title size; the value lane never collapses below its minimum; never ellipsize to the point
   two opponents are ambiguous.
@@ -366,6 +372,9 @@ grammar owners (§0.6) render the same variants with Touchline's visual language
 ### Truthfulness rules (domain semantics unchanged — ADR-0101, ADR-0109)
 
 - never show a placeholder as if it is a final score;
+- **`FT` requires a locked report (ADR-0162)** — kickoff having passed, or a `DRAFT`/not-yet-locked
+  report existing, is never rendered as `FT`; a real in-progress score may still show, but only
+  alongside a truthful `Played`/`Report incomplete` label, never a final-result claim;
 - **planning closed is not Done**;
 - internal finalized planning is not match completion;
 - cancelled stays visibly cancelled;

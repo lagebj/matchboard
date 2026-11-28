@@ -35,7 +35,15 @@ export type MatchPresentation = {
   kickoffDate: string | null;
   kickoffTime: string | null;
   lifecycle: MatchLifecycleStatus;
-  /** Home/away oriented. `null` until a canonical score exists. */
+  /**
+   * Home/away oriented. `null` until a canonical score exists. Can be non-null on an
+   * `awaiting_report` phase presentation (`matchPresentationPhase()`) — e.g. a report a coach is
+   * actively editing, or a DRAFT/REPORTED-but-not-locked report's recorded goals. A renderer may
+   * show that number transparently; it must never label it "FT" or pair it with a Win/Draw/Loss
+   * claim (`outcomeLabel`/`resultOutcomeForOwnTeam` stay gated to `phase === "final"` throughout
+   * this codebase) — that pairing, not the bare number, is what makes a result read as confirmed
+   * (issue #853).
+   */
   score: { home: number; away: number } | null;
   /** e.g. "37′" for a live match. */
   clockLabel: string | null;
@@ -125,21 +133,34 @@ export function buildMatchPresentation(input: BuildInput): MatchPresentation {
   };
 }
 
-/** The phase grammar a variant renders. Derived from lifecycle + score presence. */
-export type MatchPresentationPhase = "scheduled" | "live" | "final" | "cancelled";
+/**
+ * The phase grammar a variant renders. Derived from `lifecycle` ALONE (issue #853) — a non-null
+ * `score` must never, by itself, promote a match to `final`. `played` (kickoff passed, no report
+ * at all) and `report_incomplete` (a DRAFT or not-yet-locked report) share `awaiting_report`:
+ * kickoff has happened but completion is not confirmed, so no variant may render an unqualified
+ * "FT" for either. Only `done` (a locked, canonical result) is `final`.
+ */
+export type MatchPresentationPhase = "scheduled" | "live" | "awaiting_report" | "final" | "cancelled";
 
 export function matchPresentationPhase(p: MatchPresentation): MatchPresentationPhase {
   if (p.lifecycle === "cancelled") return "cancelled";
   if (p.lifecycle === "live") return "live";
-  if (
-    p.lifecycle === "done" ||
-    p.lifecycle === "played" ||
-    p.lifecycle === "report_incomplete" ||
-    p.score != null
-  ) {
-    return "final";
-  }
+  if (p.lifecycle === "done") return "final";
+  if (p.lifecycle === "played" || p.lifecycle === "report_incomplete") return "awaiting_report";
   return "scheduled";
+}
+
+/**
+ * A short, always-truthful trailing label for an `awaiting_report` phase — safe to show alone at
+ * any width, never a bare "FT". Prefers a caller-supplied report-state qualifier (`reportAttention`,
+ * e.g. "Report missing"/"Report draft") when one is available; otherwise falls back to the exact
+ * same "Played" / "Report incomplete" words `lifecycleStatusConfigFor()`
+ * (`src/components/ui/status-badge.tsx`) already uses for the lifecycle badge (ADR-0101 /
+ * DECISIONS.md "User-facing lifecycle vocabulary") — never a new, uncoordinated term.
+ */
+export function awaitingReportLabel(p: MatchPresentation): string {
+  if (p.reportAttention) return p.reportAttention.label;
+  return p.lifecycle === "played" ? "Played" : "Report incomplete";
 }
 
 /** Attention precedence for a scan-density row (07 §5): lifecycle truth is carried

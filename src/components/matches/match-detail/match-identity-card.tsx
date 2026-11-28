@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 import type { MatchPresentation } from "@/lib/matches/match-presentation";
-import { matchPresentationPhase } from "@/lib/matches/match-presentation";
+import { matchPresentationPhase, awaitingReportLabel } from "@/lib/matches/match-presentation";
 import { TeamKitMark } from "@/components/touchline/identity/team-kit-mark";
 import { resolveKitColorSwatch } from "@/lib/teams/kit-color";
 
@@ -65,6 +65,7 @@ export function MatchIdentityCard({ presentation: p, ownKitColor = null, size = 
   const isScheduled = phase === "scheduled";
   const isCancelled = phase === "cancelled";
   const isLive = phase === "live";
+  const isAwaitingReport = phase === "awaiting_report";
 
   const hero = isCancelled ? "—" : isScheduled ? "—" : p.score != null ? `${p.score.home} - ${p.score.away}` : "—";
 
@@ -74,7 +75,9 @@ export function MatchIdentityCard({ presentation: p, ownKitColor = null, size = 
       ? "Cancelled"
       : phase === "final"
         ? "FT"
-        : [p.kickoffDate, p.kickoffTime].filter(Boolean).join(" · ") || "Scheduled";
+        : isAwaitingReport
+          ? awaitingReportLabel(p)
+          : [p.kickoffDate, p.kickoffTime].filter(Boolean).join(" · ") || "Scheduled";
 
   const kitSize = size === "lg" ? "lg" : "md";
   const heroSize = size === "lg" ? "text-[40px]" : "text-[32px]";
