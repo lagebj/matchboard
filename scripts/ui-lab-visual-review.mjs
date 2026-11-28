@@ -3,6 +3,7 @@ import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { parseCaptureArgs, resolveSelectedScenarios } from "./ui-lab-visual-review/select-scenarios.mjs";
 
 // Fixture-only visual evidence, not an approved golden. Never access production.
 const base = new URL(process.env.UI_LAB_BASE_URL ?? "http://127.0.0.1:3333");
@@ -1247,6 +1248,15 @@ const scenarios = [
   { slug: "gate-e-w2-e02-mixed-progression", route: "gate-e/e02-event-day/mixed-progression", interactions: [selectE02ContinuityMatch] },
   { slug: "gate-e-w2-e02-completed", route: "gate-e/e02-event-day/completed", interactions: [selectE02ContinuityMatch] },
 ];
+// ADR-0161: on-demand, bounded scenario selection. No flags (the script's original contract) still
+// captures every registered scenario above, unchanged — this only narrows the loop below when
+// --scenarios=<slugs> or --all is explicitly passed (see scripts/ui-lab-visual-review.mjs callers
+// in ui-lab-visual-review.yml's `capture` job).
+const captureArgs = parseCaptureArgs(process.argv.slice(2));
+const { selected: selectedScenarios, requestedIds: requestedScenarioIds } = resolveSelectedScenarios(
+  scenarios,
+  captureArgs,
+);
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "mobile", width: 390, height: 844 },
@@ -1288,7 +1298,7 @@ try {
   // wave is provably unaffected by this addition.
   const isGateCRoute = (route) => route.startsWith("gate-c/");
 
-  for (const scenario of scenarios) for (const viewport of [...viewports, ...(scenario.extraViewports ?? [])]) for (const theme of ["dark","light"]) {
+  for (const scenario of selectedScenarios) for (const viewport of [...viewports, ...(scenario.extraViewports ?? [])]) for (const theme of ["dark","light"]) {
     // Width-based, not name-based: correct for any current or future viewport, including the
     // tablet-* extras above, without special-casing each new name.
     const isNarrowDevice = viewport.width < 600;
@@ -1412,6 +1422,14 @@ try {
     sourceCommitSha,
     generatedAt:new Date().toISOString(),
     environment:{node:process.version,platform:process.platform,ci:Boolean(process.env.CI)},
+    // ADR-0161: on-demand capture selection metadata. captureMode/requestedScenarios reflect what
+    // was asked for; resolvedScenarios is what was actually registered and selected (identical to
+    // requestedScenarios in targeted mode, since unknown ids are rejected before any capture runs).
+    captureMode:captureArgs.mode,
+    requestedScenarios:requestedScenarioIds,
+    resolvedScenarios:selectedScenarios.map((s)=>s.slug),
+    workflowRunId:process.env.GITHUB_RUN_ID ?? null,
+    workflowRunAttempt:process.env.GITHUB_RUN_ATTEMPT ?? null,
     knownLimitations:[
       "Captured against a local/ephemeral dev server, not a production or preview deployment.",
       "Gate A scenarios (scenario slugs prefixed gate-a-) are CANDIDATE only — see docs/ui-lab/gate-a-w1-candidates/.",
@@ -1426,13 +1444,16 @@ try {
   // manual artifact inspection would ever catch. Only runs when the capture loop itself didn't
   // already crash (a crash is already a failure on its own, and re-throwing from `finally`
   // would mask the real error with this one).
+  // ADR-0161: checked against selectedScenarios, not the full registry — a deliberate targeted
+  // capture of N scenarios is complete once those N produced captures, not every scenario ever
+  // registered.
   if (completedAllScenarios) {
     const capturedSlugs = new Set(records.map((r) => r.scenario));
-    const missing = scenarios.map((s) => s.slug).filter((slug) => !capturedSlugs.has(slug));
+    const missing = selectedScenarios.map((s) => s.slug).filter((slug) => !capturedSlugs.has(slug));
     if (missing.length > 0) {
       throw new Error(
-        "Capture coverage incomplete — "+missing.length+" registered scenario(s) produced zero captures: "+missing.join(", ")+
-        ". A scenario registered in `scenarios` must always produce at least one capture; see manifest.json for what was actually captured.",
+        "Capture coverage incomplete — "+missing.length+" selected scenario(s) produced zero captures: "+missing.join(", ")+
+        ". A selected scenario must always produce at least one capture; see manifest.json for what was actually captured.",
       );
     }
   }

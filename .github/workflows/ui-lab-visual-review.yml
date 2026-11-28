@@ -1,18 +1,40 @@
 name: UI Lab Visual Review
 
-# Screenshots are temporary review evidence, not committed golden binaries.
-# The UI Lab remains unavailable in production.
+# ADR-0161: screenshots are temporary review evidence, not committed golden binaries, and the UI
+# Lab remains unavailable in production. Capture is now deliberate and on-demand only
+# (`workflow_dispatch`) — it no longer runs automatically on every push to a UI-Lab-touching PR
+# (measured at ~20m35s of a ~27m job, ~76% of total runtime, for ~1,700 screenshots regardless of
+# how small the actual change was). The real browser regression tests (B08/Gate C/D/E Playwright
+# suites) still run automatically on the same path filter as before — they are cheap (~5m30s
+# combined) and catch real regressions; only the expensive screenshot generation moved to
+# on-demand. Neither job here is a required status check on ruleset 21317362 (only
+# `Visual Authority Gate`, a separate workflow, is), so this split required no ruleset change.
 on:
   pull_request:
     branches: [main]
     paths:
       - ".github/workflows/ui-lab-visual-review.yml"
       - "scripts/ui-lab-visual-review.mjs"
+      - "scripts/ui-lab-visual-review/**"
       - "src/app/dev/ui-lab/**"
       - "src/app/touchline.css"
       - "src/components/touchline/**"
       - "src/components/matches/match-detail/**"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Capture mode for the on-demand `capture` job (ignored by `acceptance`)"
+        type: choice
+        options: [targeted, full]
+        default: targeted
+      scenarios:
+        description: "Comma-separated scenario slugs (required when mode=targeted), e.g. gate-e-w2-e02-upcoming,gate-e-w2-e02-completed"
+        type: string
+        default: ""
+      confirm_full:
+        description: "Must be exactly 'FULL CAPTURE' when mode=full — a deliberate confirmation, not a default, so an empty/accidental dispatch can't trigger the full ~1,700-screenshot run"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -22,31 +44,132 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  capture:
-    name: Capture fixture-backed UI Lab views
+  acceptance:
+    name: UI Lab acceptance (Playwright, no capture)
     runs-on: ubuntu-24.04
-    # W4/B07: bumped 25 -> 35. The prior budget had little margin even before this wave's two new
-    # scenarios — a run on this PR's own branch was cancelled at the 25-minute mark with
-    # `npx playwright install --with-deps chromium` alone having taken 11m05s (CI infra
-    # variance, not caused by this wave's change), leaving the actual capture step only 13m29s
-    # before the overall job timeout cut it off mid-run. The capture step itself, not install
-    # variance, should be what a timeout here is budgeting for.
-    # W5/B08: bumped 35 -> 45 for the new Playwright acceptance step below (50 real-browser
-    # tests against the same local server — section 11 of the independent review requires real
-    # browser assertions, not only unit/component tests, for B08's navigation/continuity/
-    # responsive-overflow coverage).
-    # Gate C W1: bumped 45 -> 55 for the new Gate C Playwright acceptance step below (same
-    # rationale — real browser navigation and responsive-overflow coverage for C01-C03, not only
-    # component tests).
-    # Gate D W1 remediation: bumped 55 -> 65 for the new Gate D Playwright acceptance step below
-    # (86 real-browser tests — D01/D02/D07/D08/D09 interaction, Server-Action-absence, and
-    # responsive-overflow coverage, per the owner's remediation brief §8).
-    # Gate E W1: bumped 65 -> 70 for the new Gate E Playwright acceptance step below (E01
-    # temporal-orientation/period-navigation/context-restoration coverage).
-    # Gate E W2: bumped 70 -> 75 for E02's additional Gate E Playwright tests (same step, same
-    # project) and its 24 additional event-day captures.
-    timeout-minutes: 75
+    # Real-browser regression coverage only — no screenshot capture in this job. Install +
+    # server-start + four Playwright projects measured at ≈6-7 minutes total; generous headroom
+    # kept for CI infra variance (see the former single-job history this file used to carry, now
+    # superseded by ADR-0161's split).
+    timeout-minutes: 20
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start local fixture server
+        env:
+          MATCHBOARD_ENV: development
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          npx next dev -p 3333 > /tmp/matchboard-ui-lab.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error --max-time 5 http://localhost:3333/dev/ui-lab/atlas-followup/ -o /dev/null; then
+              exit 0
+            fi
+            sleep 3
+          done
+          tail -n 100 /tmp/matchboard-ui-lab.log
+          exit 1
+      - name: Run B08 Playwright acceptance suite
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3333
+        run: npx playwright test --project=ui-lab-b08
+      - name: Upload B08 Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-lab-b08-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Run Gate C Playwright acceptance suite
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3333
+        run: npx playwright test --project=ui-lab-gate-c
+      - name: Upload Gate C Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-lab-gate-c-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Run Gate D Playwright acceptance suite
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3333
+        run: npx playwright test --project=ui-lab-gate-d
+      - name: Upload Gate D Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-lab-gate-d-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Run Gate E Playwright acceptance suite
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3333
+        run: npx playwright test --project=ui-lab-gate-e
+      - name: Upload Gate E Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-lab-gate-e-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Print server errors on failure
+        if: failure()
+        run: tail -n 120 /tmp/matchboard-ui-lab.log || true
+
+  capture:
+    name: Capture fixture-backed UI Lab views (on-demand)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    # Deliberate, explicit operation only — see the workflow-level comment. 45 minutes covers a
+    # full-registry capture (previously measured at ~20m35s alone) plus CI infra variance headroom;
+    # a targeted capture of a handful of scenarios finishes in low-single-digit minutes once the
+    # browser environment is ready.
+    timeout-minutes: 45
+    steps:
+      - name: Validate capture mode inputs
+        id: capture-args
+        # Inputs are read via env:, never interpolated directly into this run: script — matching
+        # this repository's existing convention for anything that isn't a fully trusted literal
+        # (see e.g. visual-review-deploy.yml's own handling of comment-derived values).
+        env:
+          MODE: ${{ inputs.mode }}
+          SCENARIOS: ${{ inputs.scenarios }}
+          CONFIRM: ${{ inputs.confirm_full }}
+        run: |
+          case "$MODE" in
+            targeted)
+              if [ -z "$SCENARIOS" ]; then
+                echo "mode=targeted requires a non-empty 'scenarios' input (comma-separated scenario slugs)." >&2
+                exit 1
+              fi
+              # Strip whitespace before it reaches the unquoted $CAPTURE_ARGS expansion in the
+              # capture step below — an input like "a, b, c" would otherwise word-split into
+              # several argv entries and silently select only "a", not a rejected/failed selection.
+              SCENARIOS_NO_SPACE="$(echo "$SCENARIOS" | tr -d '[:space:]')"
+              echo "args=--scenarios=${SCENARIOS_NO_SPACE}" >> "$GITHUB_OUTPUT"
+              ;;
+            full)
+              if [ "$CONFIRM" != "FULL CAPTURE" ]; then
+                echo "mode=full requires 'confirm_full' to be exactly the literal string 'FULL CAPTURE' — this is a deliberate, expensive, full-registry capture, not a default." >&2
+                exit 1
+              fi
+              echo "args=--all" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unknown mode: '${MODE}' (expected 'targeted' or 'full')." >&2
+              exit 1
+              ;;
+          esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -71,7 +194,8 @@ jobs:
       - name: Capture desktop/mobile, dark/light review states
         env:
           UI_LAB_BASE_URL: http://localhost:3333
-        run: node scripts/ui-lab-visual-review.mjs
+          CAPTURE_ARGS: ${{ steps.capture-args.outputs.args }}
+        run: node scripts/ui-lab-visual-review.mjs $CAPTURE_ARGS
       - name: Upload temporary review evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -81,75 +205,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
           compression-level: 6
-      # B08 W5 remediation (independent review, section 11) — real Chromium assertions for
-      # navigation, lifecycle-state continuity, and responsive overflow, against the SAME local
-      # server the capture step above already started (no auth, no database — `ui-lab-b08` is a
-      # dedicated, no-`setup`-dependency Playwright project; see `playwright.config.ts`'s own doc
-      # comment on it). Deliberately no `if:` override — runs only if the server actually started
-      # and the capture step succeeded, the same default-continuation behavior every other step
-      # in this job already relies on.
-      - name: Run B08 Playwright acceptance suite
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:3333
-        run: npx playwright test --project=ui-lab-b08
-      - name: Upload B08 Playwright report on failure
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ui-lab-b08-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
-          path: playwright-report/
-          if-no-files-found: ignore
-          retention-days: 7
-      # Gate C W1 — real Chromium assertions for navigation and responsive overflow (C01-C03),
-      # same rationale and same dedicated no-`setup`-dependency Playwright project convention as
-      # the B08 step above; against the same already-running local server. Deliberately no `if:`
-      # override, matching the B08 step's own default-continuation behavior.
-      - name: Run Gate C Playwright acceptance suite
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:3333
-        run: npx playwright test --project=ui-lab-gate-c
-      - name: Upload Gate C Playwright report on failure
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ui-lab-gate-c-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
-          path: playwright-report/
-          if-no-files-found: ignore
-          retention-days: 7
-      # Gate D W1 remediation — real Chromium assertions for D01/D02/D07/D08/D09 simulated
-      # interactions (accept/reject/defer/edit/retract/unlock), Server-Action absence (next-action
-      # header filtering, not a blanket POST check), and responsive overflow, per the owner's
-      # remediation brief §8. Same dedicated no-`setup`-dependency Playwright project convention
-      # and already-running local server as the B08/Gate C steps above. Deliberately no `if:`
-      # override, matching their default-continuation behavior.
-      - name: Run Gate D Playwright acceptance suite
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:3333
-        run: npx playwright test --project=ui-lab-gate-d
-      - name: Upload Gate D Playwright report on failure
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ui-lab-gate-d-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
-          path: playwright-report/
-          if-no-files-found: ignore
-          retention-days: 7
-      # Gate E W1 (E01 League) — real Chromium assertions for temporal-orientation identification,
-      # period navigation, and context restoration. Same dedicated no-`setup`-dependency
-      # Playwright project convention and already-running local server as the B08/Gate C/Gate D
-      # steps above. Deliberately no `if:` override, matching their default-continuation behavior.
-      - name: Run Gate E Playwright acceptance suite
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:3333
-        run: npx playwright test --project=ui-lab-gate-e
-      - name: Upload Gate E Playwright report on failure
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ui-lab-gate-e-playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
-          path: playwright-report/
-          if-no-files-found: ignore
-          retention-days: 7
       - name: Print server errors on failure
         if: failure()
         run: tail -n 120 /tmp/matchboard-ui-lab.log || true

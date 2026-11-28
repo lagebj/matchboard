@@ -145,5 +145,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ needs.resolve-pr.outputs.head_sha }}
+          PR_NUMBER: ${{ needs.resolve-pr.outputs.pr_number }}
           APPROVED_SCENARIOS_JSON: ${{ needs.gate.outputs.approved_scenarios_json }}
         run: node scripts/visual-authority/archive-evidence.mjs
