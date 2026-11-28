@@ -1,7 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 /**
- * Gate E W1 (register E01, "League — Fixtures and results") — real Chromium assertions for
+ * Gate E W1 (register E01, "League — Fixtures and results") and, at the end of this file, Gate E
+ * W2 (register E02, "Events — Event day"). E01: real Chromium assertions for
  * temporal-orientation identification, period navigation, and context restoration (XR-T01,
  * XR-S02). Runs under the `ui-lab-gate-e` project only (`playwright.config.ts`), against the
  * same local `next dev` server `scripts/ui-lab-visual-review.mjs` already starts in CI
@@ -224,4 +225,313 @@ test.describe("E01 — responsive layout", () => {
     }));
     expect(scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Gate E W2 (register E02, "Events — Event day") — multi-match event-day progression across
+// squads/states with persistent event and match identity (XR-T01, XR-S01, XR-V02). The E01
+// tests above are unchanged. Every E02 locator is scoped to a `data-e02-*` attribute or an exact
+// accessible name: Playwright's `getByText`/`getByLabel` match substrings tree-wide (the Gate D
+// W2/Gate E W1 lesson), and squad/opponent names repeat across rows by design here.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+const E02 = "/dev/ui-lab/gate-e/e02-event-day";
+const MIXED = `${E02}/mixed-progression`;
+const mixedId = (n: string) => `gate-e-w2-e02-${n}`;
+
+async function openE02(page: Page, url: string) {
+  await page.goto(url);
+  await page.locator('[data-e02-hydrated="true"]').waitFor({ state: "attached", timeout: 30_000 });
+}
+const e02Row = (page: Page, id: string) => page.locator(`[data-e02-match-row="${id}"]`);
+const e02Panel = (page: Page) => page.locator("[data-e02-selected-match]");
+const e02Timeline = (page: Page) => page.getByRole("list", { name: "Event-day match timeline" });
+
+test.describe("E02 — event-day progression across squads and states", () => {
+  test("upcoming: matches render in kickoff order with both 09:00 matches NEXT and no result anywhere", async ({ page }) => {
+    await openE02(page, `${E02}/upcoming`);
+    const times = await e02Timeline(page).locator(":scope > li > span:nth-child(2)").allTextContents();
+    expect(times.map((t) => t.trim())).toEqual(["09:00", "09:00", "09:40", "10:20", "10:20", "11:20", "12:40", "12:40", "14:00"]);
+    await expect(e02Timeline(page).getByText("NEXT", { exact: true })).toHaveCount(2);
+    await expect(e02Row(page, "gate-e-w2-e02-m01")).toContainText("Nordbyen FK");
+    await expect(e02Timeline(page).getByText(/\bFT\b/)).toHaveCount(0);
+  });
+
+  test("completed: recorded results render; Event finalisation is shown separately from the REPORTED-not-locked match", async ({ page }) => {
+    await openE02(page, `${E02}/completed`);
+    await expect(page.getByText("Event is finalised", { exact: true })).toBeVisible();
+    const first = e02Row(page, "gate-e-w2-e02-m01");
+    await expect(first).toContainText("Fjellsiden Blå");
+    await expect(first).toContainText("3");
+    await expect(first).toContainText("FT");
+    await expect(e02Row(page, "gate-e-w2-e02-m07")).toContainText("Result reported · report not locked");
+    await expect(e02Timeline(page).getByText("NEXT", { exact: true })).toHaveCount(0);
+    await expect(e02Timeline(page).getByText("LIVE", { exact: true })).toHaveCount(0);
+  });
+
+  test("mixed: cancelled, report-missing, report-draft, live, next and later are each named in text", async ({ page }) => {
+    await openE02(page, MIXED);
+    for (const kicker of ["CANCELLED", "REPORT MISSING", "REPORT DRAFT", "LATER"]) {
+      await expect(e02Timeline(page).getByText(kicker, { exact: true })).toHaveCount(1);
+    }
+    // "LIVE" is both the timeline kicker and the real ScorebookMatchRow's own live trailer, and
+    // only on the one match with an ACTIVE session.
+    await expect(e02Timeline(page).getByText("LIVE", { exact: true })).toHaveCount(2);
+    await expect(e02Row(page, mixedId("m06")).getByText("LIVE", { exact: true })).toHaveCount(1);
+    await expect(e02Timeline(page).getByText("NEXT", { exact: true })).toHaveCount(2);
+    await expect(e02Row(page, mixedId("m03"))).toContainText("Sjøvik SK withdrew before kickoff");
+    await expect(e02Row(page, mixedId("m05"))).toContainText("Draft report — score not final");
+  });
+
+  test("multiple squads stay identifiable: each row names its own squad", async ({ page }) => {
+    await openE02(page, MIXED);
+    for (const [id, squad] of [["m01", "Fjellsiden Blå"], ["m02", "Fjellsiden Rød"], ["m05", "Fjellsiden Rød"], ["m06", "Fjellsiden Blå"]]) {
+      await expect(e02Row(page, mixedId(id))).toContainText(squad);
+    }
+    await expect(e02Row(page, mixedId("m05"))).not.toContainText("Fjellsiden Blå");
+  });
+});
+
+test.describe("E02 — event and match identity continuity (XR-S01, XR-V02)", () => {
+  test("selecting a Rød match selects exactly that match; the Event heading never changes", async ({ page }) => {
+    await openE02(page, MIXED);
+    await e02Row(page, mixedId("m05")).getByRole("link").click();
+    await page.waitForURL(new RegExp(`match=${mixedId("m05")}`));
+    await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m05"));
+    await expect(e02Panel(page).getByTestId("e02-selected-squad")).toHaveText("Fjellsiden Rød");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+    await expect(e02Timeline(page).getByText("Selected", { exact: true })).toHaveCount(1);
+    await expect(e02Row(page, mixedId("m05")).getByText("Selected", { exact: true })).toBeVisible();
+  });
+
+  test("same-opponent matches stay distinct: Nordbyen FK 10:20 (Rød) → 14:00 (Rød) → 09:00 (Blå)", async ({ page }) => {
+    await openE02(page, MIXED);
+    for (const [id, squad, kickoff] of [["m05", "Fjellsiden Rød", "10:20"], ["m09", "Fjellsiden Rød", "14:00"], ["m01", "Fjellsiden Blå", "09:00"]]) {
+      await e02Row(page, mixedId(id)).getByRole("link").click();
+      await page.waitForURL(new RegExp(`match=${mixedId(id)}`));
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId(id));
+      await expect(e02Panel(page).getByTestId("e02-selected-squad")).toHaveText(squad);
+      await expect(e02Panel(page).getByTestId("e02-selected-kickoff")).toHaveText(`SAT 13 MAR · ${kickoff}`);
+    }
+  });
+
+  test("a directly-loaded URL restores the selected match with no click", async ({ page }) => {
+    await openE02(page, `${MIXED}?match=${mixedId("m06")}`);
+    await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m06"));
+    await expect(e02Panel(page).getByTestId("e02-selected-state")).toHaveText("Live — reporting session active");
+  });
+
+  test("browser Back restores the previous selection, then the unselected Event day", async ({ page }) => {
+    await openE02(page, MIXED);
+    await e02Row(page, mixedId("m05")).getByRole("link").click();
+    await page.waitForURL(new RegExp(`match=${mixedId("m05")}`));
+    await e02Row(page, mixedId("m07")).getByRole("link").click();
+    await page.waitForURL(new RegExp(`match=${mixedId("m07")}`));
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`match=${mixedId("m05")}`));
+    await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m05"));
+    await page.goBack();
+    await expect(page).not.toHaveURL(/match=/);
+    await expect(e02Panel(page)).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+  });
+
+  test("'Back to event day' clears only the selection and returns focus to that match's row", async ({ page }) => {
+    await openE02(page, `${MIXED}?theme=dark`);
+    await e02Row(page, mixedId("m04")).getByRole("link").click();
+    await page.waitForURL(new RegExp(`match=${mixedId("m04")}`));
+    await e02Panel(page).getByRole("button", { name: "Back to event day", exact: true }).click();
+    await expect(page).not.toHaveURL(/match=/);
+    await expect(page).toHaveURL(/theme=dark/);
+    await expect(e02Row(page, mixedId("m04")).getByRole("link")).toBeFocused();
+  });
+
+  test("a match id belonging to another Event is rejected, never shown under this Event", async ({ page }) => {
+    await openE02(page, `${MIXED}?match=gate-e-w2-e02-other-event-m01`);
+    await expect(e02Panel(page)).toHaveCount(0);
+    await expect(page.getByRole("status").filter({ hasText: "belongs to Fjellsiden Vårcup" })).toBeVisible();
+  });
+
+  test("switching Event tabs keeps the Event heading, and returning to Overview restores the selection", async ({ page }) => {
+    await openE02(page, `${MIXED}?match=${mixedId("m05")}`);
+    const tabs = page.getByRole("navigation", { name: "Event sections" });
+    await tabs.getByRole("button", { name: "Matches", exact: true }).click();
+    await page.waitForURL(/tab=matches/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+    await tabs.getByRole("button", { name: "Overview", exact: true }).click();
+    await expect(page).not.toHaveURL(/tab=/);
+    await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m05"));
+  });
+
+  test("keyboard: Enter on a focused row selects it and moves focus to the selected-match context", async ({ page }) => {
+    await openE02(page, MIXED);
+    await e02Row(page, mixedId("m07")).getByRole("link").focus();
+    await page.keyboard.press("Enter");
+    await page.waitForURL(new RegExp(`match=${mixedId("m07")}`));
+    await expect(page.getByRole("heading", { name: "Selected match", exact: true })).toBeFocused();
+  });
+
+  test("no rendered link targets an invented route; the live entry is the real Event live-reporting route", async ({ page }) => {
+    await openE02(page, `${MIXED}?match=${mixedId("m06")}`);
+    const hrefs = await page.locator("a").evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""));
+    const allowed = [
+      /^\/dev\/ui-lab\//,
+      /^\/events$/,
+      /^\/o\/acme\/events\/gate-e-w2-e02-event\/matches\/gate-e-w2-e02-m\d\d\/live(\/follow)?$/,
+      /^\/o\/acme\/events\/gate-e-w2-e02-event\?tab=matches$/,
+    ];
+    for (const href of hrefs) expect(allowed.some((r) => r.test(href)), href).toBe(true);
+    const live = e02Panel(page).getByRole("link", { name: "Continue live reporting", exact: true });
+    await expect(live).toHaveAttribute("href", `/o/acme/events/gate-e-w2-e02-event/matches/${mixedId("m06")}/live`);
+    await live.click();
+    await page.waitForURL(/\/signin/, { timeout: 10_000 });
+  });
+
+  test("no synthetic interaction sends a real Server Action request (next-action header)", async ({ page }) => {
+    const serverActions: string[] = [];
+    page.on("request", (req) => {
+      if (req.method() === "POST" && req.headers()["next-action"]) serverActions.push(req.url());
+    });
+    await openE02(page, MIXED);
+    await e02Row(page, mixedId("m05")).getByRole("link").click();
+    await page.waitForURL(new RegExp(`match=${mixedId("m05")}`));
+    await e02Row(page, mixedId("m03")).getByRole("link").click();
+    await page.waitForURL(new RegExp(`match=${mixedId("m03")}`));
+    const tabs = page.getByRole("navigation", { name: "Event sections" });
+    await tabs.getByRole("button", { name: "Squads", exact: true }).click();
+    await page.waitForURL(/tab=squads/);
+    await tabs.getByRole("button", { name: "Overview", exact: true }).click();
+    await expect(page).not.toHaveURL(/tab=/);
+    await e02Panel(page).getByRole("button", { name: "Back to event day", exact: true }).click();
+    await expect(page).not.toHaveURL(/match=/);
+    expect(serverActions).toEqual([]);
+  });
+});
+
+test.describe("E02 — responsive layout", () => {
+  test("desktop: the product surface uses the production-equivalent content width", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openE02(page, MIXED);
+    const width = await page.locator("[data-e02-product-surface]").evaluate((el) => el.getBoundingClientRect().width);
+    expect(width).toBeGreaterThan(1200);
+  });
+
+  for (const state of ["upcoming", "mixed-progression", "completed"]) {
+    for (const width of [390, 320]) {
+      test(`${state} @ ${width}px has no document-level horizontal overflow`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 844 });
+        await openE02(page, `${E02}/${state}`);
+        const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          innerWidth: window.innerWidth,
+        }));
+        expect(scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      });
+    }
+  }
+
+  test("mobile dark: heading, timeline and selection remain usable at 390px", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openE02(page, `${MIXED}?theme=dark`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator('.touchline[data-theme="dark"]').first()).toBeAttached();
+    await e02Row(page, mixedId("m07")).getByRole("link").click();
+    await page.waitForURL(new RegExp(`match=${mixedId("m07")}`));
+    await expect(e02Panel(page)).toBeInViewport();
+    await expect(e02Panel(page).getByTestId("e02-selected-squad")).toHaveText("Fjellsiden Blå");
+  });
+
+  // Independent review M2: below `medium` the shared ScorebookMatchRow ellipsizes team names
+  // ("Fjel…"), so each row carries a UI-Lab-only identity line with the full squad and opponent.
+  for (const width of [390, 320]) {
+    test(`mixed @ ${width}px: every row's full squad and opponent names are visible and not truncated`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await openE02(page, MIXED);
+      const lines = page.locator("[data-e02-identity-line]");
+      await expect(lines).toHaveCount(9);
+      const measured = await lines.evaluateAll((els) =>
+        els.map((el) => ({
+          text: el.textContent ?? "",
+          visible: el.getBoundingClientRect().height > 0,
+          fits: el.scrollWidth <= el.clientWidth + 1,
+          ellipsis: getComputedStyle(el).textOverflow === "ellipsis",
+        })),
+      );
+      for (const m of measured) {
+        expect(m.visible, m.text).toBe(true);
+        expect(m.fits, m.text).toBe(true);
+        expect(m.ellipsis, m.text).toBe(false);
+        expect(m.text).toMatch(/^Fjellsiden (Blå|Rød) v (Nordbyen FK|Kvisten IL|Sjøvik SK|Bakkely IF)$/);
+      }
+      await expect(e02Row(page, mixedId("m05")).locator("[data-e02-identity-line]")).toHaveText("Fjellsiden Rød v Nordbyen FK");
+      await expect(e02Row(page, mixedId("m01")).locator("[data-e02-identity-line]")).toHaveText("Fjellsiden Blå v Nordbyen FK");
+    });
+  }
+
+  // E02-R4: the identity line is part of the SAME selection target as the row (one link).
+  for (const width of [390, 320]) {
+    test(`mixed @ ${width}px: row and identity line are one selection target (tap, keyboard, focus, Back)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await openE02(page, MIXED);
+      const row = e02Row(page, mixedId("m05"));
+      // Exactly one link per match item, containing the identity line, no nested controls.
+      await expect(row.locator("a")).toHaveCount(1);
+      await expect(row.locator("a [data-e02-identity-line]")).toHaveCount(1);
+      await expect(row.locator("a").locator("a, button, input, select, textarea, [tabindex]")).toHaveCount(0);
+
+      // Tap the identity line → selects that match.
+      await row.locator("[data-e02-identity-line]").click();
+      await page.waitForURL(new RegExp(`match=${mixedId("m05")}`));
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m05"));
+      await expect(page.getByRole("heading", { name: "Selected match", exact: true })).toBeFocused();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+
+      // Tap the scorebook part of another row → selects that match.
+      await e02Row(page, mixedId("m07")).locator("a > div").first().click();
+      await page.waitForURL(new RegExp(`match=${mixedId("m07")}`));
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m07"));
+
+      // Browser Back restores the prior URL selection.
+      await page.goBack();
+      await expect(page).toHaveURL(new RegExp(`match=${mixedId("m05")}`));
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m05"));
+
+      // "Back to event day" clears it and returns focus to that match's single link.
+      await e02Panel(page).getByRole("button", { name: "Back to event day", exact: true }).click();
+      await expect(page).not.toHaveURL(/match=/);
+      await expect(row.locator("a")).toBeFocused();
+
+      // Keyboard activation of the same link.
+      await page.keyboard.press("Enter");
+      await page.waitForURL(new RegExp(`match=${mixedId("m05")}`));
+      await expect(page.getByRole("heading", { name: "Selected match", exact: true })).toBeFocused();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+    });
+  }
+
+  test("desktop: the identity line is not shown (the shared row has room for the names)", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openE02(page, MIXED);
+    await expect(page.locator("[data-e02-identity-line]").first()).toBeHidden();
+  });
+});
+
+test.describe("E02 — XR-S01: the same match keeps one identity across scheduled, live and completed", () => {
+  const states: [string, string, string | null][] = [
+    ["upcoming", "Scheduled", null],
+    ["mixed-progression", "Live — reporting session active", "Continue live reporting"],
+    ["completed", "Result recorded — report completed", null],
+  ];
+  for (const [state, stateLabel, liveLabel] of states) {
+    test(`${state}: Blå vs Kvisten IL 11:20 (${mixedId("m06")}) keeps squad/opponent/kickoff; state is '${stateLabel}'`, async ({ page }) => {
+      await openE02(page, `${E02}/${state}?match=${mixedId("m06")}`);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fjellsiden Vårcup");
+      await expect(e02Panel(page)).toHaveAttribute("data-e02-selected-match", mixedId("m06"));
+      await expect(e02Panel(page).getByTestId("e02-selected-squad")).toHaveText("Fjellsiden Blå");
+      await expect(e02Panel(page).getByTestId("e02-selected-kickoff")).toHaveText("SAT 13 MAR · 11:20");
+      await expect(e02Panel(page).getByTestId("e02-selected-state")).toHaveText(stateLabel);
+      if (liveLabel) await expect(e02Panel(page).getByRole("link", { name: liveLabel, exact: true })).toBeVisible();
+      await expect(e02Row(page, mixedId("m06"))).toContainText("Kvisten IL");
+    });
+  }
 });

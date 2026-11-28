@@ -1,0 +1,121 @@
+{
+  "programmeRevision": "0.169.18",
+  "baseCommitSha": "5ee69d7c4d47b99e2f9f891036abd62b9caeede5",
+  "authority": "UI_LAB_DESIGN_REFERENCE_ONLY — dev-only, production-disabled candidate presentation under src/app/dev/ui-lab/gate-e/e02-event-day/. Not a production implementation, not an authorization, not a security proof. Scope and authority sources: docs/ui-lab/gate-e-w2-candidates/SOURCE_RECONCILIATION.md.",
+  "note": "Gate E W2 — E02 (Events / Event day: multi-match event-day progression across squads/states with persistent event and match identity, XR-T01 XR-S01 XR-V02). Three child candidates of the single official row E02 — upcoming, mixed progression, completed — which are the SAME Event day (same Event, squads and nine match ids/opponents/kickoffs, shared/event-day-schedule.ts) observed at 08:00, 11:30 and 18:00 Europe/Oslo, so the same match can be compared scheduled/live/completed (XR-S01; continuity match gate-e-w2-e02-m06). Fixture v2 after independent review M1 (v1 used three unrelated schedules). Canonical EventMatchWithReport fixture records are rendered through the real, unmodified buildMatchPresentation(), TouchlineTimeline, TimelineItem, ScorebookMatchRow, TouchlinePageHeader, TabRail and DecisionBanner. A UI-Lab-only pure projection stands in for production EventDayTimeline's private lifecycle function (which self-fetches via a Server Action and reads the real clock) and deliberately differs from it where production misstates E02 facts (canonical live state, DRAFT score never shown as a result, REPORTED as a completed result, cancelled never LATER, deterministic simultaneous ordering, every simultaneous next match marked NEXT, Europe/Oslo-pinned labels) — see TEMPORAL_AND_LIFECYCLE_AUDIT.md and BLOCKERS.md BLK-E02-01. Match selection (match query parameter) and the selected-match context panel are DIRECTIONAL: production has no per-match selection and no Event Match Detail route (BLK-E02-02); outbound links go only to real production routes (Event live reporting, follow live, the Event's Matches tab). No production route, component, domain service or schema changed. All three candidates are CANDIDATE, pending owner review — none approved, none merged, none self-approved. E03-E08 deferred (WAVE_SCOPE.md). INDEPENDENT REVIEW (fresh reviewer, head 9d199096): 0 BLOCKING, 3 MAJOR — M1 (XR-S01 not demonstrated) fixed by the shared schedule; M2 (squad names truncated below 600px) fixed by a UI-Lab-only full-name identity line with Playwright truncation assertions; M3 (BLK-E02-08, shared ScorebookMatchRow scheduled-row overlap, issue #852) left for the owner's decision. Minor m1 (draft score shown in selected panel) fixed; m2 (shared 'FT' glyph on unreported rows) disclosed; m4 (Playwright counts) corrected. See REVIEW_RECORD.md. REVIEW ROUND 2 (E02-R1..R6): R4 fixed (each match item is one UI-Lab link wrapping the link-less shared row and the identity line); R5 fixed (PR description); R6 fixed (XR-V02 stated as directionally demonstrated only — the production Event Match Detail -> Live Reporting -> return journey is NOT verified, BLK-E02-02). R1/R2 (#852) and R3 (#853) are MAJOR shared Match Presentation defects (scorebook-match-row.tsx, match-presentation.ts) that remain OPEN: changing shared production components is not authorized by 02_AUTHORITY_SCOPE_AND_APPROVALS.md, so no fix was made and no separate PR opened — owner decision required (BLOCKERS.md 'Review round 2').",
+  "candidates": [
+    {
+      "scenarioId": "GATE-E-W2-E02-UPCOMING",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-e-w2-e02-upcoming",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/lib/matches/match-presentation.ts",
+        "src/components/touchline/timeline/touchline-timeline.tsx",
+        "src/components/touchline/scorebook/scorebook-match-row.tsx",
+        "src/components/touchline/shell/touchline-page-header.tsx",
+        "src/components/ui/tab-rail.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-projection.ts",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-schedule.ts",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-timeline-section.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/selected-match-context.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-fixture-mount.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/upcoming/page.tsx"
+      ],
+      "lifecycle": "production",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "E02",
+        "XR-T01",
+        "XR-S01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-e-w2-candidates/SCENARIO_REGISTER.md row GATE-E-W2-E02-UPCOMING",
+      "dataContractRef": "docs/ui-lab/gate-e-w2-candidates/DATA_TRUTH_AND_FIXTURES.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY for a rendered comparison — production Event day renders only after an authenticated fetch; current behaviour is described from code in CURRENT_STATE_AUDIT.md.",
+      "knownGaps": [
+        "BLK-E02-01: production EventDayTimeline's lifecycle projection differs from the candidate's (live/draft/reported/cancelled/simultaneous handling).",
+        "BLK-E02-02: match selection and the selected-match context are directional; production has no Event Match Detail route.",
+        "BLK-E02-08 (issue #852): in the unmodified production ScorebookMatchRow, scheduled rows show the kickoff time overlapping the Scheduled label, and the opponent name truncates at 390/320px. Visible in this candidate's captures; not fixed in this UI-Lab-only wave — owner decision (independent review M3). A UI-Lab-only identity line keeps full squad/opponent names readable below 600px.",
+        "E02-R6: XR-V02 is directionally demonstrated only — context preservation within this candidate is verified; the production Event Match Detail -> Live Reporting -> return journey is not (no such route, BLK-E02-02)."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-E-W2-E02-MIXED",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-e-w2-e02-mixed-progression",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/lib/matches/match-presentation.ts",
+        "src/components/touchline/timeline/touchline-timeline.tsx",
+        "src/components/touchline/scorebook/scorebook-match-row.tsx",
+        "src/components/touchline/shell/touchline-page-header.tsx",
+        "src/components/ui/tab-rail.tsx",
+        "src/lib/live-match/live-reporting-primary-action.ts",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-projection.ts",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-schedule.ts",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-timeline-section.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/selected-match-context.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-fixture-mount.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/mixed-progression/page.tsx"
+      ],
+      "lifecycle": "production",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "E02",
+        "XR-T01",
+        "XR-S01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-e-w2-candidates/SCENARIO_REGISTER.md row GATE-E-W2-E02-MIXED",
+      "dataContractRef": "docs/ui-lab/gate-e-w2-candidates/DATA_TRUTH_AND_FIXTURES.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY for a rendered comparison — see CURRENT_STATE_AUDIT.md.",
+      "knownGaps": [
+        "BLK-E02-01 (as above). The live match is shown from a canonical ACTIVE session record; EventMatchWithReport carries no live score, so none is shown.",
+        "BLK-E02-02: the 'Report and lineup in Matches tab' link opens the Event's Matches tab but cannot target the specific match (production has no anchor).",
+        "BLK-E02-08 (issue #852): in the unmodified production ScorebookMatchRow, scheduled rows show the kickoff time overlapping the Scheduled label, and the opponent name truncates at 390/320px. Visible in this candidate's captures; not fixed in this UI-Lab-only wave — owner decision (independent review M3). A UI-Lab-only identity line keeps full squad/opponent names readable below 600px.",
+        "E02-R6: XR-V02 is directionally demonstrated only — context preservation within this candidate is verified; the production Event Match Detail -> Live Reporting -> return journey is not (no such route, BLK-E02-02).",
+        "E02-R3 (#853, open, owner decision): the shared row prints unqualified 'FT' for played-no-report and draft-report rows."
+      ],
+      "approval": null
+    },
+    {
+      "scenarioId": "GATE-E-W2-E02-COMPLETED",
+      "status": "CANDIDATE",
+      "fixtureId": "gate-e-w2-e02-completed",
+      "fixtureVersion": 2,
+      "componentOwners": [
+        "src/lib/matches/match-presentation.ts",
+        "src/components/touchline/timeline/touchline-timeline.tsx",
+        "src/components/touchline/scorebook/scorebook-match-row.tsx",
+        "src/components/touchline/shell/touchline-page-header.tsx",
+        "src/components/ui/decision-banner.tsx",
+        "src/components/ui/tab-rail.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-projection.ts",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-schedule.ts",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-timeline-section.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/selected-match-context.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/shared/event-day-fixture-mount.tsx",
+        "src/app/dev/ui-lab/gate-e/e02-event-day/completed/page.tsx"
+      ],
+      "lifecycle": "production",
+      "assistantCoachState": "NOT_APPLICABLE",
+      "requirementRefs": [
+        "E02",
+        "XR-T01",
+        "XR-S01",
+        "XR-V02"
+      ],
+      "experienceContractRef": "docs/ui-lab/gate-e-w2-candidates/SCENARIO_REGISTER.md row GATE-E-W2-E02-COMPLETED",
+      "dataContractRef": "docs/ui-lab/gate-e-w2-candidates/DATA_TRUTH_AND_FIXTURES.md",
+      "baselineAssetRef": "NO_BASELINE_CAPABILITY for a rendered comparison — see CURRENT_STATE_AUDIT.md.",
+      "knownGaps": [
+        "BLK-E02-01: production labels the REPORTED (not locked) result as follow-up; the candidate shows it as a recorded result with a 'report not locked' caption.",
+        "The shared row prints 'FT' only for recorded results here; on other states it also prints 'FT' for report-missing/draft rows (shared matchPresentationPhase grammar, disclosed in TEMPORAL_AND_LIFECYCLE_AUDIT.md).",
+        "E02-R6: XR-V02 is directionally demonstrated only — context preservation within this candidate is verified; the production Event Match Detail -> Live Reporting -> return journey is not (no such route, BLK-E02-02)."
+      ],
+      "approval": null
+    }
+  ]
+}
